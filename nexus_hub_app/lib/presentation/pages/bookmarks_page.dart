@@ -23,10 +23,12 @@ class BookmarksPage extends StatefulWidget {
   State<BookmarksPage> createState() => _BookmarksPageState();
 }
 
+enum BookmarkView { grid, list, icons }
+
 class _BookmarksPageState extends State<BookmarksPage> {
   final _state = BookmarksState();
   final _filter = signal<String>('All');
-  final _isGridView = signal<bool>(true);
+  final _view = signal<BookmarkView>(BookmarkView.grid);
 
   static const _categories = [
     'All',
@@ -65,8 +67,8 @@ class _BookmarksPageState extends State<BookmarksPage> {
         children: [
           _Header(
             count: _state.bookmarks.value.length,
-            isGridView: _isGridView.value,
-            onViewChanged: (v) => _isGridView.value = v,
+            view: _view.value,
+            onViewChanged: (v) => _view.value = v,
             onAdd: () => _showAddDialog(context),
           ),
           const SizedBox(height: NexusSpacing.md),
@@ -107,9 +109,17 @@ class _BookmarksPageState extends State<BookmarksPage> {
                           if (visible.isEmpty) {
                             return const _EmptyState();
                           }
-                          return _isGridView.value
-                              ? _BookmarkGrid(bookmarks: visible)
-                              : _BookmarkList(bookmarks: visible);
+                          return switch (_view.value) {
+                            BookmarkView.grid => _BookmarkGrid(
+                              bookmarks: visible,
+                            ),
+                            BookmarkView.list => _BookmarkList(
+                              bookmarks: visible,
+                            ),
+                            BookmarkView.icons => _BookmarkIconGrid(
+                              bookmarks: visible,
+                            ),
+                          };
                         }),
                       ),
                     ],
@@ -144,14 +154,14 @@ class _BookmarksPageState extends State<BookmarksPage> {
 class _Header extends StatelessWidget {
   const _Header({
     required this.count,
-    required this.isGridView,
+    required this.view,
     required this.onViewChanged,
     required this.onAdd,
   });
 
   final int count;
-  final bool isGridView;
-  final ValueChanged<bool> onViewChanged;
+  final BookmarkView view;
+  final ValueChanged<BookmarkView> onViewChanged;
   final VoidCallback onAdd;
 
   @override
@@ -196,7 +206,7 @@ class _Header extends StatelessWidget {
         ),
         Row(
           children: [
-            _ViewToggle(isGrid: isGridView, onChanged: onViewChanged),
+            _ViewToggle(view: view, onChanged: onViewChanged),
             const SizedBox(width: NexusSpacing.sm),
             NexusButton(
               label: 'New Bookmark',
@@ -211,10 +221,10 @@ class _Header extends StatelessWidget {
 }
 
 class _ViewToggle extends StatelessWidget {
-  const _ViewToggle({required this.isGrid, required this.onChanged});
+  const _ViewToggle({required this.view, required this.onChanged});
 
-  final bool isGrid;
-  final ValueChanged<bool> onChanged;
+  final BookmarkView view;
+  final ValueChanged<BookmarkView> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -230,13 +240,18 @@ class _ViewToggle extends StatelessWidget {
         children: [
           _toggleButton(
             icon: Icons.grid_view,
-            active: isGrid,
-            onTap: () => onChanged(true),
+            active: view == BookmarkView.grid,
+            onTap: () => onChanged(BookmarkView.grid),
           ),
           _toggleButton(
             icon: Icons.view_list,
-            active: !isGrid,
-            onTap: () => onChanged(false),
+            active: view == BookmarkView.list,
+            onTap: () => onChanged(BookmarkView.list),
+          ),
+          _toggleButton(
+            icon: Icons.apps,
+            active: view == BookmarkView.icons,
+            onTap: () => onChanged(BookmarkView.icons),
           ),
         ],
       ),
@@ -679,6 +694,182 @@ class _BookmarkListRow extends StatelessWidget {
             icon: const Icon(Icons.open_in_new, size: 18),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BookmarkIconGrid extends StatelessWidget {
+  const _BookmarkIconGrid({required this.bookmarks});
+
+  final List<BookmarkModel> bookmarks;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final crossAxisCount = width < 400
+            ? 3
+            : width < 640
+            ? 4
+            : width < 900
+            ? 5
+            : 6;
+        return GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: NexusSpacing.sm,
+            mainAxisSpacing: NexusSpacing.sm,
+          ),
+          itemCount: bookmarks.length,
+          itemBuilder: (context, index) =>
+              _BookmarkIconItem(bookmark: bookmarks[index]),
+        );
+      },
+    );
+  }
+}
+
+class _BookmarkIconItem extends StatefulWidget {
+  const _BookmarkIconItem({required this.bookmark});
+
+  final BookmarkModel bookmark;
+
+  @override
+  State<_BookmarkIconItem> createState() => _BookmarkIconItemState();
+}
+
+class _BookmarkIconItemState extends State<_BookmarkIconItem> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Material(
+        color: _hovered
+            ? NexusColors.surfaceContainerHighest
+            : NexusColors.surfaceContainerLowest,
+        borderRadius: NexusRadii.xlRadius,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {},
+          borderRadius: NexusRadii.xlRadius,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: _hovered
+                    ? NexusColors.outline
+                    : NexusColors.outlineVariant.withValues(alpha: 0.4),
+              ),
+              borderRadius: NexusRadii.xlRadius,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _FaviconAvatar(bookmark: widget.bookmark, size: 40),
+                const SizedBox(height: NexusSpacing.sm),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    widget.bookmark.title,
+                    style: NexusTypography.labelMd.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    _domainOf(widget.bookmark.url),
+                    style: NexusTypography.labelSm.copyWith(
+                      color: NexusColors.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _domainOf(String url) {
+  final uri = Uri.tryParse(url);
+  return uri?.host ?? url;
+}
+
+class _FaviconAvatar extends StatelessWidget {
+  const _FaviconAvatar({required this.bookmark, required this.size});
+
+  final BookmarkModel bookmark;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final faviconUrl = bookmark.image.isNotEmpty
+        ? _faviconFromImage(bookmark.image)
+        : '';
+
+    if (faviconUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: NexusRadii.mdRadius,
+        child: Image.network(
+          faviconUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) =>
+              _FallbackAvatar(bookmark: bookmark, size: size),
+        ),
+      );
+    }
+    return _FallbackAvatar(bookmark: bookmark, size: size);
+  }
+
+  String _faviconFromImage(String imageUrl) {
+    final uri = Uri.tryParse(imageUrl);
+    if (uri == null) return '';
+    return uri.resolve('/favicon.ico').toString();
+  }
+}
+
+class _FallbackAvatar extends StatelessWidget {
+  const _FallbackAvatar({required this.bookmark, required this.size});
+
+  final BookmarkModel bookmark;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final letter = bookmark.title.isEmpty
+        ? '?'
+        : bookmark.title[0].toUpperCase();
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: NexusColors.primaryContainer,
+        borderRadius: NexusRadii.mdRadius,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: NexusTypography.headlineSm.copyWith(
+          color: NexusColors.onPrimaryContainer,
+          fontSize: size * 0.45,
+        ),
       ),
     );
   }
