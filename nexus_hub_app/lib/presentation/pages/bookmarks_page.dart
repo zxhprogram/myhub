@@ -11,6 +11,7 @@ import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import '../components/nexus_badge.dart';
 import '../components/nexus_button.dart';
+import '../components/nexus_category_select.dart';
 import '../components/nexus_chip_input.dart';
 import '../components/nexus_input.dart';
 import '../states/bookmarks_state.dart';
@@ -125,10 +126,17 @@ class _BookmarksPageState extends State<BookmarksPage> {
   }
 
   void _showAddDialog(BuildContext context) {
+    final categories = _state.bookmarks.value
+        .map((b) => b.category)
+        .where((c) => c.isNotEmpty)
+        .toSet()
+        .toList();
     showDialog(
       context: context,
-      builder: (context) =>
-          _AddBookmarkDialog(onSave: (bookmark) => _state.add(bookmark)),
+      builder: (context) => _AddBookmarkDialog(
+        categories: categories,
+        onSave: (bookmark) => _state.add(bookmark),
+      ),
     );
   }
 }
@@ -908,9 +916,10 @@ class _SidebarItem extends StatelessWidget {
 }
 
 class _AddBookmarkDialog extends StatefulWidget {
-  const _AddBookmarkDialog({required this.onSave});
+  const _AddBookmarkDialog({required this.onSave, required this.categories});
 
   final ValueChanged<BookmarkModel> onSave;
+  final List<String> categories;
 
   @override
   State<_AddBookmarkDialog> createState() => _AddBookmarkDialogState();
@@ -919,10 +928,10 @@ class _AddBookmarkDialog extends StatefulWidget {
 class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
   final _title = TextEditingController();
   final _url = TextEditingController();
-  final _category = TextEditingController();
   final _repo = BookmarkRepository();
 
   List<String> _tags = [];
+  String _category = '';
   String _image = '';
   bool _fetching = false;
   bool _titleEdited = false;
@@ -942,7 +951,6 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
     _debounce?.cancel();
     _title.dispose();
     _url.dispose();
-    _category.dispose();
     super.dispose();
   }
 
@@ -1016,13 +1024,10 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
                 onChanged: (tags) => setState(() => _tags = tags),
               ),
               const SizedBox(height: NexusSpacing.md),
-              NexusInput(
+              NexusCategorySelect(
                 labelText: 'Category',
-                controller: _category,
-                suffixIcon: IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.arrow_drop_down),
-                ),
+                categories: widget.categories,
+                onChanged: (value) => _category = value,
               ),
               if (_image.isNotEmpty) ...[
                 const SizedBox(height: NexusSpacing.md),
@@ -1058,7 +1063,7 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
                 title: _title.text,
                 url: _url.text,
                 tags: _tags,
-                category: _category.text,
+                category: _category,
                 image: _image,
                 createdAt: now,
                 updatedAt: now,
