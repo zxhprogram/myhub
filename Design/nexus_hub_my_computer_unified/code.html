@@ -1,0 +1,445 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Nexus Hub - My Computer Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "inverse-surface": "#213145",
+                "surface-container-high": "#dce9ff",
+                "on-primary-fixed-variant": "#3f465c",
+                "error-container": "#ffdad6",
+                "inverse-on-surface": "#eaf1ff",
+                "background": "#f8f9ff",
+                "on-surface": "#0b1c30",
+                "tertiary": "#000000",
+                "primary-fixed": "#dae2fd",
+                "surface-tint": "#565e74",
+                "on-tertiary-container": "#808488",
+                "on-surface-variant": "#45464d",
+                "on-primary": "#ffffff",
+                "on-error": "#ffffff",
+                "tertiary-fixed-dim": "#c3c7cb",
+                "on-tertiary": "#ffffff",
+                "primary-container": "#131b2e",
+                "tertiary-fixed": "#dfe3e7",
+                "primary-fixed-dim": "#bec6e0",
+                "inverse-primary": "#bec6e0",
+                "surface-container": "#e5eeff",
+                "surface": "#f8f9ff",
+                "on-secondary-fixed-variant": "#004395",
+                "surface-dim": "#cbdbf5",
+                "surface-container-lowest": "#ffffff",
+                "error": "#ba1a1a",
+                "on-background": "#0b1c30",
+                "outline-variant": "#c6c6cd",
+                "on-tertiary-fixed": "#171c1f",
+                "on-secondary-fixed": "#001a42",
+                "on-secondary": "#ffffff",
+                "secondary-container": "#2170e4",
+                "surface-container-low": "#eff4ff",
+                "secondary": "#0058be",
+                "surface-container-highest": "#d3e4fe",
+                "outline": "#76777d",
+                "on-primary-fixed": "#131b2e",
+                "on-primary-container": "#7c839b",
+                "on-error-container": "#93000a",
+                "surface-variant": "#d3e4fe",
+                "secondary-fixed": "#d8e2ff",
+                "tertiary-container": "#171c1f",
+                "on-tertiary-fixed-variant": "#43474b",
+                "surface-bright": "#f8f9ff",
+                "secondary-fixed-dim": "#adc6ff",
+                "primary": "#000000",
+                "on-secondary-container": "#fefcff"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "xl": "32px",
+                "md": "16px",
+                "gutter": "24px",
+                "xs": "4px",
+                "lg": "24px",
+                "sidebar_width": "280px",
+                "base": "8px",
+                "sm": "8px"
+        },
+        "fontFamily": {
+                "headline-sm": [
+                        "Inter"
+                ],
+                "headline-lg": [
+                        "Inter"
+                ],
+                "body-lg": [
+                        "Inter"
+                ],
+                "body-md": [
+                        "Inter"
+                ],
+                "headline-xl": [
+                        "Inter"
+                ],
+                "label-sm": [
+                        "Inter"
+                ],
+                "label-md": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "headline-sm": [
+                        "18px",
+                        {
+                                "lineHeight": "28px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-lg": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-lg": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-md": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-xl": [
+                        "30px",
+                        {
+                                "lineHeight": "36px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "label-sm": [
+                        "11px",
+                        {
+                                "lineHeight": "14px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "label-md": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.01em",
+                                "fontWeight": "500"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+</head>
+<body class="bg-surface text-on-surface font-body-md h-screen flex overflow-hidden">
+<!-- SideNavBar Component -->
+<nav class="hidden md:flex w-sidebar_width bg-surface-container-low text-on-surface flex-col h-full p-md gap-xs shrink-0 z-10 border-r border-outline-variant">
+<!-- Header -->
+<div class="px-md py-lg mb-lg">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-secondary-container">hub</span>
+</div>
+<div>
+<h1 class="text-headline-sm font-headline-sm text-on-surface">Nexus Hub</h1>
+<p class="text-label-md font-label-md text-on-surface-variant">Enterprise</p>
+</div>
+</div>
+</div>
+<!-- Navigation Tabs -->
+<ul class="flex flex-col gap-xs flex-1">
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="">Home</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="bookmark">bookmark</span>
+<span class="">Bookmarks</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="content_paste">content_paste</span>
+<span class="">Clipboard History</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span class="">DevTools</span>
+</a>
+</li>
+<li class="">
+<!-- Active State: Primary Container Styling -->
+<a class="flex items-center gap-md px-md py-sm bg-secondary-container text-on-secondary-container rounded-lg font-medium font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="computer" data-weight="fill" style="font-variation-settings: 'FILL' 1;">computer</span>
+<span class="">My Computer</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="code">code</span>
+<span class="">My GitHub</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="rss_feed">rss_feed</span>
+<span class="">RSS</span>
+</a>
+</li>
+</ul>
+<!-- Footer -->
+<div class="mt-auto border-t border-outline-variant pt-md">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-secondary-container text-sm" data-icon="person">person</span>
+</div>
+<div class="flex flex-col">
+<span class="text-label-md font-label-md text-on-surface">sunarya-thito</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant">m@gmail.com</span>
+</div>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col h-full overflow-hidden bg-surface">
+<!-- TopAppBar Component -->
+<header class="flex justify-between items-center px-gutter py-md border-b border-outline-variant bg-surface-container-lowest shrink-0">
+<div class="flex items-center gap-lg flex-1">
+<h2 class="text-headline-sm font-headline-sm text-on-surface whitespace-nowrap hidden sm:block">Productivity Hub</h2>
+<!-- Search Input -->
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full pl-xl pr-md py-sm rounded-full bg-surface-container-low border-none focus:ring-2 focus:ring-primary text-body-md font-body-md placeholder:text-on-surface-variant text-on-surface" placeholder="Search resources, apps..." type="text">
+<div class="absolute right-sm top-1/2 -translate-y-1/2 flex items-center gap-xs">
+<span class="px-xs py-[2px] bg-surface border border-outline-variant rounded text-label-sm font-label-sm text-on-surface-variant">⌘</span>
+<span class="px-xs py-[2px] bg-surface border border-outline-variant rounded text-label-sm font-label-sm text-on-surface-variant">K</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-md ml-auto shrink-0">
+<nav class="hidden md:flex items-center gap-md mr-md border-r border-outline-variant pr-md">
+<a class="text-body-md font-body-md text-on-surface-variant hover:text-on-surface transition-colors" href="#">Dashboard</a>
+<a class="text-body-md font-body-md text-on-surface-variant hover:text-on-surface transition-colors" href="#">Analytics</a>
+</nav>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden shrink-0 ml-sm border border-outline-variant cursor-pointer">
+<span class="material-symbols-outlined text-on-secondary-container text-sm">person</span>
+</div>
+</div>
+</header>
+<!-- Dashboard Content Container -->
+<div class="p-gutter max-w-[1440px] mx-auto w-full flex flex-col gap-gutter overflow-y-auto">
+<header class="mb-sm">
+<h2 class="text-headline-xl font-headline-xl text-on-surface">My Computer</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-xs">Real-time telemetry and hardware utilization.</p>
+</header>
+<!-- Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Keyboard Usage Card (Level 2 Elevation) -->
+<section class="lg:col-span-6 bg-surface-container-lowest border border-outline-variant rounded-2xl p-lg flex flex-col gap-md shadow-sm">
+<div class="flex justify-between items-center">
+<h3 class="text-headline-sm font-headline-sm text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface">keyboard</span>
+                            Keyboard Usage
+                        </h3>
+<span class="px-sm py-1 bg-surface-container-low rounded-full text-label-sm font-label-sm text-on-surface-variant uppercase tracking-widest font-semibold">Today</span>
+</div>
+<div class="flex items-end gap-sm">
+<span class="text-[40px] leading-none font-semibold text-on-surface tracking-tight">14,289</span>
+<span class="text-body-md font-body-md text-on-surface-variant mb-1">Total Strokes</span>
+</div>
+<div class="mt-xs">
+<h4 class="text-label-sm font-label-sm text-on-surface-variant mb-sm uppercase tracking-wider">Top 5 Keys</h4>
+<div class="flex gap-sm">
+<div class="flex-1 rounded-lg bg-surface-container-low border border-outline-variant/50 p-sm flex flex-col items-center justify-center gap-1">
+<span class="text-body-md font-body-md text-on-surface font-medium">Cmd</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant">1.2k</span>
+</div>
+<div class="flex-1 rounded-lg bg-surface-container-low border border-outline-variant/50 p-sm flex flex-col items-center justify-center gap-1">
+<span class="text-body-md font-body-md text-on-surface font-medium">Space</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant">980</span>
+</div>
+<div class="flex-1 rounded-lg bg-surface-container-low border border-outline-variant/50 p-sm flex flex-col items-center justify-center gap-1">
+<span class="text-body-md font-body-md text-on-surface font-medium">E</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant">845</span>
+</div>
+<div class="flex-1 rounded-lg bg-surface-container-low border border-outline-variant/50 p-sm flex flex-col items-center justify-center gap-1">
+<span class="text-body-md font-body-md text-on-surface font-medium">T</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant">720</span>
+</div>
+<div class="flex-1 rounded-lg bg-surface-container-low border border-outline-variant/50 p-sm flex flex-col items-center justify-center gap-1">
+<span class="text-body-md font-body-md text-on-surface font-medium">A</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant">690</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Mouse Usage Card -->
+<section class="lg:col-span-6 bg-surface-container-lowest border border-outline-variant rounded-2xl p-lg flex flex-col gap-md shadow-sm">
+<div class="flex justify-between items-center">
+<h3 class="text-headline-sm font-headline-sm text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface">mouse</span>
+                            Mouse Usage
+                        </h3>
+<span class="px-sm py-1 bg-surface-container-low rounded-full text-label-sm font-label-sm text-on-surface-variant uppercase tracking-widest font-semibold">Today</span>
+</div>
+<div class="flex justify-between items-end">
+<div class="flex flex-col gap-xs">
+<span class="text-[40px] leading-none font-semibold text-on-surface tracking-tight">3,450</span>
+<span class="text-body-md font-body-md text-on-surface-variant">Total Clicks</span>
+</div>
+<div class="flex flex-col gap-xs items-end">
+<span class="text-[40px] leading-none font-semibold text-on-surface tracking-tight">2.4 km</span>
+<span class="text-body-md font-body-md text-on-surface-variant">Scroll Distance</span>
+</div>
+</div>
+<!-- Mini Heatmap Placeholder (CSS Graphic) -->
+<div class="w-full h-[76px] rounded-lg bg-surface-container-low border border-outline-variant/50 mt-sm relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-surface-variant to-transparent opacity-50"></div>
+<div class="absolute top-1/4 left-1/4 w-10 h-10 bg-error/20 rounded-full blur-md"></div>
+<div class="absolute top-1/2 left-1/2 w-16 h-16 bg-primary/20 rounded-full blur-lg"></div>
+<div class="absolute bottom-1/4 right-1/4 w-8 h-8 bg-secondary/20 rounded-full blur-md"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-widest bg-surface-container-lowest/90 px-3 py-1.5 rounded backdrop-blur-sm border border-outline-variant/50 font-semibold shadow-sm">Activity Heatmap</span>
+</div>
+</div>
+</section>
+<!-- Network Traffic Card (Full Width) -->
+<section class="lg:col-span-12 bg-surface-container-lowest border border-outline-variant rounded-2xl p-lg flex flex-col gap-md shadow-sm">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-headline-sm font-headline-sm text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface">wifi</span>
+                                Network Traffic
+                            </h3>
+<p class="text-body-md font-body-md text-on-surface-variant mt-xs">Real-time upload and download metrics.</p>
+</div>
+<div class="flex gap-md">
+<span class="flex items-center gap-2 text-label-md font-label-md text-on-surface-variant"><div class="w-2.5 h-2.5 rounded-full bg-secondary"></div> Download (45 MB/s)</span>
+<span class="flex items-center gap-2 text-label-md font-label-md text-on-surface-variant"><div class="w-2.5 h-2.5 rounded-full bg-primary-container"></div> Upload (12 MB/s)</span>
+</div>
+</div>
+<!-- Chart Placeholder using borders and gradients to simulate line chart -->
+<div class="w-full h-48 border-b border-l border-outline-variant relative mt-md flex items-end ml-sm">
+<div class="w-full h-full absolute inset-0 flex flex-col justify-between">
+<div class="w-full border-t border-outline-variant/30 border-dashed h-0"></div>
+<div class="w-full border-t border-outline-variant/30 border-dashed h-0"></div>
+<div class="w-full border-t border-outline-variant/30 border-dashed h-0"></div>
+<div class="w-full border-t border-outline-variant/30 border-dashed h-0"></div>
+</div>
+<!-- Simulated lines using SVGs inline -->
+<svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+<path d="M0,80 Q10,70 20,85 T40,60 T60,75 T80,40 T100,50" fill="none" stroke="#0058be" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+<path d="M0,80 Q10,70 20,85 T40,60 T60,75 T80,40 T100,50 L100,100 L0,100 Z" fill="url(#grad1)" opacity="0.2"></path>
+<path d="M0,90 Q15,95 30,85 T50,90 T70,80 T90,85 T100,70" fill="none" stroke="#131b2e" stroke-dasharray="4" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
+<defs>
+<linearGradient id="grad1" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:#0058be;stop-opacity:1"></stop>
+<stop offset="100%" style="stop-color:#0058be;stop-opacity:0"></stop>
+</linearGradient>
+</defs>
+</svg>
+</div>
+</section>
+<!-- App Usage Card -->
+<section class="lg:col-span-12 bg-surface-container-lowest border border-outline-variant rounded-2xl p-lg flex flex-col gap-md shadow-sm mb-lg">
+<h3 class="text-headline-sm font-headline-sm text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface">apps</span>
+                        App Usage
+                    </h3>
+<div class="flex flex-col gap-lg mt-sm">
+<!-- App Row 1 -->
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-surface-container-low border border-outline-variant/50 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">code</span>
+</div>
+<div class="flex-1 flex flex-col gap-2">
+<div class="flex justify-between">
+<span class="text-body-md font-body-md text-on-surface font-medium">VS Code</span>
+<span class="text-body-md font-body-md text-on-surface-variant">4h 12m (45%)</span>
+</div>
+<div class="w-full bg-surface-container-low rounded-full h-2">
+<div class="bg-secondary h-2 rounded-full" style="width: 45%"></div>
+</div>
+</div>
+</div>
+<!-- App Row 2 -->
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-surface-container-low border border-outline-variant/50 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">language</span>
+</div>
+<div class="flex-1 flex flex-col gap-2">
+<div class="flex justify-between">
+<span class="text-body-md font-body-md text-on-surface font-medium">Chrome</span>
+<span class="text-body-md font-body-md text-on-surface-variant">2h 30m (30%)</span>
+</div>
+<div class="w-full bg-surface-container-low rounded-full h-2">
+<div class="bg-primary-container h-2 rounded-full" style="width: 30%"></div>
+</div>
+</div>
+</div>
+<!-- App Row 3 -->
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-surface-container-low border border-outline-variant/50 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">terminal</span>
+</div>
+<div class="flex-1 flex flex-col gap-2">
+<div class="flex justify-between">
+<span class="text-body-md font-body-md text-on-surface font-medium">Terminal</span>
+<span class="text-body-md font-body-md text-on-surface-variant">1h 15m (15%)</span>
+</div>
+<div class="w-full bg-surface-container-low rounded-full h-2">
+<div class="bg-surface-tint h-2 rounded-full" style="width: 15%"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+
+
+</body></html>

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nexus Hub - New Task</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#f8f9ff",
+                        "on-tertiary-container": "#808488",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#2170e4",
+                        "on-secondary-container": "#fefcff",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-tertiary-fixed": "#171c1f",
+                        "tertiary": "#000000",
+                        "on-surface": "#0b1c30",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary-fixed": "#131b2e",
+                        "on-error": "#ffffff",
+                        "tertiary-container": "#171c1f",
+                        "primary": "#000000",
+                        "background": "#f8f9ff",
+                        "on-surface-variant": "#45464d",
+                        "primary-container": "#131b2e",
+                        "inverse-on-surface": "#eaf1ff",
+                        "tertiary-fixed": "#dfe3e7",
+                        "inverse-surface": "#213145",
+                        "outline-variant": "#c6c6cd",
+                        "surface-container-high": "#dce9ff",
+                        "primary-fixed": "#dae2fd",
+                        "secondary-fixed": "#d8e2ff",
+                        "inverse-primary": "#bec6e0",
+                        "outline": "#76777d",
+                        "on-tertiary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed": "#001a42",
+                        "on-primary-container": "#7c839b",
+                        "secondary": "#0058be",
+                        "surface-container": "#e5eeff",
+                        "surface": "#f8f9ff",
+                        "surface-dim": "#cbdbf5",
+                        "surface-tint": "#565e74",
+                        "surface-container-low": "#eff4ff",
+                        "error": "#ba1a1a",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "on-secondary-fixed-variant": "#004395",
+                        "primary-fixed-dim": "#bec6e0",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed-dim": "#c3c7cb",
+                        "on-background": "#0b1c30",
+                        "on-tertiary-fixed-variant": "#43474b",
+                        "on-error-container": "#93000a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "gutter": "24px",
+                        "base": "8px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "sidebar_width": "280px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "headline-xl": ["30px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "headline-sm": ["18px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        .modal-overlay {
+            backdrop-filter: blur(4px);
+            background-color: rgba(11, 28, 48, 0.4);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-surface-bright text-on-surface h-screen flex flex-col overflow-hidden">
+<!-- Top Navigation Bar -->
+<header class="flex justify-between items-center w-full h-16 px-gutter ml-sidebar_width max-w-[calc(100%-theme(spacing.sidebar_width))] bg-surface dark:bg-surface-dim border-b border-outline-variant fixed top-0 z-10">
+<div class="flex items-center gap-md">
+<div class="relative">
+<span class="absolute inset-y-0 left-3 flex items-center text-outline pointer-events-none">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-secondary focus:outline-none w-64" placeholder="Search tasks..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-lg">
+<button class="text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A clean, professional headshot of a user for a profile avatar. The person has a friendly expression and is set against a soft, neutral, light-mode background. The lighting is bright and modern, matching a minimalist corporate aesthetic with subtle blue and grey tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvJg9E86RNbEz53cUxqnIufKBkPII4ynrGaXLODu08WA8YWXs1iEA2aiaFcKw4CjxZoYu7RioEXPIOaj_n8DNJ3M_aHD5OLQAal4_zoDC1_s1ECcMOOCGVi6G39Z5_hXbWyBzb4IK14swyYLKTv8ActIU-0vmwxYK_T_v8fybSAP8vl_fWfncO4B9-f92wG5QBamX9L3kNrIoLWZc2b3cN4GrOTivlaBIc6DsCtQbt5MPPToOSPfoMQQtayYa3KkXC0knpWnZihqM"/>
+</div>
+</div>
+</header>
+<!-- Side Navigation Bar -->
+<nav class="fixed left-0 top-0 h-full w-sidebar_width bg-white border-r border-outline-variant flex flex-col p-md gap-xs z-20">
+<div class="mb-xl px-2">
+<h1 class="text-headline-lg font-headline-lg font-bold text-on-surface">Nexus Hub</h1>
+<p class="text-label-md font-label-md text-on-primary-container">Personal Productivity</p>
+</div>
+<div class="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
+<!-- Navigation Items Mapping from JSON -->
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-md text-label-md">Home</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-on-background text-on-primary rounded-lg font-bold transition-all duration-150" href="#">
+<span class="material-symbols-outlined">assignment</span>
+<span class="font-label-md text-label-md">Board</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">bookmark</span>
+<span class="font-label-md text-label-md">Bookmarks</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span class="font-label-md text-label-md">DevTools</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">chat</span>
+<span class="font-label-md text-label-md">AI Chat</span>
+</a>
+</div>
+<div class="mt-auto pt-md border-t border-outline-variant space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-md text-label-md">Help</span>
+</a>
+</div>
+</nav>
+<!-- Main Content (Simulated Kanban Board Background) -->
+<main class="ml-sidebar_width mt-16 p-lg flex-1 overflow-x-auto bg-surface-bright">
+<div class="flex gap-lg h-full pb-md">
+<!-- Simulated Columns -->
+<div class="flex-shrink-0 w-80 flex flex-col gap-md">
+<div class="flex justify-between items-center px-xs">
+<h3 class="font-headline-sm text-headline-sm flex items-center gap-2">Backlog <span class="text-on-primary-container text-body-md font-normal">4</span></h3>
+<button class="material-symbols-outlined text-outline">more_horiz</button>
+</div>
+<div class="flex-1 flex flex-col gap-md">
+<div class="bg-white p-md rounded-xl border border-outline-variant shadow-sm">
+<div class="w-full h-2 bg-surface-container rounded-full mb-3"></div>
+<p class="text-body-md font-medium mb-4">Update branding guidelines for Q3 release</p>
+<div class="flex justify-between items-center">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full border-2 border-white bg-slate-200"></div>
+</div>
+<span class="text-label-sm text-outline-variant">Jun 12</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 w-80 flex flex-col gap-md">
+<div class="flex justify-between items-center px-xs">
+<h3 class="font-headline-sm text-headline-sm flex items-center gap-2">To Do <span class="text-on-primary-container text-body-md font-normal">2</span></h3>
+<button class="material-symbols-outlined text-outline">more_horiz</button>
+</div>
+<div class="bg-white p-md rounded-xl border border-outline-variant shadow-sm h-32 border-dashed flex items-center justify-center text-outline">
+<span class="material-symbols-outlined mr-2">add</span>
+<span class="font-label-md">Add a card</span>
+</div>
+</div>
+<div class="flex-shrink-0 w-80 flex flex-col gap-md">
+<div class="flex justify-between items-center px-xs">
+<h3 class="font-headline-sm text-headline-sm flex items-center gap-2">In Progress <span class="text-on-primary-container text-body-md font-normal">1</span></h3>
+<button class="material-symbols-outlined text-outline">more_horiz</button>
+</div>
+<div class="bg-white p-md rounded-xl border border-outline-variant shadow-sm border-l-4 border-l-secondary">
+<p class="text-body-md font-medium">Developing API endpoints for mobile app</p>
+</div>
+</div>
+</div>
+</main>
+<!-- NEW TASK MODAL (Active State) -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-md" id="new-task-modal">
+<!-- Backdrop -->
+<div class="absolute inset-0 modal-overlay" onclick="toggleModal()"></div>
+<!-- Modal Container -->
+<div class="relative bg-white dark:bg-inverse-surface w-full max-w-[560px] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+<!-- Modal Header -->
+<div class="flex items-center justify-between px-lg py-md border-b border-outline-variant">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Create New Task</h2>
+<button class="p-2 hover:bg-surface-container-low rounded-full transition-colors" onclick="toggleModal()">
+<span class="material-symbols-outlined text-on-surface-variant">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<div class="p-lg overflow-y-auto max-h-[716px] custom-scrollbar">
+<form class="space-y-lg" id="create-task-form">
+<!-- Task Title -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="task-title">Task Title</label>
+<input class="w-full px-md py-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all placeholder:text-outline-variant" id="task-title" placeholder="e.g. Design system audit" type="text"/>
+</div>
+<!-- Description -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="task-desc">Description</label>
+<textarea class="w-full px-md py-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all resize-none placeholder:text-outline-variant" id="task-desc" placeholder="Briefly describe the task objectives..." rows="4"></textarea>
+</div>
+<!-- Grid Layout for Selectors -->
+<div class="grid grid-cols-2 gap-lg">
+<!-- Column Selection -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="task-column">Column</label>
+<div class="relative">
+<select class="w-full pl-md pr-10 py-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md appearance-none focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all" id="task-column">
+<option>Backlog</option>
+<option selected="">To Do</option>
+<option>In Progress</option>
+<option>Done</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-outline">expand_more</span>
+</div>
+</div>
+<!-- Priority -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="task-priority">Priority</label>
+<div class="relative">
+<select class="w-full pl-md pr-10 py-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md appearance-none focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all" id="task-priority">
+<option value="p1">P1 - High</option>
+<option selected="" value="p2">P2 - Medium</option>
+<option value="p3">P3 - Low</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-outline">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Tags (Multi-select simulation) -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Tags</label>
+<div class="flex flex-wrap gap-2 p-md border border-outline-variant rounded-lg bg-surface-container-lowest min-h-[48px]">
+<span class="inline-flex items-center gap-1 px-2 py-1 bg-surface-container-high rounded text-label-md text-on-surface">
+                                Design <button class="material-symbols-outlined text-[14px]" type="button">close</button>
+</span>
+<span class="inline-flex items-center gap-1 px-2 py-1 bg-surface-container-high rounded text-label-md text-on-surface">
+                                Research <button class="material-symbols-outlined text-[14px]" type="button">close</button>
+</span>
+<button class="inline-flex items-center px-2 py-1 border border-dashed border-outline-variant rounded text-label-md text-on-surface-variant hover:border-secondary hover:text-secondary transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] mr-1">add</span> Add tag
+                            </button>
+</div>
+</div>
+<!-- Due Date -->
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="task-date">Due Date</label>
+<div class="relative">
+<input class="w-full pl-md pr-10 py-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all" id="task-date" type="date"/>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-outline">calendar_today</span>
+</div>
+</div>
+</form>
+</div>
+<!-- Modal Footer Actions -->
+<div class="flex items-center justify-end gap-md px-lg py-md bg-surface-container-low border-t border-outline-variant">
+<button class="px-lg py-2.5 rounded-lg font-label-md text-label-md text-on-surface hover:bg-surface-container-high transition-colors" onclick="toggleModal()">
+                    Cancel
+                </button>
+<button class="px-xl py-2.5 rounded-lg bg-primary text-white font-label-md text-label-md shadow-lg shadow-primary-container/20 hover:opacity-90 active:scale-[0.98] transition-all" form="create-task-form" type="submit">
+                    Create Task
+                </button>
+</div>
+</div>
+</div>
+<!-- Micro-interactions Script -->
+<script>
+        function toggleModal() {
+            const modal = document.getElementById('new-task-modal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        document.getElementById('create-task-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            // Handle form submission logic here
+            toggleModal();
+        });
+
+        // Add visual feedback to input focus
+        const inputs = document.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                input.parentElement.querySelector('label')?.classList.add('text-secondary');
+            });
+            input.addEventListener('blur', () => {
+                input.parentElement.querySelector('label')?.classList.remove('text-secondary');
+            });
+        });
+    </script>
+</body></html>

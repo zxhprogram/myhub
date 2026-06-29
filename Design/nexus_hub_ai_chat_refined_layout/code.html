@@ -1,0 +1,237 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Nexus Hub - AI Chat</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface": "#f8f9ff",
+                    "secondary-container": "#2170e4",
+                    "outline-variant": "#c6c6cd",
+                    "inverse-on-surface": "#eaf1ff",
+                    "on-primary-container": "#7c839b",
+                    "inverse-primary": "#bec6e0",
+                    "tertiary": "#000000",
+                    "on-background": "#0b1c30",
+                    "background": "#f8f9ff",
+                    "surface-container": "#e5eeff",
+                    "on-primary": "#ffffff",
+                    "surface-variant": "#d3e4fe",
+                    "surface-container-lowest": "#ffffff",
+                    "on-surface": "#0b1c30",
+                    "tertiary-fixed": "#dfe3e7",
+                    "secondary-fixed-dim": "#adc6ff",
+                    "on-tertiary-fixed-variant": "#43474b",
+                    "on-secondary-fixed-variant": "#004395",
+                    "on-primary-fixed": "#131b2e",
+                    "secondary": "#0058be",
+                    "primary": "#000000",
+                    "surface-bright": "#f8f9ff",
+                    "primary-fixed": "#dae2fd",
+                    "surface-dim": "#cbdbf5",
+                    "on-tertiary-container": "#808488",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#565e74",
+                    "on-surface-variant": "#45464d",
+                    "surface-container-highest": "#d3e4fe",
+                    "on-primary-fixed-variant": "#3f465c",
+                    "on-secondary-fixed": "#001a42",
+                    "secondary-fixed": "#d8e2ff",
+                    "surface-container-high": "#dce9ff",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-container": "#171c1f",
+                    "on-error-container": "#93000a",
+                    "inverse-surface": "#213145",
+                    "on-error": "#ffffff",
+                    "on-tertiary-fixed": "#171c1f",
+                    "on-secondary-container": "#fefcff",
+                    "surface-container-low": "#eff4ff",
+                    "tertiary-fixed-dim": "#c3c7cb",
+                    "error": "#ba1a1a",
+                    "primary-fixed-dim": "#bec6e0",
+                    "primary-container": "#131b2e",
+                    "outline": "#76777d",
+                    "on-secondary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "lg": "24px",
+                    "xs": "4px",
+                    "sm": "8px",
+                    "gutter": "24px",
+                    "base": "8px",
+                    "xl": "32px",
+                    "sidebar_width": "280px"
+            },
+            "fontFamily": {
+                    "headline-sm": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-md": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-sm": ["18px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-xl": ["30px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    </style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" data-snapdom="injected-import"></head>
+<body class="bg-background text-on-surface font-body-md antialiased overflow-hidden flex">
+<!-- SideNavBar (Shared Component) -->
+<nav class="hidden md:flex w-sidebar_width h-screen border-r border-outline-variant bg-surface flex-col h-full p-md gap-xs shrink-0 fixed left-0 top-0 z-20 bg-surface-container-low">
+<!-- Header -->
+<div class="px-md py-lg mb-lg"><div class="flex items-center gap-md"><div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-secondary-container"><span class="material-symbols-outlined text-on-secondary-container">hub</span></div><div><h1 class="text-headline-sm font-headline-sm text-on-surface dark:text-inverse-on-surface">Nexus Hub</h1><p class="text-label-md font-label-md text-on-surface-variant">Enterprise</p></div></div></div>
+<!-- New Chat Button -->
+<!-- Main Tabs -->
+<ul class="flex flex-col gap-xs flex-1 overflow-y-auto">
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="">Home</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="bookmark">bookmark</span>
+<span class="">Bookmarks</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="content_paste">content_paste</span>
+<span class="">Clipboard History</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span class="">DevTools</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="computer">computer</span>
+<span class="">My Computer</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="code">code</span>
+<span class="">My GitHub</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="rss_feed">rss_feed</span>
+<span class="">RSS</span>
+</a>
+</li><li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg bg-surface-container-high text-secondary transition-colors font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="chat">chat</span>
+<span class="">AI Chat</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+
+</a>
+</li></ul>
+<!-- Footer Profile/Settings -->
+<div class="mt-auto border-t border-outline-variant pt-md"><a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface hover:bg-surface-container-high transition-colors font-body-md text-body-md" href="#">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-secondary-container text-sm" data-icon="person">person</span>
+</div>
+<div class="flex flex-col">
+<span class="text-label-md font-label-md text-on-surface">sunarya-thito</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant">m@gmail.com</span>
+</div>
+</a></div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex min-h-screen md:ml-sidebar_width relative bg-background ml-[256px] flex-row"><aside class="w-64 h-full border-r border-outline-variant bg-surface-container-lowest flex flex-col p-md gap-4 shrink-0">
+<div class="pt-4">
+<button class="flex items-center justify-center gap-2 w-full px-md py-3 bg-secondary-container text-on-secondary-container rounded-xl hover:opacity-90 transition-all font-semibold shadow-sm">
+<span class="material-symbols-outlined text-[20px]">add</span>
+<span class="">New Chat</span>
+</button>
+</div>
+<div class="flex flex-col gap-1 overflow-y-auto">
+<span class="px-2 py-2 text-label-sm font-semibold text-on-surface-variant uppercase tracking-wider">Recent Chats</span>
+<a class="px-3 py-2 rounded-lg hover:bg-surface-container-high text-body-md text-on-surface truncate transition-colors" href="#">Catchy description request</a>
+<a class="px-3 py-2 rounded-lg hover:bg-surface-container-high text-body-md text-on-surface truncate transition-colors" href="#">IELTS Speaking Mock Test</a>
+<a class="px-3 py-2 rounded-lg hover:bg-surface-container-high text-body-md text-on-surface truncate transition-colors" href="#">Hotkey Command List</a>
+</div>
+</aside>
+<div class="flex-1 flex flex-col h-screen overflow-hidden">
+<header class="bg-surface dark:bg-surface-dim border-b border-outline-variant flex justify-between items-center w-full h-16 px-gutter shrink-0">
+<div class="flex items-center gap-4">
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold flex items-center gap-2">
+AI Chat
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant" data-icon="expand_more">expand_more</span>
+</h2>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low text-secondary border border-secondary-fixed hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[16px]" data-icon="card_giftcard">card_giftcard</span>
+<span class="font-label-sm text-label-sm font-semibold">Free Version</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-variant border border-outline-variant flex items-center justify-center cursor-pointer hover:ring-2 ring-secondary-container ring-offset-2 transition-all">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant" data-icon="person">person</span>
+</div>
+</div>
+</header>
+<main class="flex-1 flex flex-col justify-center items-center p-6 relative overflow-y-auto">
+<div class="text-center w-full max-w-2xl mb-24">
+<h2 class="font-headline-xl text-headline-xl text-on-surface mb-2 font-semibold">
+How can I help you today?
+</h2>
+</div>
+<div class="absolute bottom-12 w-full px-6 flex justify-center">
+<div class="w-full max-w-3xl bg-white border border-outline-variant rounded-full shadow-sm flex items-center p-2 pl-4 focus-within:ring-2 focus-within:ring-secondary-container focus-within:border-transparent transition-all">
+<button class="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors flex-shrink-0">
+<span class="material-symbols-outlined text-[24px]" data-icon="add">add</span>
+</button>
+<input aria-label="Chat input" class="flex-1 bg-transparent border-none focus:ring-0 px-3 font-body-lg text-body-lg text-on-surface placeholder-on-surface-variant outline-none" placeholder="Ask me anything..." type="text">
+<div class="flex items-center gap-1 pr-1">
+<button class="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors flex-shrink-0">
+<span class="material-symbols-outlined text-[24px]" data-icon="mic">mic</span>
+</button>
+<button class="p-2.5 rounded-full bg-on-background text-on-primary hover:bg-primary hover:opacity-90 transition-all flex-shrink-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" data-icon="graphic_eq" data-weight="fill" style="font-variation-settings: &quot;FILL&quot; 1;">graphic_eq</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</div></div>
+
+
+</body></html>

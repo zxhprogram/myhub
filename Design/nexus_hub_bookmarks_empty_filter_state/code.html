@@ -1,0 +1,320 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Nexus Hub - Bookmarks</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9ff;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        /* Custom scrollbar for sidebar */
+        .sidebar-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary-container": "#2170e4",
+                      "inverse-on-surface": "#eaf1ff",
+                      "error": "#ba1a1a",
+                      "outline": "#76777d",
+                      "on-surface-variant": "#45464d",
+                      "on-error": "#ffffff",
+                      "secondary": "#0058be",
+                      "tertiary-fixed-dim": "#c3c7cb",
+                      "secondary-fixed": "#d8e2ff",
+                      "on-background": "#0b1c30",
+                      "outline-variant": "#c6c6cd",
+                      "tertiary-fixed": "#dfe3e7",
+                      "secondary-fixed-dim": "#adc6ff",
+                      "surface-container-highest": "#d3e4fe",
+                      "surface-container-lowest": "#ffffff",
+                      "primary-fixed": "#dae2fd",
+                      "on-error-container": "#93000a",
+                      "primary-container": "#131b2e",
+                      "primary": "#000000",
+                      "on-tertiary-fixed-variant": "#43474b",
+                      "error-container": "#ffdad6",
+                      "on-tertiary-fixed": "#171c1f",
+                      "surface-container": "#e5eeff",
+                      "on-surface": "#0b1c30",
+                      "on-primary-container": "#7c839b",
+                      "on-secondary": "#ffffff",
+                      "surface": "#f8f9ff",
+                      "primary-fixed-dim": "#bec6e0",
+                      "tertiary": "#000000",
+                      "on-primary": "#ffffff",
+                      "on-tertiary-container": "#808488",
+                      "on-secondary-container": "#fefcff",
+                      "on-secondary-fixed-variant": "#004395",
+                      "on-tertiary": "#ffffff",
+                      "surface-dim": "#cbdbf5",
+                      "inverse-primary": "#bec6e0",
+                      "tertiary-container": "#171c1f",
+                      "surface-container-low": "#eff4ff",
+                      "background": "#f8f9ff",
+                      "surface-bright": "#f8f9ff",
+                      "on-primary-fixed": "#131b2e",
+                      "surface-variant": "#d3e4fe",
+                      "on-primary-fixed-variant": "#3f465c",
+                      "surface-tint": "#565e74",
+                      "surface-container-high": "#dce9ff",
+                      "inverse-surface": "#213145",
+                      "on-secondary-fixed": "#001a42"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "xl": "32px",
+                      "gutter": "24px",
+                      "lg": "24px",
+                      "base": "8px",
+                      "xs": "4px",
+                      "sm": "8px",
+                      "sidebar_width": "280px"
+              },
+              "fontFamily": {
+                      "label-sm": ["Inter"],
+                      "headline-sm": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "headline-xl": ["Inter"],
+                      "label-md": ["Inter"],
+                      "body-lg": ["Inter"]
+              },
+              "fontSize": {
+                      "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "headline-sm": ["18px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                      "headline-xl": ["30px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface">
+<!-- SideNavBar Anchor -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-white border-r border-outline-variant flex flex-col p-4 gap-1 z-30">
+<!-- Brand Header -->
+<div class="flex items-center gap-3 px-2 py-4 mb-4">
+<div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary-container" style="font-variation-settings: &quot;FILL&quot; 1;">hub</span>
+</div>
+<div>
+<h1 class="font-headline-sm text-headline-sm font-bold text-on-surface">Nexus Hub</h1>
+<p class="font-label-md text-label-md text-on-primary-container">Productivity Workspace</p>
+</div>
+</div>
+<!-- CTA -->
+
+<!-- Navigation Tabs -->
+<nav class="flex-1 sidebar-scroll overflow-y-auto flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="home">home</span>
+<span class="font-label-md text-label-md">Home</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-secondary text-on-secondary rounded-lg font-bold transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="bookmark" style="font-variation-settings: &quot;FILL&quot; 1;">bookmark</span>
+<span class="font-label-md text-label-md">Bookmarks</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="history">history</span>
+<span class="font-label-md text-label-md">Clipboard History</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="terminal">terminal</span>
+<span class="font-label-md text-label-md">DevTools</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="computer">computer</span>
+<span class="font-label-md text-label-md">My Computer</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="code">code</span>
+<span class="font-label-md text-label-md">My GitHub</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="rss_feed">rss_feed</span>
+<span class="font-label-md text-label-md">RSS</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="show_chart">show_chart</span>
+<span class="font-label-md text-label-md">Stocks</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="smart_toy">smart_toy</span>
+<span class="font-label-md text-label-md">AI Chat</span>
+</a>
+</nav>
+<!-- Footer Tabs -->
+<div class="mt-auto border-t border-outline-variant pt-4 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="help">help</span>
+<span class="font-label-md text-label-md">Help</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container rounded-lg transition-all duration-200 text-error" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="logout">logout</span>
+<span class="font-label-md text-label-md">Sign Out</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[280px] min-h-screen flex flex-col">
+<!-- TopNavBar Anchor -->
+<header class="h-16 bg-surface flex justify-between items-center w-full px-gutter border-b border-outline-variant sticky top-0 z-20">
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline text-[20px]">search</span>
+</span>
+<input class="bg-surface-container-low border-none rounded-full pl-10 pr-4 py-2 w-64 font-body-md text-body-md focus:ring-2 focus:ring-secondary/20 transition-all outline-none" placeholder="Search bookmarks..." type="text">
+</div>
+<nav class="hidden lg:flex items-center gap-8">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-secondary transition-colors" href="#">Dashboard</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-secondary transition-colors" href="#">Analytics</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container rounded-full transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant mx-1"></div>
+<div class="flex items-center gap-3 cursor-pointer hover:bg-surface-container-low p-1 rounded-full pr-3 transition-colors">
+<div class="w-8 h-8 rounded-full overflow-hidden bg-secondary-fixed">
+<img class="w-full h-full object-cover" data-alt="A professional user profile portrait in a minimalist, modern light-mode interface. The lighting is soft and corporate, highlighting clean skin tones and a friendly expression. The background is a soft, out-of-focus office space in shades of slate and white, maintaining a high-end utilitarian aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBn2bo5X75c1fovUdHlbjjiX6Q05Pl4zIBTAaRphjVRzD1AXn59KL94DnbcAK6UW9m9I4NhML9LqDO5KYRtvOaLOQlj6WPlRsLV01EVmdQ7XF2DEPYslElqmB-IP4d3N6NGpNT5B63Vz-1QndVSnjPHz8QLQIOQEE5a5iuCxHJyer73ZprwKnvZazKIOY7rVwl3vZwEiSW8W6tEf8DhGpS98VRVpXlKGXScaolRXCM1mcuKMkj2bemVdOCStvnJh4DPX3I3T4MLB7g">
+</div>
+<span class="font-label-md text-label-md text-on-surface">Alex Rivera</span>
+</div>
+</div>
+</header>
+<!-- Viewport Content -->
+<div class="p-gutter flex-1 flex flex-col">
+<!-- Context Header -->
+<div class="flex justify-between items-end mb-8">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-1">Bookmarks</h2>
+<p class="text-on-surface-variant font-body-md">Manage and organize your saved resources and inspiration.</p>
+</div>
+<div class="flex gap-3">
+<div class="flex items-center bg-white border border-outline-variant rounded-lg p-1">
+<button class="px-3 py-1.5 bg-surface-container text-secondary font-label-md text-label-md rounded-md">All</button>
+<button class="px-3 py-1.5 text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low rounded-md transition-colors">Articles</button>
+<button class="px-3 py-1.5 text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low rounded-md transition-colors">Videos</button>
+<button class="px-3 py-1.5 text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-low rounded-md transition-colors">Code</button>
+</div>
+<button class="flex items-center gap-2 border border-outline-variant px-4 py-2 rounded-lg font-label-md text-label-md text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        Filters
+                    </button>
+</div>
+</div>
+<!-- Empty State Container -->
+<div class="flex-1 flex items-center justify-center">
+<div class="max-w-md w-full text-center p-8 bg-white border border-outline-variant rounded-2xl">
+<!-- Empty State Illustration -->
+<div class="mb-8 relative flex justify-center">
+<div class="w-48 h-48 bg-surface-container rounded-full flex items-center justify-center relative overflow-hidden group">
+<!-- Animated Background Logic -->
+<div class="absolute inset-0 opacity-20 transition-transform duration-700 group-hover:scale-110">
+
+</div>
+<!-- Central Icon -->
+<div class="relative z-10 w-24 h-24 bg-white rounded-2xl shadow-sm flex items-center justify-center border border-outline-variant/30 transform transition-transform group-hover:rotate-6 duration-300">
+<span class="material-symbols-outlined text-[48px] text-secondary/40" data-icon="bookmark">bookmark</span>
+<div class="absolute -top-2 -right-2 bg-error text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold">0</div>
+</div>
+<!-- Small Floating Accents -->
+<div class="absolute top-10 left-10 w-3 h-3 rounded-full bg-secondary-fixed animate-bounce"></div>
+<div class="absolute bottom-12 right-12 w-2 h-2 rounded-full bg-outline-variant animate-pulse"></div>
+</div>
+</div>
+<!-- Message -->
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-2">No bookmarks found</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-8 px-4">
+                        We couldn't find any bookmarks matching your current filters. Try adjusting your search or clearing the active categories.
+                    </p>
+<!-- Actions -->
+<div class="flex flex-col sm:flex-row gap-3 justify-center">
+<button class="px-6 py-2.5 border border-outline-variant text-on-surface font-label-md text-label-md rounded-xl hover:bg-surface-container transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">filter_alt_off</span>
+                            Clear filters
+                        </button>
+<button class="px-6 py-2.5 bg-primary text-on-primary font-label-md text-label-md rounded-xl hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                            New Bookmark
+                        </button>
+</div>
+</div>
+</div>
+<!-- Bottom Stats Bar (Subtle Utility) -->
+<div class="mt-8 border-t border-outline-variant pt-4 flex items-center justify-between text-on-surface-variant font-label-md text-label-md">
+<div class="flex items-center gap-4">
+<span class="">Total: 128 bookmarks</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="">Used storage: 4.2 MB</span>
+</div>
+<div class="flex items-center gap-2 opacity-50 italic">
+<span class="material-symbols-outlined text-[14px]">sync</span>
+                    Cloud synced 2 mins ago
+                </div>
+</div>
+</div>
+</main>
+<!-- Micro-interaction Scripts -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Placeholder for filter button interactivity
+            const filterButtons = document.querySelectorAll('.flex.items-center.bg-white button');
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filterButtons.forEach(b => b.classList.remove('bg-surface-container', 'text-secondary'));
+                    filterButtons.forEach(b => b.classList.add('text-on-surface-variant'));
+                    btn.classList.add('bg-surface-container', 'text-secondary');
+                    btn.classList.remove('text-on-surface-variant');
+                });
+            });
+
+            // Smooth scale effect for cards or primary actions
+            const mainActions = document.querySelectorAll('button');
+            mainActions.forEach(action => {
+                action.addEventListener('mousedown', () => action.classList.add('scale-95'));
+                action.addEventListener('mouseup', () => action.classList.remove('scale-95'));
+                action.addEventListener('mouseleave', () => action.classList.remove('scale-95'));
+            });
+        });
+    </script>
+
+
+</body></html>

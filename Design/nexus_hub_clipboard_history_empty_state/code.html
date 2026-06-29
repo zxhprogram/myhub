@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Clipboard History | Nexus Hub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9ff;
+        }
+        .ml-sidebar_width {
+            margin-left: 280px;
+        }
+        .w-sidebar_width {
+            width: 280px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#e5eeff",
+                        "secondary-fixed": "#d8e2ff",
+                        "primary": "#000000",
+                        "outline": "#76777d",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-bright": "#f8f9ff",
+                        "surface": "#f8f9ff",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed-dim": "#bec6e0",
+                        "on-error": "#ffffff",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "surface-dim": "#cbdbf5",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary-fixed": "#131b2e",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#0b1c30",
+                        "background": "#f8f9ff",
+                        "surface-container-high": "#dce9ff",
+                        "on-tertiary-fixed-variant": "#43474b",
+                        "outline-variant": "#c6c6cd",
+                        "tertiary-fixed": "#dfe3e7",
+                        "on-surface-variant": "#45464d",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "on-primary": "#ffffff",
+                        "tertiary-container": "#171c1f",
+                        "error": "#ba1a1a",
+                        "secondary": "#0058be",
+                        "on-secondary-fixed": "#001a42",
+                        "inverse-primary": "#bec6e0",
+                        "tertiary": "#000000",
+                        "primary-container": "#131b2e",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#004395",
+                        "primary-fixed": "#dae2fd",
+                        "on-error-container": "#93000a",
+                        "inverse-surface": "#213145",
+                        "error-container": "#ffdad6",
+                        "surface-container-highest": "#d3e4fe",
+                        "surface-tint": "#565e74",
+                        "secondary-container": "#2170e4",
+                        "on-primary-container": "#7c839b",
+                        "surface-container-low": "#eff4ff",
+                        "on-surface": "#0b1c30",
+                        "on-tertiary-fixed": "#171c1f",
+                        "on-secondary-container": "#fefcff",
+                        "tertiary-fixed-dim": "#c3c7cb",
+                        "on-tertiary-container": "#808488"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "xl": "32px",
+                        "xs": "4px",
+                        "gutter": "24px",
+                        "base": "8px",
+                        "sm": "8px",
+                        "sidebar_width": "280px",
+                        "lg": "24px"
+                    },
+                    "fontSize": {
+                        "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                        "headline-sm": ["18px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                        "headline-xl": ["30px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 flex flex-col justify-between py-lg w-sidebar_width h-screen border-r border-outline-variant bg-surface-container-low z-50">
+<div>
+<div class="px-lg mb-xl flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary text-3xl" style="font-variation-settings: 'FILL' 1;">hub</span>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">Nexus Hub</span>
+<span class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Enterprise</span>
+</div>
+</div>
+<nav class="space-y-xs px-sm">
+<a class="text-on-surface-variant hover:bg-surface-variant hover:text-on-surface rounded-lg px-md py-sm flex items-center gap-md mx-sm transition-colors cursor-pointer group" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-md text-label-md">Home</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant hover:text-on-surface rounded-lg px-md py-sm flex items-center gap-md mx-sm transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">bookmark</span>
+<span class="font-label-md text-label-md">Bookmarks</span>
+</a>
+<a class="bg-secondary text-on-secondary rounded-lg px-md py-sm flex items-center gap-md mx-sm transition-all duration-200 active:scale-95 cursor-pointer shadow-sm" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">assignment</span>
+<span class="font-label-md text-label-md">Clipboard History</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant hover:text-on-surface rounded-lg px-md py-sm flex items-center gap-md mx-sm transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span class="font-label-md text-label-md">DevTools</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant hover:text-on-surface rounded-lg px-md py-sm flex items-center gap-md mx-sm transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">desktop_windows</span>
+<span class="font-label-md text-label-md">My Computer</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant hover:text-on-surface rounded-lg px-md py-sm flex items-center gap-md mx-sm transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">code</span>
+<span class="font-label-md text-label-md">My GitHub</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant hover:text-on-surface rounded-lg px-md py-sm flex items-center gap-md mx-sm transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">rss_feed</span>
+<span class="font-label-md text-label-md">RSS</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-variant hover:text-on-surface rounded-lg px-md py-sm flex items-center gap-md mx-sm transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">trending_up</span>
+<span class="font-label-md text-label-md">Stocks</span>
+</a>
+</nav>
+</div>
+<div class="px-sm">
+<div class="hover:bg-surface-variant rounded-lg px-md py-sm flex items-center gap-md mx-sm transition-all duration-200 cursor-pointer border border-transparent hover:border-outline-variant">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-sm">person</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">sunarya-thito</span>
+<span class="text-[10px] text-on-surface-variant">Pro Plan</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 right-0 ml-sidebar_width left-[280px] h-16 flex items-center justify-between px-lg bg-surface border-b border-outline-variant z-40">
+<div class="flex items-center gap-xl">
+<div class="flex items-center bg-surface-container-high rounded-full px-md py-1.5 w-80 border border-transparent focus-within:border-secondary transition-all">
+<span class="material-symbols-outlined text-on-surface-variant text-sm mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-md font-body-md w-full placeholder:text-on-surface-variant" placeholder="Search clipboard..." type="text"/>
+</div>
+<nav class="hidden md:flex items-center gap-lg">
+<a class="text-on-surface-variant hover:text-on-surface font-body-md transition-colors" href="#">Dashboard</a>
+<a class="text-on-surface-variant hover:text-on-surface font-body-md transition-colors" href="#">Analytics</a>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant mx-2"></div>
+<img class="w-8 h-8 rounded-full border border-outline-variant" data-alt="A professional headshot of a software developer in a well-lit modern studio setting with a soft-focus office background. The person has a friendly expression, reflecting a corporate yet approachable persona. The lighting is crisp and natural, following a minimalist and high-end tech professional aesthetic with a clean color palette of white and blue tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD74pSzipOdpiUtsnRvFH0Kgb0gDg3TRr2lMI8qi6nLTbMOzeNAW1PENmumvuv2oYPK3D7dZiU1C_WL6HwX-M7hN2R6TXO8jf_4EF0J_Ao8-5_V2sR-mBz2XzGsL8iX6h9ueeOHtd4DZvmpWOEja7lrMkaDWhyeGzfroV9-ZFC6W0ZKoRV9xgK1rOgFT5OK3-0IIpR0LBcHSvJ3XDr7nrKUP6j8phrLlOy0h11au32lRyfb8XuX4ISYkHIPMIpiwB6N8aS2aJCHAfA"/>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-16 ml-sidebar_width min-h-screen relative overflow-hidden flex items-center justify-center">
+<!-- Subtle Ambient Background Element -->
+<div class="absolute inset-0 opacity-40 pointer-events-none">
+<div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-secondary-container blur-[120px] rounded-full"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-surface-variant blur-[100px] rounded-full"></div>
+</div>
+<!-- Empty State Container -->
+<div class="relative z-10 max-w-lg w-full px-lg text-center">
+<div class="mb-8 relative flex justify-center">
+<!-- Illustration Frame -->
+<div class="w-48 h-48 rounded-full bg-surface-container-lowest border border-outline-variant flex items-center justify-center shadow-sm relative overflow-hidden group">
+<!-- Rotating subtle background detail -->
+<div class="absolute inset-0 border-[1px] border-dashed border-outline-variant/30 rounded-full animate-[spin_60s_linear_infinite]"></div>
+<!-- The Illustration/Icon -->
+<div class="relative transform group-hover:scale-110 transition-transform duration-500">
+<span class="material-symbols-outlined text-secondary opacity-10 text-9xl absolute -top-12 -left-12 select-none">content_paste</span>
+<span class="material-symbols-outlined text-secondary text-7xl" style="font-variation-settings: 'wght' 200;">content_paste_off</span>
+<!-- Floating floating particle dots -->
+<div class="absolute -top-4 -right-4 w-3 h-3 bg-secondary-container rounded-full animate-bounce"></div>
+<div class="absolute bottom-2 -right-8 w-2 h-2 bg-outline-variant rounded-full opacity-50"></div>
+<div class="absolute -bottom-6 left-2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+</div>
+</div>
+</div>
+<!-- Content -->
+<div class="space-y-md">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">No history yet</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed max-w-sm mx-auto">
+                    Your personal vault for copied items is currently empty. Anything you copy—text, links, or code snippets—will automatically appear here for easy access later.
+                </p>
+<div class="pt-xl flex flex-col sm:flex-row items-center justify-center gap-md">
+<button class="group relative bg-primary text-on-primary px-xl py-3 rounded-xl font-label-md text-label-md flex items-center gap-sm overflow-hidden transition-all active:scale-95 shadow-lg shadow-primary/10">
+<span class="relative z-10">Open Settings</span>
+<span class="material-symbols-outlined text-sm relative z-10 group-hover:translate-x-1 transition-transform">arrow_forward</span>
+<div class="absolute inset-0 bg-secondary translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+</button>
+<button class="bg-surface-container-highest text-on-surface border border-outline-variant/20 px-xl py-3 rounded-xl font-label-md text-label-md hover:bg-surface-variant transition-colors flex items-center gap-sm active:scale-95">
+<span class="material-symbols-outlined text-sm">help</span>
+                        Learn More
+                    </button>
+</div>
+</div>
+<!-- Features Quick Look -->
+<div class="mt-20 grid grid-cols-1 sm:grid-cols-3 gap-lg border-t border-outline-variant pt-lg opacity-60">
+<div class="flex flex-col items-center gap-sm">
+<span class="material-symbols-outlined text-secondary-container">sync</span>
+<span class="font-label-sm text-label-sm uppercase tracking-tighter">Cross-Device Sync</span>
+</div>
+<div class="flex flex-col items-center gap-sm">
+<span class="material-symbols-outlined text-secondary-container">security</span>
+<span class="font-label-sm text-label-sm uppercase tracking-tighter">End-to-End Encrypted</span>
+</div>
+<div class="flex flex-col items-center gap-sm">
+<span class="material-symbols-outlined text-secondary-container">history</span>
+<span class="font-label-sm text-label-sm uppercase tracking-tighter">30-Day History</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button (FAB) - Contextual -->
+<div class="fixed bottom-lg right-lg z-50">
+<button class="bg-secondary text-on-secondary h-14 w-14 rounded-2xl flex items-center justify-center shadow-xl hover:shadow-secondary/20 hover:scale-105 active:scale-95 transition-all group">
+<span class="material-symbols-outlined group-hover:rotate-12 transition-transform">add</span>
+</button>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        // Simple hover effect for navigation items
+        document.querySelectorAll('nav a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (!link.classList.contains('bg-secondary')) {
+                    // Logic for visual feedback during navigation
+                    link.style.opacity = '0.7';
+                    setTimeout(() => link.style.opacity = '1', 100);
+                }
+            });
+        });
+
+        // Search bar focus interaction
+        const searchInput = document.querySelector('input[placeholder="Search clipboard..."]');
+        const searchContainer = searchInput.parentElement;
+        searchInput.addEventListener('focus', () => {
+            searchContainer.classList.add('shadow-md');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchContainer.classList.remove('shadow-md');
+        });
+    </script>
+</body></html>

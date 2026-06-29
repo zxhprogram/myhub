@@ -1,0 +1,365 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>RSS Feed Reader - Productivity Hub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for clean look */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background-color: #475569;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#fefcff",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#0058be",
+                        "background": "#f8f9ff",
+                        "on-error-container": "#93000a",
+                        "tertiary": "#000000",
+                        "primary-container": "#131b2e",
+                        "secondary-container": "#2170e4",
+                        "on-tertiary-fixed-variant": "#43474b",
+                        "surface-variant": "#d3e4fe",
+                        "surface-container": "#e5eeff",
+                        "on-tertiary-container": "#808488",
+                        "on-surface": "#0b1c30",
+                        "on-primary-fixed": "#131b2e",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "on-background": "#0b1c30",
+                        "error": "#ba1a1a",
+                        "surface": "#f8f9ff",
+                        "tertiary-fixed": "#dfe3e7",
+                        "inverse-surface": "#213145",
+                        "primary-fixed": "#dae2fd",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-secondary-fixed": "#001a42",
+                        "on-secondary": "#ffffff",
+                        "on-surface-variant": "#45464d",
+                        "secondary-fixed": "#d8e2ff",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "on-tertiary-fixed": "#171c1f",
+                        "tertiary-fixed-dim": "#c3c7cb",
+                        "primary": "#000000",
+                        "surface-dim": "#cbdbf5",
+                        "surface-container-high": "#dce9ff",
+                        "on-error": "#ffffff",
+                        "outline-variant": "#c6c6cd",
+                        "primary-fixed-dim": "#bec6e0",
+                        "inverse-primary": "#bec6e0",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#eff4ff",
+                        "surface-bright": "#f8f9ff",
+                        "on-secondary-fixed-variant": "#004395",
+                        "on-primary-container": "#7c839b",
+                        "outline": "#76777d",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#171c1f",
+                        "surface-tint": "#565e74"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "sidebar_width": "280px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "gutter": "24px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-sm": ["18px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+                        "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-xl": ["30px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md h-screen w-full flex overflow-hidden">
+<!-- SideNavBar Component -->
+<nav class="w-sidebar_width h-screen border-r border-outline-variant bg-surface-container-low flex flex-col p-md gap-xs flex-shrink-0 z-10">
+<!-- Header -->
+<div class="px-md py-lg mb-lg"><div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-secondary-container">hub</span>
+</div>
+<div>
+<h1 class="text-headline-sm font-headline-sm text-on-surface">Nexus Hub</h1>
+<p class="text-label-md font-label-md text-on-surface-variant">Enterprise</p>
+</div>
+</div></div>
+<!-- Navigation Links -->
+<div class="flex flex-col gap-xs flex-1">
+<a class="text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors p-sm flex items-center gap-sm scale-95 duration-150 ease-in-out hover:scale-100" href="#">
+<span class="material-symbols-outlined text-[18px]">home</span>
+<span class="">Home</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors p-sm flex items-center gap-sm scale-95 duration-150 ease-in-out hover:scale-100" href="#">
+<span class="material-symbols-outlined text-[18px]">bookmark</span>
+<span class="">Bookmarks</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors p-sm flex items-center gap-sm scale-95 duration-150 ease-in-out hover:scale-100" href="#">
+<span class="material-symbols-outlined text-[18px]">content_paste</span>
+<span class="">Clipboard History</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors p-sm flex items-center gap-sm scale-95 duration-150 ease-in-out hover:scale-100" href="#">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+<span class="">DevTools</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors p-sm flex items-center gap-sm scale-95 duration-150 ease-in-out hover:scale-100" href="#">
+<span class="material-symbols-outlined text-[18px]">computer</span>
+<span class="">My Computer</span>
+</a>
+<a class="text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors p-sm flex items-center gap-sm scale-95 duration-150 ease-in-out hover:scale-100" href="#">
+<span class="material-symbols-outlined text-[18px]">code</span>
+<span class="">My GitHub</span>
+</a>
+<a class="bg-secondary-container text-on-secondary-container rounded-lg font-medium p-sm flex items-center gap-sm scale-95 duration-150 ease-in-out hover:scale-100" href="#">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">rss_feed</span>
+<span class="">RSS</span>
+</a>
+</div>
+<!-- Footer Profile -->
+<div class="mt-auto border-t border-outline-variant pt-md">
+<div class="flex items-center gap-sm p-sm rounded-lg hover:bg-surface-container-high cursor-pointer transition-colors">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container flex-shrink-0">
+<span class="font-label-md text-label-md">SU</span>
+</div>
+<div class="flex flex-col overflow-hidden">
+<span class="font-label-md text-label-md text-on-surface truncate">sunarya-thito</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant truncate">m@gmail.com</span>
+</div>
+<span class="material-symbols-outlined ml-auto text-on-surface-variant text-[18px]">unfold_more</span>
+</div>
+</div>
+</nav>
+<!-- Main Content: 3-Column Layout -->
+<main class="flex-1 flex h-screen overflow-hidden bg-surface-container-lowest">
+<!-- Column 1: Sources List -->
+<section class="w-[240px] border-r border-outline-variant bg-surface flex flex-col flex-shrink-0">
+<div class="h-14 flex items-center justify-between px-md border-b border-outline-variant">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Feeds</h2>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-sm flex flex-col gap-1">
+<div class="px-sm py-2 text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider mt-2 mb-1">Tech</div>
+<!-- Active Source -->
+<button class="w-full flex items-center gap-sm p-2 rounded-md bg-surface-container-high text-on-surface transition-colors text-left group">
+<div class="w-6 h-6 rounded bg-[#FF6600] flex items-center justify-center text-white flex-shrink-0">
+<span class="font-label-sm text-label-sm">Y</span>
+</div>
+<span class="font-body-md text-body-md truncate flex-1 font-medium">Hacker News</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">12</span>
+</button>
+<button class="w-full flex items-center gap-sm p-2 rounded-md hover:bg-surface-container-highest text-on-surface-variant transition-colors text-left group">
+<div class="w-6 h-6 rounded bg-[#DA552F] flex items-center justify-center text-white flex-shrink-0">
+<span class="font-label-sm text-label-sm">P</span>
+</div>
+<span class="font-body-md text-body-md truncate flex-1">Product Hunt</span>
+</button>
+<button class="w-full flex items-center gap-sm p-2 rounded-md hover:bg-surface-container-highest text-on-surface-variant transition-colors text-left group">
+<div class="w-6 h-6 rounded bg-[#E41224] flex items-center justify-center text-white flex-shrink-0">
+<span class="font-label-sm text-label-sm">V</span>
+</div>
+<span class="font-body-md text-body-md truncate flex-1">The Verge</span>
+</button>
+<div class="px-sm py-2 text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider mt-4 mb-1">Design</div>
+<button class="w-full flex items-center gap-sm p-2 rounded-md hover:bg-surface-container-highest text-on-surface-variant transition-colors text-left group">
+<div class="w-6 h-6 rounded bg-surface-variant flex items-center justify-center text-on-surface flex-shrink-0">
+<span class="material-symbols-outlined text-[16px]">draw</span>
+</div>
+<span class="font-body-md text-body-md truncate flex-1">Awwwards</span>
+</button>
+</div>
+</section>
+<!-- Column 2: Article List -->
+<section class="w-[340px] border-r border-outline-variant bg-surface flex flex-col flex-shrink-0">
+<div class="h-14 flex items-center justify-between px-md border-b border-outline-variant bg-surface/80 backdrop-blur-md sticky top-0 z-10">
+<div class="flex flex-col">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Hacker News</h2>
+<span class="font-label-sm text-label-sm text-on-surface-variant">24 unread articles</span>
+</div>
+<div class="flex gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[20px]">check_small</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+</button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto">
+<!-- Active Article Card -->
+<div class="p-md border-b border-outline-variant bg-surface-container cursor-pointer flex flex-col gap-2 relative">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-secondary rounded-r-full"></div>
+<div class="flex justify-between items-start gap-2">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold line-clamp-2 leading-tight">Show HN: A new visual engine for modern web applications built on WebGL</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap">2h ago</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2 text-[13px] leading-snug">
+                        We've been building a high-performance rendering layer that allows seamless integration of 3D elements into standard DOM flows without the usual overhead.
+                    </p>
+<div class="flex items-center gap-sm mt-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface rounded px-2 py-0.5 border border-outline-variant">Show HN</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">by dev_null</span>
+</div>
+</div>
+<!-- Inactive Article Cards -->
+<div class="p-md border-b border-outline-variant hover:bg-surface-container-highest transition-colors cursor-pointer flex flex-col gap-2">
+<div class="flex justify-between items-start gap-2">
+<h3 class="font-label-md text-label-md text-on-surface font-medium line-clamp-2 leading-tight">PostgreSQL 16 Released: Better performance and logical replication improvements</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap">4h ago</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2 text-[13px] leading-snug">
+                        The PostgreSQL Global Development Group today announced the release of PostgreSQL 16, the latest version of the world's most advanced open source database.
+                    </p>
+<div class="flex items-center gap-sm mt-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant">by db_admin</span>
+</div>
+</div>
+<div class="p-md border-b border-outline-variant hover:bg-surface-container-highest transition-colors cursor-pointer flex flex-col gap-2">
+<div class="flex gap-3">
+<div class="flex-1 flex flex-col gap-2">
+<div class="flex justify-between items-start gap-2">
+<h3 class="font-label-md text-label-md text-on-surface font-medium line-clamp-2 leading-tight">The UX of Minimalist Data Density</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant whitespace-nowrap">6h ago</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2 text-[13px] leading-snug">
+                                How to design interfaces that display massive amounts of information without overwhelming the user. A study in typography and negative space.
+                            </p>
+</div>
+<img class="w-16 h-16 rounded object-cover border border-outline-variant flex-shrink-0" data-alt="A clean, minimalist UI design mockup focusing on high data density, featuring subtle gray grids, small precise typography, and a calm, organized layout. The style is modern corporate, utilizing a slate and neutral white color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuByS1eMjA1budZYXDNiV1yZTuGpgbkRAQc1poOFMgWxq4Z_NRfGefHCYhY_tiwZZyigb4SXzdCzI-Eix9p8ISaVZKlg-Opm9HCK7aZ3DMR-vHQ2e7oTcv-PQmh9UhDkGGxpBhjmsFZvTPuAq2ABdVC0foUWN6PKD6Q1jYLRiYY9y2yaCUEJ70Gd13bRuuEztSs_B0lBzwvCOZGDK47iV4GInwYUhsyJjYA7Aq4K1lVyX0FIDuWKK_jt1yDy35GHgYX2TwqxYnyp0QY">
+</div>
+</div>
+</div>
+</section>
+<!-- Column 3: Article Reader -->
+<section class="flex-1 flex flex-col bg-surface-container-lowest overflow-hidden relative">
+<!-- Top Actions Overlay -->
+<div class="absolute top-0 left-0 right-0 h-14 flex items-center justify-end px-lg bg-gradient-to-b from-surface-container-lowest to-transparent z-10 pointer-events-none">
+<div class="flex gap-2 pointer-events-auto bg-surface/80 backdrop-blur-md rounded-full px-2 py-1 border border-outline-variant shadow-sm">
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest text-on-surface-variant transition-colors" title="Save to Bookmarks">
+<span class="material-symbols-outlined text-[20px]">bookmark_border</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest text-on-surface-variant transition-colors" title="Share">
+<span class="material-symbols-outlined text-[20px]">share</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-highest text-on-surface-variant transition-colors" title="Open Original">
+<span class="material-symbols-outlined text-[20px]">open_in_new</span>
+</button>
+</div>
+</div>
+<!-- Reading Canvas -->
+<div class="flex-1 overflow-y-auto px-lg lg:px-[10%] py-xl">
+<article class="max-w-3xl mx-auto flex flex-col gap-lg pb-xl">
+<!-- Article Header -->
+<header class="flex flex-col gap-md">
+<div class="flex items-center gap-sm">
+<span class="font-label-sm text-label-sm text-secondary bg-secondary-fixed rounded px-2 py-1">Show HN</span>
+<span class="font-label-md text-label-md text-on-surface-variant">Hacker News</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface leading-tight tracking-tight">
+                            Show HN: A new visual engine for modern web applications built on WebGL
+                        </h1>
+<div class="flex items-center gap-md text-on-surface-variant font-body-md text-body-md border-b border-outline-variant pb-md">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">person</span>
+                                dev_null
+                            </span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                                Oct 24, 2023 • 10:42 AM
+                            </span>
+</div>
+</header>
+<!-- Feature Image -->
+<div class="w-full rounded-2xl overflow-hidden border border-outline-variant bg-surface-variant aspect-[21/9]">
+<img class="w-full h-full object-cover" data-alt="A high-end, abstract visualization of a modern web engine architecture. It features glowing geometric nodes connected by thin, sharp light beams across a deep navy and dark slate background. The aesthetic is highly technical, precise, and visually represents 'WebGL' and 'modern rendering' with a sleek, minimalist data-hub vibe." src="https://lh3.googleusercontent.com/aida-public/AB6AXuATh8CwbR9ngn1cBF3pbGESTGdMlUMYafuHKIulGpgvTz5beQHR1zjnseHV5OqhXCTxNym50bhAib4GCk_uO6vLrlO9G3FTMqZuLnvt1M1voDFbLn2Q_ECCz4yhB1pkBrLAWmqeEJdXuOns1jIwaGvwDPBm-0IYuBx08eRuKbp15sY5HPfwl3bUMxhGXjzCOvfpPzt62X6mrNpov-jV-viA5cvKJWoDP-3OTNkSsafwITCnGIY8pzZyXRsx4f7k_fSuvf8jYIBWnxo">
+</div>
+<!-- Article Content -->
+<div class="flex flex-col gap-6 text-on-surface font-body-lg text-body-lg leading-relaxed">
+<p class="">
+                            Hey everyone, for the past year our small team has been working on a new rendering approach for complex web interfaces. As web applications become more demanding, pushing large amounts of DOM nodes often leads to performance bottlenecks, especially in data-heavy tools or interactive canvases.
+                        </p>
+<h2 class="font-headline-sm text-headline-sm text-on-surface mt-4">The Problem with Traditional DOM</h2>
+<p class="">
+                            We noticed that when building our internal analytics dashboards, attempting to render thousands of individual data points as HTML elements caused significant jank. Virtualization helps, but it doesn't solve the fundamental issue of the browser layout engine struggling with rapid, complex recalculations.
+                        </p>
+<div class="p-md bg-surface-container border border-outline-variant rounded-xl flex gap-4 items-start my-4">
+<span class="material-symbols-outlined text-secondary text-[24px] mt-1">format_quote</span>
+<p class="font-body-md text-body-md italic text-on-surface-variant m-0">
+                                "The goal wasn't to replace HTML, but to provide an escape hatch for the specific components that need 60fps rendering regardless of complexity."
+                            </p>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface mt-4">Our Approach</h2>
+<p class="">
+                            We built a lightweight WebGL layer that sits seamlessly behind (or above) the standard DOM. It syncs with the React/Vue lifecycle, allowing developers to define complex visual elements using standard declarative syntax, which our compiler then translates into optimized shader calls.
+                        </p>
+<ul class="list-disc pl-6 flex flex-col gap-2 text-on-surface-variant">
+<li class=""><strong>Zero DOM overhead</strong> for data nodes.</li>
+<li class=""><strong>Hardware acceleration</strong> enabled by default.</li>
+<li class=""><strong>Seamless integration</strong> with existing UI frameworks.</li>
+</ul>
+<p class="">
+                            We've open-sourced the core engine today and would love to get feedback from the community. You can check out the interactive demos on the repository.
+                        </p>
+</div>
+<!-- Article Footer -->
+<div class="mt-xl pt-lg border-t border-outline-variant flex items-center justify-between">
+<button class="px-md py-2 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:bg-inverse-surface transition-colors flex items-center gap-2">
+                            View Original Comments (156)
+                            <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</article>
+</div>
+</section>
+</main>
+
+
+</body></html>

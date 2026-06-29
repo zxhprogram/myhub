@@ -1,0 +1,12 @@
+include: package:dart_frog_lint/recommended.yaml
+
+linter:
+  rules:
+    avoid_relative_lib_imports: false
+    lines_longer_than_80_chars: false
+    avoid_dynamic_calls: false
+    no_default_cases: false
+    public_member_api_docs: false
+    sort_constructors_first: false
+    always_put_required_named_parameters_first: false
+    cascade_invocations: false
