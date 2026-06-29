@@ -25,8 +25,9 @@ class LocalDatabase {
     final path = join(dir.path, 'nexus_hub.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -38,6 +39,7 @@ class LocalDatabase {
         url TEXT NOT NULL,
         tags TEXT NOT NULL,
         category TEXT NOT NULL,
+        image TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -70,5 +72,17 @@ class LocalDatabase {
   static Future<void> close() async {
     await _db?.close();
     _db = null;
+  }
+
+  static Future<void> _onUpgrade(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 2) {
+      await db.execute(
+        "ALTER TABLE bookmarks ADD COLUMN image TEXT NOT NULL DEFAULT ''",
+      );
+    }
   }
 }

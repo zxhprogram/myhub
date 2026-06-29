@@ -28,10 +28,20 @@ class DatabaseProvider {
         url TEXT NOT NULL,
         tags TEXT NOT NULL DEFAULT '',
         category TEXT NOT NULL DEFAULT '',
+        image TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
     ''');
+
+    // Backfill the image column for databases created before it existed.
+    try {
+      db.execute(
+        'ALTER TABLE bookmarks ADD COLUMN image TEXT NOT NULL DEFAULT ""',
+      );
+    } on SqliteException {
+      // Column already exists — safe to ignore.
+    }
 
     db.execute('''
       CREATE TABLE IF NOT EXISTS tasks (

@@ -8,6 +8,7 @@ class Bookmark {
     required this.url,
     required this.tags,
     required this.category,
+    this.image = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -17,6 +18,7 @@ class Bookmark {
   final String url;
   final List<String> tags;
   final String category;
+  final String image;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -25,22 +27,27 @@ class Bookmark {
       id: row['id'] as int,
       title: row['title'] as String,
       url: row['url'] as String,
-      tags: (row['tags'] as String).split(',').where((t) => t.isNotEmpty).toList(),
+      tags: (row['tags'] as String)
+          .split(',')
+          .where((t) => t.isNotEmpty)
+          .toList(),
       category: row['category'] as String,
+      image: (row['image'] as String?) ?? '',
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at'] as int),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'url': url,
-        'tags': tags,
-        'category': category,
-        'createdAt': createdAt.toIso8601String(),
-        'updatedAt': updatedAt.toIso8601String(),
-      };
+    'id': id,
+    'title': title,
+    'url': url,
+    'tags': tags,
+    'category': category,
+    'image': image,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+  };
 
   Bookmark copyWith({
     int? id,
@@ -48,6 +55,7 @@ class Bookmark {
     String? url,
     List<String>? tags,
     String? category,
+    String? image,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -57,6 +65,7 @@ class Bookmark {
       url: url ?? this.url,
       tags: tags ?? this.tags,
       category: category ?? this.category,
+      image: image ?? this.image,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

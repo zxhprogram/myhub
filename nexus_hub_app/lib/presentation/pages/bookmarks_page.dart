@@ -1,13 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/bookmark_model.dart';
+import '../../data/repositories/bookmark_repository.dart';
 import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import '../components/nexus_badge.dart';
 import '../components/nexus_button.dart';
+import '../components/nexus_chip_input.dart';
 import '../components/nexus_input.dart';
 import '../states/bookmarks_state.dart';
 
@@ -425,12 +429,20 @@ class _BookmarkGridCardState extends State<_BookmarkGridCard> {
                         ),
                       ),
                     ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.image,
-                        size: 48,
-                        color: NexusColors.onSurfaceVariant,
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(NexusRadii.xxl),
                       ),
+                      child: widget.bookmark.image.isNotEmpty
+                          ? Image.network(
+                              widget.bookmark.image,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const _ImagePlaceholder(),
+                            )
+                          : const _ImagePlaceholder(),
                     ),
                   ),
                   if (_hovered)
@@ -518,6 +530,33 @@ class _BookmarkGridCardState extends State<_BookmarkGridCard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ImagePlaceholder extends StatelessWidget {
+  const _ImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.language,
+            size: 40,
+            color: NexusColors.onSurfaceVariant.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'No preview',
+            style: NexusTypography.labelSm.copyWith(
+              color: NexusColors.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -880,8 +919,66 @@ class _AddBookmarkDialog extends StatefulWidget {
 class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
   final _title = TextEditingController();
   final _url = TextEditingController();
-  final _tags = TextEditingController();
   final _category = TextEditingController();
+  final _repo = BookmarkRepository();
+
+  List<String> _tags = [];
+  String _image = '';
+  bool _fetching = false;
+  bool _titleEdited = false;
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _title.addListener(() {
+      if (_title.text.isNotEmpty) _titleEdited = true;
+    });
+    _url.addListener(_onUrlChanged);
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _title.dispose();
+    _url.dispose();
+    _category.dispose();
+    super.dispose();
+  }
+
+  void _onUrlChanged() {
+    final url = _url.text.trim();
+    _debounce?.cancel();
+    final parsed = Uri.tryParse(url);
+    if (url.isEmpty || parsed == null || !parsed.hasAbsolutePath) {
+      setState(() {
+        _fetching = false;
+        _image = '';
+      });
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 600), _fetchPreview);
+  }
+
+  Future<void> _fetchPreview() async {
+    final url = _url.text.trim();
+    if (url.isEmpty) return;
+    setState(() => _fetching = true);
+    try {
+      final preview = await _repo.fetchPreview(url);
+      if (!mounted) return;
+      setState(() {
+        _fetching = false;
+        _image = preview.image;
+        if (!_titleEdited && preview.title.isNotEmpty) {
+          _title.text = preview.title;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _fetching = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -890,25 +987,61 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
       shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Text('Add Bookmark', style: NexusTypography.headlineSm),
       content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            NexusInput(labelText: 'Title', controller: _title),
-            const SizedBox(height: NexusSpacing.md),
-            NexusInput(labelText: 'URL', controller: _url),
-            const SizedBox(height: NexusSpacing.md),
-            NexusInput(labelText: 'Tags (comma separated)', controller: _tags),
-            const SizedBox(height: NexusSpacing.md),
-            NexusInput(
-              labelText: 'Category',
-              controller: _category,
-              suffixIcon: IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.arrow_drop_down),
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              NexusInput(
+                labelText: 'URL',
+                controller: _url,
+                suffixIcon: _fetching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : null,
               ),
-            ),
-          ],
+              const SizedBox(height: NexusSpacing.md),
+              NexusInput(labelText: 'Title', controller: _title),
+              const SizedBox(height: NexusSpacing.md),
+              NexusChipInput(
+                labelText: 'Tags',
+                values: _tags,
+                onChanged: (tags) => setState(() => _tags = tags),
+              ),
+              const SizedBox(height: NexusSpacing.md),
+              NexusInput(
+                labelText: 'Category',
+                controller: _category,
+                suffixIcon: IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.arrow_drop_down),
+                ),
+              ),
+              if (_image.isNotEmpty) ...[
+                const SizedBox(height: NexusSpacing.md),
+                ClipRRect(
+                  borderRadius: NexusRadii.mdRadius,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 120),
+                    child: Image.network(
+                      _image,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
       actions: [
@@ -924,12 +1057,9 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
               BookmarkModel(
                 title: _title.text,
                 url: _url.text,
-                tags: _tags.text
-                    .split(',')
-                    .map((t) => t.trim())
-                    .where((t) => t.isNotEmpty)
-                    .toList(),
+                tags: _tags,
                 category: _category.text,
+                image: _image,
                 createdAt: now,
                 updatedAt: now,
               ),

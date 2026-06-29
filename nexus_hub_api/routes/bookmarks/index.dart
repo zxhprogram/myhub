@@ -36,13 +36,14 @@ Future<Response> onRequest(RequestContext context) async {
       final tags =
           (body['tags'] as List<dynamic>?)?.cast<String>() ?? <String>[];
       final category = body['category'] as String? ?? '';
+      final image = body['image'] as String? ?? '';
 
       db.execute(
         '''
-        INSERT INTO bookmarks (title, url, tags, category, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO bookmarks (title, url, tags, category, image, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       ''',
-        [title, url, tags.join(','), category, now, now],
+        [title, url, tags.join(','), category, image, now, now],
       );
 
       final id = db.lastInsertRowId;
@@ -54,6 +55,7 @@ Future<Response> onRequest(RequestContext context) async {
           url: url,
           tags: tags,
           category: category,
+          image: image,
           createdAt: DateTime.fromMillisecondsSinceEpoch(now),
           updatedAt: DateTime.fromMillisecondsSinceEpoch(now),
         ).toJson(),

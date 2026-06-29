@@ -4,8 +4,7 @@ import '../services/local_database.dart';
 
 /// Repository for bookmark CRUD operations with offline fallback.
 class BookmarkRepository {
-  BookmarkRepository({ApiClient? client})
-      : _client = client ?? ApiClient();
+  BookmarkRepository({ApiClient? client}) : _client = client ?? ApiClient();
 
   final ApiClient _client;
 
@@ -43,6 +42,15 @@ class BookmarkRepository {
     }
   }
 
+  /// Fetches metadata (title, image, favicon) for a URL via the preview API.
+  Future<BookmarkPreview> fetchPreview(String url) async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '/bookmarks/preview',
+      queryParameters: {'url': url},
+    );
+    return BookmarkPreview.fromJson(response.data!);
+  }
+
   Future<void> _cacheBookmarks(List<BookmarkModel> bookmarks) async {
     final db = await LocalDatabase.instance;
     await db.delete('bookmarks');
@@ -58,6 +66,7 @@ class BookmarkRepository {
       'url': bookmark.url,
       'tags': bookmark.tags.join(','),
       'category': bookmark.category,
+      'image': bookmark.image,
       'created_at': bookmark.createdAt.millisecondsSinceEpoch,
       'updated_at': bookmark.updatedAt.millisecondsSinceEpoch,
     });
@@ -79,22 +88,31 @@ class BookmarkRepository {
       id: row['id'] as int,
       title: row['title'] as String,
       url: row['url'] as String,
-      tags: (row['tags'] as String).split(',').where((t) => t.isNotEmpty).toList(),
+      tags: (row['tags'] as String)
+          .split(',')
+          .where((t) => t.isNotEmpty)
+          .toList(),
       category: row['category'] as String,
+      image: (row['image'] as String?) ?? '',
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at'] as int),
     );
   }
 }
 
-extension on BookmarkModel {
-  BookmarkModel copyWith({int? id}) => BookmarkModel(
-        id: id ?? this.id,
-        title: title,
-        url: url,
-        tags: tags,
-        category: category,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-      );
+/// Preview metadata returned by the `/bookmarks/preview` endpoint.
+class BookmarkPreview {
+  const BookmarkPreview({this.title = '', this.image = '', this.favicon = ''});
+
+  final String title;
+  final String image;
+  final String favicon;
+
+  factory BookmarkPreview.fromJson(Map<String, dynamic> json) {
+    return BookmarkPreview(
+      title: (json['title'] as String?) ?? '',
+      image: (json['image'] as String?) ?? '',
+      favicon: (json['favicon'] as String?) ?? '',
+    );
+  }
 }
