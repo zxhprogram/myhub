@@ -74,9 +74,20 @@ class DatabaseProvider {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         content TEXT NOT NULL,
         type TEXT NOT NULL DEFAULT 'text',
+        file_path TEXT,
+        mime_type TEXT,
         created_at INTEGER NOT NULL
       );
     ''');
+
+    // Backfill file_path and mime_type columns for databases created before
+    // they existed.
+    try {
+      db.execute('ALTER TABLE clipboard ADD COLUMN file_path TEXT');
+      db.execute('ALTER TABLE clipboard ADD COLUMN mime_type TEXT');
+    } on SqliteException {
+      // Columns already exist — safe to ignore.
+    }
 
     db.execute('''
       CREATE TABLE IF NOT EXISTS rss_feeds (

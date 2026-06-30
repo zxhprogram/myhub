@@ -2,15 +2,17 @@ import 'package:dio/dio.dart';
 
 /// Dio client configured for the Nexus Hub API.
 class ApiClient {
+  static const defaultBaseUrl = 'http://localhost:8080';
+
   ApiClient({String? baseUrl})
-      : _dio = Dio(
-          BaseOptions(
-            baseUrl: baseUrl ?? 'http://localhost:8080',
-            connectTimeout: const Duration(seconds: 10),
-            receiveTimeout: const Duration(seconds: 10),
-            headers: {'Content-Type': 'application/json'},
-          ),
-        ) {
+    : _dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl ?? defaultBaseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+          headers: {'Content-Type': 'application/json'},
+        ),
+      ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -29,7 +31,10 @@ class ApiClient {
 
   Dio get dio => _dio;
 
-  Future<Response<T>> get<T>(String path, {Map<String, dynamic>? queryParameters}) {
+  Future<Response<T>> get<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) {
     return _dio.get<T>(path, queryParameters: queryParameters);
   }
 

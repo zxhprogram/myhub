@@ -25,7 +25,7 @@ class LocalDatabase {
     final path = join(dir.path, 'nexus_hub.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -65,6 +65,8 @@ class LocalDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         content TEXT NOT NULL,
         type TEXT NOT NULL,
+        file_path TEXT,
+        mime_type TEXT,
         created_at INTEGER NOT NULL
       )
     ''');
@@ -92,6 +94,10 @@ class LocalDatabase {
       await db.execute(
         'UPDATE bookmarks SET sort_order = id WHERE sort_order = 0',
       );
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE clipboard ADD COLUMN file_path TEXT');
+      await db.execute('ALTER TABLE clipboard ADD COLUMN mime_type TEXT');
     }
   }
 }

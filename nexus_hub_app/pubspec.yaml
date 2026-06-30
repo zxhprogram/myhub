@@ -23,6 +23,7 @@ dependencies:
   url_launcher: ^6.3.1
   fl_chart: ^0.70.2
   flutter_reorderable_grid_view: ^5.7.0
+  super_clipboard: ^0.9.1
 
 dev_dependencies:
   flutter_test:
