@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_reorderable_grid_view/entities/reorder_update_entity.dart';
+import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/bookmark_model.dart';
@@ -112,12 +114,15 @@ class _BookmarksPageState extends State<BookmarksPage> {
                           return switch (_view.value) {
                             BookmarkView.grid => _BookmarkGrid(
                               bookmarks: visible,
+                              onReorder: _reorderFromEntities,
                             ),
                             BookmarkView.list => _BookmarkList(
                               bookmarks: visible,
+                              onReorder: _onListReorder,
                             ),
                             BookmarkView.icons => _BookmarkIconGrid(
                               bookmarks: visible,
+                              onReorder: _reorderFromEntities,
                             ),
                           };
                         }),
@@ -133,6 +138,45 @@ class _BookmarksPageState extends State<BookmarksPage> {
         ],
       ),
     );
+  }
+
+  void _reorderFromEntities(List<ReorderUpdateEntity> updates) {
+    for (final update in updates) {
+      final visible = _visibleBookmarks(_state.bookmarks.value);
+      final full = _state.bookmarks.value;
+      final oldFiltered = update.oldIndex;
+      final newFiltered = update.newIndex;
+      if (oldFiltered < 0 ||
+          oldFiltered >= visible.length ||
+          newFiltered < 0 ||
+          newFiltered >= visible.length) {
+        continue;
+      }
+      final oldFull = full.indexOf(visible[oldFiltered]);
+      var newFull = full.indexOf(visible[newFiltered]);
+      if (oldFull == -1 || newFull == -1) continue;
+      // Grid views report the final position; convert to ReorderableListView
+      // insertion-index semantics expected by the state layer.
+      if (newFiltered > oldFiltered) newFull++;
+      _state.reorder(oldFull, newFull);
+    }
+  }
+
+  void _onListReorder(int oldIndex, int newIndex) {
+    final visible = _visibleBookmarks(_state.bookmarks.value);
+    final full = _state.bookmarks.value;
+    if (oldIndex < 0 ||
+        oldIndex >= visible.length ||
+        newIndex < 0 ||
+        newIndex > visible.length) {
+      return;
+    }
+    final oldFull = full.indexOf(visible[oldIndex]);
+    final newFull = newIndex < visible.length
+        ? full.indexOf(visible[newIndex])
+        : full.length;
+    if (oldFull == -1 || newFull == -1) return;
+    _state.reorder(oldFull, newFull);
   }
 
   void _showAddDialog(BuildContext context) {
@@ -345,10 +389,30 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
-class _BookmarkGrid extends StatelessWidget {
-  const _BookmarkGrid({required this.bookmarks});
+class _BookmarkGrid extends StatefulWidget {
+  const _BookmarkGrid({required this.bookmarks, required this.onReorder});
 
   final List<BookmarkModel> bookmarks;
+  final void Function(List<ReorderUpdateEntity>) onReorder;
+
+  @override
+  State<_BookmarkGrid> createState() => _BookmarkGridState();
+}
+
+class _BookmarkGridState extends State<_BookmarkGrid> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -363,16 +427,29 @@ class _BookmarkGrid extends StatelessWidget {
         } else {
           crossAxisCount = 3;
         }
-        return GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: NexusSpacing.lg,
-            mainAxisSpacing: NexusSpacing.lg,
-            childAspectRatio: 0.82,
-          ),
-          itemCount: bookmarks.length,
-          itemBuilder: (_, index) =>
-              _BookmarkGridCard(bookmark: bookmarks[index]),
+        return ReorderableBuilder(
+          scrollController: _scrollController,
+          onReorderPositions: widget.onReorder,
+          builder: (children) {
+            return GridView(
+              controller: _scrollController,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: NexusSpacing.lg,
+                mainAxisSpacing: NexusSpacing.lg,
+                childAspectRatio: 0.82,
+              ),
+              children: children,
+            );
+          },
+          children: widget.bookmarks
+              .map(
+                (b) => _BookmarkGridCard(
+                  key: ValueKey('grid-${b.id}'),
+                  bookmark: b,
+                ),
+              )
+              .toList(),
         );
       },
     );
@@ -380,7 +457,7 @@ class _BookmarkGrid extends StatelessWidget {
 }
 
 class _BookmarkGridCard extends StatefulWidget {
-  const _BookmarkGridCard({required this.bookmark});
+  const _BookmarkGridCard({super.key, required this.bookmark});
 
   final BookmarkModel bookmark;
 
@@ -620,24 +697,26 @@ class _HoverAction extends StatelessWidget {
 }
 
 class _BookmarkList extends StatelessWidget {
-  const _BookmarkList({required this.bookmarks});
+  const _BookmarkList({required this.bookmarks, required this.onReorder});
 
   final List<BookmarkModel> bookmarks;
+  final ReorderCallback onReorder;
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    return ReorderableListView.builder(
       itemCount: bookmarks.length,
-      separatorBuilder: (context, index) =>
-          const SizedBox(height: NexusSpacing.sm),
-      itemBuilder: (context, index) =>
-          _BookmarkListRow(bookmark: bookmarks[index]),
+      onReorder: onReorder,
+      itemBuilder: (context, index) => _BookmarkListRow(
+        key: ValueKey('list-${bookmarks[index].id}'),
+        bookmark: bookmarks[index],
+      ),
     );
   }
 }
 
 class _BookmarkListRow extends StatelessWidget {
-  const _BookmarkListRow({required this.bookmark});
+  const _BookmarkListRow({super.key, required this.bookmark});
 
   final BookmarkModel bookmark;
 
@@ -699,10 +778,30 @@ class _BookmarkListRow extends StatelessWidget {
   }
 }
 
-class _BookmarkIconGrid extends StatelessWidget {
-  const _BookmarkIconGrid({required this.bookmarks});
+class _BookmarkIconGrid extends StatefulWidget {
+  const _BookmarkIconGrid({required this.bookmarks, required this.onReorder});
 
   final List<BookmarkModel> bookmarks;
+  final void Function(List<ReorderUpdateEntity>) onReorder;
+
+  @override
+  State<_BookmarkIconGrid> createState() => _BookmarkIconGridState();
+}
+
+class _BookmarkIconGridState extends State<_BookmarkIconGrid> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -716,15 +815,28 @@ class _BookmarkIconGrid extends StatelessWidget {
             : width < 900
             ? 5
             : 6;
-        return GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: NexusSpacing.sm,
-            mainAxisSpacing: NexusSpacing.sm,
-          ),
-          itemCount: bookmarks.length,
-          itemBuilder: (context, index) =>
-              _BookmarkIconItem(bookmark: bookmarks[index]),
+        return ReorderableBuilder(
+          scrollController: _scrollController,
+          onReorderPositions: widget.onReorder,
+          builder: (children) {
+            return GridView(
+              controller: _scrollController,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: NexusSpacing.sm,
+                mainAxisSpacing: NexusSpacing.sm,
+              ),
+              children: children,
+            );
+          },
+          children: widget.bookmarks
+              .map(
+                (b) => _BookmarkIconItem(
+                  key: ValueKey('icon-${b.id}'),
+                  bookmark: b,
+                ),
+              )
+              .toList(),
         );
       },
     );
@@ -732,7 +844,7 @@ class _BookmarkIconGrid extends StatelessWidget {
 }
 
 class _BookmarkIconItem extends StatefulWidget {
-  const _BookmarkIconItem({required this.bookmark});
+  const _BookmarkIconItem({super.key, required this.bookmark});
 
   final BookmarkModel bookmark;
 

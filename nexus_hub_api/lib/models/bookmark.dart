@@ -9,6 +9,7 @@ class Bookmark {
     required this.tags,
     required this.category,
     this.image = '',
+    this.sortOrder = 0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -19,6 +20,7 @@ class Bookmark {
   final List<String> tags;
   final String category;
   final String image;
+  final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -33,6 +35,7 @@ class Bookmark {
           .toList(),
       category: row['category'] as String,
       image: (row['image'] as String?) ?? '',
+      sortOrder: (row['sort_order'] as int?) ?? 0,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at'] as int),
     );
@@ -45,6 +48,7 @@ class Bookmark {
     'tags': tags,
     'category': category,
     'image': image,
+    'sortOrder': sortOrder,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
@@ -56,6 +60,7 @@ class Bookmark {
     List<String>? tags,
     String? category,
     String? image,
+    int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -66,6 +71,7 @@ class Bookmark {
       tags: tags ?? this.tags,
       category: category ?? this.category,
       image: image ?? this.image,
+      sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

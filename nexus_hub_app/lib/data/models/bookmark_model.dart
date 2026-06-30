@@ -7,6 +7,7 @@ class BookmarkModel {
     required this.tags,
     required this.category,
     this.image = '',
+    this.sortOrder = 0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -17,6 +18,7 @@ class BookmarkModel {
   final List<String> tags;
   final String category;
   final String image;
+  final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -28,6 +30,7 @@ class BookmarkModel {
       tags: (json['tags'] as List<dynamic>).cast<String>(),
       category: json['category'] as String,
       image: (json['image'] as String?) ?? '',
+      sortOrder: (json['sortOrder'] as int?) ?? 0,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -40,6 +43,7 @@ class BookmarkModel {
     'tags': tags,
     'category': category,
     'image': image,
+    'sortOrder': sortOrder,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
@@ -51,6 +55,7 @@ class BookmarkModel {
     List<String>? tags,
     String? category,
     String? image,
+    int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -61,6 +66,7 @@ class BookmarkModel {
       tags: tags ?? this.tags,
       category: category ?? this.category,
       image: image ?? this.image,
+      sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

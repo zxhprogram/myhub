@@ -67,6 +67,7 @@ class BookmarkRepository {
       'tags': bookmark.tags.join(','),
       'category': bookmark.category,
       'image': bookmark.image,
+      'sort_order': bookmark.sortOrder,
       'created_at': bookmark.createdAt.millisecondsSinceEpoch,
       'updated_at': bookmark.updatedAt.millisecondsSinceEpoch,
     });
@@ -78,7 +79,7 @@ class BookmarkRepository {
       'bookmarks',
       where: query != null ? 'title LIKE ?' : null,
       whereArgs: query != null ? ['%$query%'] : null,
-      orderBy: 'updated_at DESC',
+      orderBy: 'sort_order ASC',
     );
     return rows.map(_rowToModel).toList();
   }
@@ -94,9 +95,41 @@ class BookmarkRepository {
           .toList(),
       category: row['category'] as String,
       image: (row['image'] as String?) ?? '',
+      sortOrder: (row['sort_order'] as int?) ?? 0,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at'] as int),
     );
+  }
+
+  /// Reorders bookmarks according to the provided list of ids.
+  /// Optimistically updates local storage and falls back to it on API errors.
+  Future<List<BookmarkModel>> reorder(List<int> ids) async {
+    try {
+      final response = await _client.put<Map<String, dynamic>>(
+        '/bookmarks',
+        data: {'order': ids},
+      );
+      final data =
+          response.data!['order'] as List<dynamic>? ??
+          response.data! as List<dynamic>;
+      final bookmarks = data
+          .cast<Map<String, dynamic>>()
+          .map(BookmarkModel.fromJson)
+          .toList();
+      await _cacheBookmarks(bookmarks);
+      return bookmarks;
+    } catch (_) {
+      final db = await LocalDatabase.instance;
+      for (var i = 0; i < ids.length; i++) {
+        await db.update(
+          'bookmarks',
+          {'sort_order': i},
+          where: 'id = ?',
+          whereArgs: [ids[i]],
+        );
+      }
+      return _loadCachedBookmarks();
+    }
   }
 }
 

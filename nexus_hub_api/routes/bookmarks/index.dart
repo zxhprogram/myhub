@@ -17,7 +17,7 @@ Future<Response> onRequest(RequestContext context) async {
             '''
         SELECT * FROM bookmarks
         WHERE (?1 IS NULL OR title LIKE '%' || ?1 || '%')
-        ORDER BY updated_at DESC
+        ORDER BY sort_order ASC, updated_at DESC
       ''',
             [query],
           )
@@ -37,13 +37,15 @@ Future<Response> onRequest(RequestContext context) async {
           (body['tags'] as List<dynamic>?)?.cast<String>() ?? <String>[];
       final category = body['category'] as String? ?? '';
       final image = body['image'] as String? ?? '';
+      final sortOrder = body['sortOrder'] as int? ?? now;
 
       db.execute(
         '''
-        INSERT INTO bookmarks (title, url, tags, category, image, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO bookmarks
+          (title, url, tags, category, image, sort_order, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ''',
-        [title, url, tags.join(','), category, image, now, now],
+        [title, url, tags.join(','), category, image, sortOrder, now, now],
       );
 
       final id = db.lastInsertRowId;
@@ -56,12 +58,40 @@ Future<Response> onRequest(RequestContext context) async {
           tags: tags,
           category: category,
           image: image,
+          sortOrder: sortOrder,
           createdAt: DateTime.fromMillisecondsSinceEpoch(now),
           updatedAt: DateTime.fromMillisecondsSinceEpoch(now),
         ).toJson(),
       );
 
+    case HttpMethod.put:
+      return _reorder(db, await context.request.json() as Map<String, dynamic>);
+
     default:
       return Response(statusCode: HttpStatus.methodNotAllowed);
   }
+}
+
+Response _reorder(Database db, Map<String, dynamic> body) {
+  final order = body['order'] as List<dynamic>?;
+  if (order == null) {
+    return Response.json(
+      statusCode: HttpStatus.badRequest,
+      body: {'error': 'Missing "order" array'},
+    );
+  }
+
+  for (var i = 0; i < order.length; i++) {
+    final id = order[i] as int?;
+    if (id == null) continue;
+    db.execute(
+      'UPDATE bookmarks SET sort_order = ? WHERE id = ?',
+      [i, id],
+    );
+  }
+
+  final rows = db.select('SELECT * FROM bookmarks ORDER BY sort_order ASC');
+  return Response.json(
+    body: rows.map(Bookmark.fromRow).map((b) => b.toJson()).toList(),
+  );
 }

@@ -30,14 +30,30 @@ Future<Response> onRequest(RequestContext context, String id) async {
       final now = DateTime.now().millisecondsSinceEpoch;
       final title = body['title'] as String? ?? bookmark.title;
       final url = body['url'] as String? ?? bookmark.url;
-      final tags = (body['tags'] as List<dynamic>?)?.cast<String>() ?? bookmark.tags;
+      final tags =
+          (body['tags'] as List<dynamic>?)?.cast<String>() ?? bookmark.tags;
       final category = body['category'] as String? ?? bookmark.category;
+      final image = body['image'] as String? ?? bookmark.image;
+      final sortOrder = body['sortOrder'] as int? ?? bookmark.sortOrder;
 
-      db.execute('''
+      db.execute(
+        '''
         UPDATE bookmarks
-        SET title = ?, url = ?, tags = ?, category = ?, updated_at = ?
+        SET title = ?, url = ?, tags = ?, category = ?,
+            image = ?, sort_order = ?, updated_at = ?
         WHERE id = ?
-      ''', [title, url, tags.join(','), category, now, bookmarkId]);
+      ''',
+        [
+          title,
+          url,
+          tags.join(','),
+          category,
+          image,
+          sortOrder,
+          now,
+          bookmarkId,
+        ],
+      );
 
       return Response.json(
         body: bookmark
@@ -46,6 +62,8 @@ Future<Response> onRequest(RequestContext context, String id) async {
               url: url,
               tags: tags,
               category: category,
+              image: image,
+              sortOrder: sortOrder,
               updatedAt: DateTime.fromMillisecondsSinceEpoch(now),
             )
             .toJson(),
