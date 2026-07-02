@@ -34,7 +34,7 @@ class NexusAppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: NexusColors.background,
-      fontFamily: 'Inter',
+      fontFamily: 'Microsoft YaHei',
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
