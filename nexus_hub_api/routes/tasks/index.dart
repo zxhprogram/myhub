@@ -5,6 +5,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../../lib/database.dart';
 import '../../lib/models/task.dart';
+import '../../lib/task_validation.dart';
 
 Future<Response> onRequest(RequestContext context) async {
   final db = DatabaseProvider.instance;
@@ -30,6 +31,13 @@ Future<Response> onRequest(RequestContext context) async {
       final now = DateTime.now().millisecondsSinceEpoch;
       final title = body['title'] as String? ?? '';
       final description = body['description'] as String? ?? '';
+      final descriptionError = validateDescription(description);
+      if (descriptionError != null) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {'error': descriptionError},
+        );
+      }
       final tag = body['tag'] as String? ?? '';
       final priority = body['priority'] as String? ?? 'medium';
       final status = body['status'] as String? ?? 'todo';

@@ -4,6 +4,7 @@ import 'package:dart_frog/dart_frog.dart';
 
 import '../../lib/database.dart';
 import '../../lib/models/task.dart';
+import '../../lib/task_validation.dart';
 
 Future<Response> onRequest(RequestContext context, String id) async {
   final db = DatabaseProvider.instance;
@@ -27,6 +28,13 @@ Future<Response> onRequest(RequestContext context, String id) async {
       final now = DateTime.now().millisecondsSinceEpoch;
       final title = body['title'] as String? ?? task.title;
       final description = body['description'] as String? ?? task.description;
+      final descriptionError = validateDescription(description);
+      if (descriptionError != null) {
+        return Response.json(
+          statusCode: HttpStatus.badRequest,
+          body: {'error': descriptionError},
+        );
+      }
       final tag = body['tag'] as String? ?? task.tag;
       final priority = body['priority'] as String? ?? task.priority;
       final status = body['status'] as String? ?? task.status;
@@ -35,21 +43,24 @@ Future<Response> onRequest(RequestContext context, String id) async {
           ? DateTime.parse(dueDateRaw)
           : task.dueDate;
 
-      db.execute('''
+      db.execute(
+        '''
         UPDATE tasks
         SET title = ?, description = ?, tag = ?, priority = ?, status = ?,
             due_date = ?, updated_at = ?
         WHERE id = ?
-      ''', [
-        title,
-        description,
-        tag,
-        priority,
-        status,
-        dueDate?.millisecondsSinceEpoch,
-        now,
-        taskId,
-      ]);
+      ''',
+        [
+          title,
+          description,
+          tag,
+          priority,
+          status,
+          dueDate?.millisecondsSinceEpoch,
+          now,
+          taskId,
+        ],
+      );
 
       return Response.json(
         body: task
