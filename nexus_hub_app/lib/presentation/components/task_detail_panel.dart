@@ -92,8 +92,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
       return FocusTraversalGroup(
         child: Shortcuts(
           shortcuts: {
-            LogicalKeySet(LogicalKeyboardKey.escape):
-                const DismissIntent(),
+            LogicalKeySet(LogicalKeyboardKey.escape): const DismissIntent(),
           },
           child: Actions(
             actions: {
@@ -120,21 +119,22 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
                               controller: _titleController,
                             )
                           else
-                            Text(task.title,
-                                style: NexusTypography.headlineSm),
+                            Text(task.title, style: NexusTypography.headlineSm),
                           const SizedBox(height: NexusSpacing.md),
                           _buildMetaRow(),
                           const SizedBox(height: NexusSpacing.lg),
-                          Text('Description',
-                              style: NexusTypography.labelMd.copyWith(
-                                  color: NexusColors.onSurfaceVariant)),
+                          Text(
+                            'Description',
+                            style: NexusTypography.labelMd.copyWith(
+                              color: NexusColors.onSurfaceVariant,
+                            ),
+                          ),
                           const SizedBox(height: NexusSpacing.sm),
                           SizedBox(
                             height: 320,
                             child: NexusRichTextEditor(
                               initialDeltaJson: _descriptionDelta,
-                              onChanged: (value) =>
-                                  _descriptionDelta = value,
+                              onChanged: (value) => _descriptionDelta = value,
                               readOnly: !_isEditing,
                             ),
                           ),
@@ -142,8 +142,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
                       ),
                     ),
                   ),
-                  if (_isSaving)
-                    const LinearProgressIndicator(),
+                  if (_isSaving) const LinearProgressIndicator(),
                 ],
               ),
             ),
@@ -159,9 +158,12 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
       child: Row(
         children: [
           Expanded(
-            child: Text('Task Details',
-                style: NexusTypography.labelSm.copyWith(
-                    color: NexusColors.onSurfaceVariant)),
+            child: Text(
+              'Task Details',
+              style: NexusTypography.labelSm.copyWith(
+                color: NexusColors.onSurfaceVariant,
+              ),
+            ),
           ),
           if (!_isEditing)
             NexusButton(
@@ -196,10 +198,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
       children: [
         Expanded(
           child: _isEditing
-              ? NexusInput(
-                  labelText: 'Tag',
-                  controller: _tagController,
-                )
+              ? NexusInput(labelText: 'Tag', controller: _tagController)
               : _MetaChip(label: 'Tag', value: _tagController.text),
         ),
         const SizedBox(width: NexusSpacing.md),
@@ -209,8 +208,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
                   labelText: 'Priority',
                   controller: _priorityController,
                 )
-              : _MetaChip(
-                  label: 'Priority', value: _priorityController.text),
+              : _MetaChip(label: 'Priority', value: _priorityController.text),
         ),
       ],
     );
@@ -234,12 +232,21 @@ class _MetaChip extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: NexusTypography.labelSm.copyWith(
-                  color: NexusColors.onSurfaceVariant)),
+          Text(
+            label,
+            style: NexusTypography.labelSm.copyWith(
+              color: NexusColors.onSurfaceVariant,
+            ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
           const SizedBox(height: NexusSpacing.xs),
-          Text(value.isNotEmpty ? value : '-',
-              style: NexusTypography.bodyMd),
+          Text(
+            value.isNotEmpty ? value : '-',
+            style: NexusTypography.bodyMd,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
         ],
       ),
     );
