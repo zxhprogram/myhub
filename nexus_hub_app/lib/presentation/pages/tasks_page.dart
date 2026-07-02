@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
@@ -9,6 +11,7 @@ import '../../theme/typography.dart';
 import '../components/nexus_button.dart';
 import '../components/nexus_chip.dart';
 import '../components/nexus_input.dart';
+import '../components/task_detail_panel.dart';
 import '../states/tasks_state.dart';
 
 class TasksPage extends StatefulWidget {
@@ -84,24 +87,47 @@ class _TasksPageState extends State<TasksPage> {
                 tasksByStatus.putIfAbsent(task.status, () => []).add(task);
               }
 
-              return ListView(
-                scrollDirection: Axis.horizontal,
+              final selected = _state.selectedTask.value;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ..._state.columns.value.map(
-                    (column) => Padding(
-                      padding: const EdgeInsets.only(right: NexusSpacing.lg),
-                      child: _KanbanColumn(
-                        column: column,
-                        tasks: tasksByStatus[column.status] ?? [],
-                        onMoveTask: (task) =>
-                            _state.moveTask(task, column.status),
-                        onAddTask: () => _showAddDialog(context, column.status),
-                        onDeleteColumn: () => _confirmDeleteColumn(column),
-                        onDeleteTask: _state.deleteTask,
-                      ),
+                  Expanded(
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        ..._state.columns.value.map(
+                          (column) => Padding(
+                            padding: const EdgeInsets.only(
+                              right: NexusSpacing.lg,
+                            ),
+                            child: _KanbanColumn(
+                              column: column,
+                              tasks: tasksByStatus[column.status] ?? [],
+                              onMoveTask: (task) =>
+                                  _state.moveTask(task, column.status),
+                              onAddTask: () =>
+                                  _showAddDialog(context, column.status),
+                              onDeleteColumn: () =>
+                                  _confirmDeleteColumn(column),
+                              onDeleteTask: _state.deleteTask,
+                              onTapTask: (task) => _state.selectTask(task),
+                            ),
+                          ),
+                        ),
+                        _AddColumnButton(
+                          onAdd: () => _showAddColumnDialog(context),
+                        ),
+                      ],
                     ),
                   ),
-                  _AddColumnButton(onAdd: () => _showAddColumnDialog(context)),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    width: selected != null ? 420 : 0,
+                    child: selected != null
+                        ? TaskDetailPanel(state: _state)
+                        : const SizedBox.shrink(),
+                  ),
                 ],
               );
             }),
@@ -207,6 +233,7 @@ class _KanbanColumn extends StatelessWidget {
     required this.onAddTask,
     required this.onDeleteColumn,
     required this.onDeleteTask,
+    required this.onTapTask,
   });
 
   final TaskColumn column;
@@ -215,6 +242,7 @@ class _KanbanColumn extends StatelessWidget {
   final VoidCallback onAddTask;
   final VoidCallback onDeleteColumn;
   final ValueChanged<TaskModel> onDeleteTask;
+  final ValueChanged<TaskModel> onTapTask;
 
   @override
   Widget build(BuildContext context) {
@@ -310,6 +338,7 @@ class _KanbanColumn extends StatelessWidget {
                           child: _DraggableTaskCard(
                             task: task,
                             onDelete: () => onDeleteTask(task),
+                            onTap: () => onTapTask(task),
                           ),
                         ),
                       ),
@@ -327,10 +356,15 @@ class _KanbanColumn extends StatelessWidget {
 }
 
 class _DraggableTaskCard extends StatelessWidget {
-  const _DraggableTaskCard({required this.task, required this.onDelete});
+  const _DraggableTaskCard({
+    required this.task,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   final TaskModel task;
   final VoidCallback onDelete;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -342,24 +376,30 @@ class _DraggableTaskCard extends StatelessWidget {
         borderRadius: NexusRadii.xlRadius,
         child: SizedBox(
           width: 288,
-          child: _TaskCard(task: task, dragging: true),
+          child: _TaskCard(task: task, dragging: true, onTap: onTap),
         ),
       ),
       childWhenDragging: Opacity(
         opacity: 0.4,
-        child: _TaskCard(task: task, onDelete: onDelete),
+        child: _TaskCard(task: task, onDelete: onDelete, onTap: onTap),
       ),
-      child: _TaskCard(task: task, onDelete: onDelete),
+      child: _TaskCard(task: task, onDelete: onDelete, onTap: onTap),
     );
   }
 }
 
 class _TaskCard extends StatelessWidget {
-  const _TaskCard({required this.task, this.dragging = false, this.onDelete});
+  const _TaskCard({
+    required this.task,
+    this.dragging = false,
+    this.onDelete,
+    this.onTap,
+  });
 
   final TaskModel task;
   final bool dragging;
   final VoidCallback? onDelete;
+  final VoidCallback? onTap;
 
   Color _tagColor(String tag) {
     return switch (tag.toLowerCase()) {
@@ -374,93 +414,99 @@ class _TaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tagColor = _tagColor(task.tag);
-    return Container(
-      padding: const EdgeInsets.all(NexusSpacing.md),
-      decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLowest,
-        borderRadius: NexusRadii.xlRadius,
-        border: Border.all(
-          color: NexusColors.outlineVariant.withValues(alpha: 0.5),
-        ),
-        boxShadow: dragging
-            ? [
-                BoxShadow(
-                  color: NexusColors.onSurface.withValues(alpha: 0.15),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ]
-            : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (task.tag.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: tagColor.withValues(alpha: 0.1),
-                borderRadius: NexusRadii.smRadius,
-              ),
-              child: Text(
-                task.tag.toUpperCase(),
-                style: NexusTypography.labelSm.copyWith(
-                  color: tagColor,
-                  letterSpacing: 0.05 * 11,
-                ),
-              ),
-            ),
-            const SizedBox(height: NexusSpacing.sm),
-          ],
-          Text(
-            task.title,
-            style: NexusTypography.bodyLg.copyWith(fontWeight: FontWeight.w600),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: NexusRadii.xlRadius,
+      child: Container(
+        padding: const EdgeInsets.all(NexusSpacing.md),
+        decoration: BoxDecoration(
+          color: NexusColors.surfaceContainerLowest,
+          borderRadius: NexusRadii.xlRadius,
+          border: Border.all(
+            color: NexusColors.outlineVariant.withValues(alpha: 0.5),
           ),
-          if (task.description.isNotEmpty) ...[
-            const SizedBox(height: NexusSpacing.xs),
-            Text(
-              task.description,
-              style: NexusTypography.bodyMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          const SizedBox(height: NexusSpacing.md),
-          Row(
-            children: [
-              if (task.priority.isNotEmpty)
-                NexusChip(label: task.priority, color: tagColor),
-              const Spacer(),
-              if (task.dueDate != null) ...[
-                const Icon(
-                  Icons.calendar_today,
-                  size: 14,
-                  color: NexusColors.onSurfaceVariant,
+          boxShadow: dragging
+              ? [
+                  BoxShadow(
+                    color: NexusColors.onSurface.withValues(alpha: 0.15),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (task.tag.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: tagColor.withValues(alpha: 0.1),
+                  borderRadius: NexusRadii.smRadius,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  '${task.dueDate!.month}/${task.dueDate!.day}',
-                  style: NexusTypography.labelMd,
-                ),
-                const SizedBox(width: NexusSpacing.sm),
-              ],
-              InkWell(
-                onTap: onDelete,
-                borderRadius: NexusRadii.fullRadius,
-                child: const Padding(
-                  padding: EdgeInsets.all(2),
-                  child: Icon(
-                    Icons.delete_outline,
-                    size: 16,
-                    color: NexusColors.onSurfaceVariant,
+                child: Text(
+                  task.tag.toUpperCase(),
+                  style: NexusTypography.labelSm.copyWith(
+                    color: tagColor,
+                    letterSpacing: 0.05 * 11,
                   ),
                 ),
               ),
+              const SizedBox(height: NexusSpacing.sm),
             ],
-          ),
-        ],
+            Text(
+              task.title,
+              style: NexusTypography.bodyLg.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (task.plainDescription.isNotEmpty) ...[
+              const SizedBox(height: NexusSpacing.xs),
+              Text(
+                task.plainDescription,
+                style: NexusTypography.bodyMd.copyWith(
+                  color: NexusColors.onSurfaceVariant,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            const SizedBox(height: NexusSpacing.md),
+            Row(
+              children: [
+                if (task.priority.isNotEmpty)
+                  NexusChip(label: task.priority, color: tagColor),
+                const Spacer(),
+                if (task.dueDate != null) ...[
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 14,
+                    color: NexusColors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${task.dueDate!.month}/${task.dueDate!.day}',
+                    style: NexusTypography.labelMd,
+                  ),
+                  const SizedBox(width: NexusSpacing.sm),
+                ],
+                InkWell(
+                  onTap: onDelete,
+                  borderRadius: NexusRadii.fullRadius,
+                  child: const Padding(
+                    padding: EdgeInsets.all(2),
+                    child: Icon(
+                      Icons.delete_outline,
+                      size: 16,
+                      color: NexusColors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -656,5 +702,24 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
         ),
       ],
     );
+  }
+}
+
+extension _TaskModelHelpers on TaskModel {
+  /// Returns a plain-text fallback of the description for previews.
+  String get plainDescription {
+    try {
+      final json = jsonDecode(description) as Map<String, dynamic>;
+      final ops = json['ops'] as List<dynamic>?;
+      if (ops == null) return description;
+      final buffer = StringBuffer();
+      for (final op in ops) {
+        final map = op as Map<String, dynamic>;
+        buffer.write(map['insert'] ?? '');
+      }
+      return buffer.toString().trim();
+    } catch (_) {
+      return description;
+    }
   }
 }
