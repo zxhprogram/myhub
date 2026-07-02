@@ -9,6 +9,7 @@ import '../../theme/typography.dart';
 import '../components/nexus_button.dart';
 import '../components/nexus_chip.dart';
 import '../components/nexus_input.dart';
+import '../components/nexus_rich_text_editor.dart';
 import '../components/task_detail_panel.dart';
 import '../states/tasks_state.dart';
 
@@ -610,7 +611,7 @@ class _AddTaskDialog extends StatefulWidget {
 
 class _AddTaskDialogState extends State<_AddTaskDialog> {
   late final TextEditingController _title;
-  final _description = TextEditingController();
+  String _descriptionDelta = '';
   final _tag = TextEditingController();
   final _priority = TextEditingController();
   late String _status;
@@ -629,16 +630,25 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
       shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Text('New Task', style: NexusTypography.headlineSm),
       content: SizedBox(
-        width: 440,
+        width: 520,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             NexusInput(labelText: 'Title', controller: _title),
             const SizedBox(height: NexusSpacing.md),
-            NexusInput(
-              labelText: 'Description',
-              controller: _description,
-              maxLines: 3,
+            Text(
+              'Description',
+              style: NexusTypography.labelMd.copyWith(
+                color: NexusColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: NexusSpacing.sm),
+            SizedBox(
+              height: 240,
+              child: NexusRichTextEditor(
+                onChanged: (value) => _descriptionDelta = value,
+              ),
             ),
             const SizedBox(height: NexusSpacing.md),
             Row(
@@ -687,7 +697,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
             widget.onSave(
               TaskModel(
                 title: _title.text,
-                description: _description.text,
+                description: _descriptionDelta,
                 tag: _tag.text,
                 priority: _priority.text,
                 status: _status,

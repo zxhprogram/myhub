@@ -74,8 +74,11 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
         readOnly: widget.readOnly,
       );
     } catch (_) {
+      final text = deltaJson ?? '';
       return QuillController(
-        document: Document(),
+        document: Document.fromJson([
+          {'insert': text.endsWith('\n') ? text : '$text\n'},
+        ]),
         selection: const TextSelection.collapsed(offset: 0),
         readOnly: widget.readOnly,
       );
