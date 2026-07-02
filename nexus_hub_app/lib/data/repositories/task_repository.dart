@@ -1,3 +1,5 @@
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 import '../models/task_model.dart';
 import '../services/api_client.dart';
 import '../services/local_database.dart';
@@ -36,9 +38,8 @@ class TaskRepository {
       await _insertLocal(created);
       return created;
     } catch (_) {
-      final local = task.copyWith(id: null);
-      await _insertLocal(local);
-      return local;
+      final id = await _insertLocal(task);
+      return task.copyWith(id: id);
     }
   }
 
@@ -79,9 +80,10 @@ class TaskRepository {
     }
   }
 
-  Future<void> _insertLocal(TaskModel task) async {
+  Future<int> _insertLocal(TaskModel task) async {
     final db = await LocalDatabase.instance;
-    await db.insert('tasks', {
+    return db.insert('tasks', {
+      'id': task.id,
       'title': task.title,
       'description': task.description,
       'tag': task.tag,
@@ -90,7 +92,7 @@ class TaskRepository {
       'due_date': task.dueDate?.millisecondsSinceEpoch,
       'created_at': task.createdAt.millisecondsSinceEpoch,
       'updated_at': task.updatedAt.millisecondsSinceEpoch,
-    });
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> _updateLocal(TaskModel task) async {
