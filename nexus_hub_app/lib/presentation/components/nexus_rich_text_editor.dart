@@ -6,6 +6,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
+import '../../theme/typography.dart';
 
 /// Reusable rich text editor backed by flutter_quill.
 ///
@@ -152,11 +153,50 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
               controller: _controller,
               focusNode: _focusNode,
               scrollController: ScrollController(),
-              config: const QuillEditorConfig(padding: EdgeInsets.zero),
+              config: QuillEditorConfig(
+                padding: EdgeInsets.zero,
+                unknownEmbedBuilder: const _UnknownEmbedBuilder(),
+              ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _UnknownEmbedBuilder extends EmbedBuilder {
+  const _UnknownEmbedBuilder();
+
+  @override
+  String get key => 'unknown';
+
+  @override
+  Widget build(BuildContext context, EmbedContext embedContext) {
+    return Container(
+      padding: const EdgeInsets.all(NexusSpacing.sm),
+      decoration: BoxDecoration(
+        color: NexusColors.surfaceContainer,
+        borderRadius: NexusRadii.mdRadius,
+        border: Border.all(color: NexusColors.outlineVariant),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.image_not_supported_outlined,
+            size: 16,
+            color: NexusColors.onSurfaceVariant,
+          ),
+          const SizedBox(width: NexusSpacing.xs),
+          Text(
+            'Unsupported embed',
+            style: NexusTypography.labelSm.copyWith(
+              color: NexusColors.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
