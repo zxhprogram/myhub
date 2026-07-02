@@ -29,7 +29,7 @@ class NexusRichTextEditor extends StatefulWidget {
 }
 
 class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
-  late final QuillController _controller;
+  late QuillController _controller;
   final _focusNode = FocusNode();
 
   @override

@@ -32,6 +32,7 @@ class TasksState {
   ]);
   final Signal<String?> error = signal<String?>(null);
   final Signal<bool> isLoading = signal<bool>(false);
+  final Signal<TaskModel?> selectedTask = signal<TaskModel?>(null);
 
   Future<void> load() async {
     isLoading.value = true;
@@ -66,6 +67,24 @@ class TasksState {
       tasks.value = tasks.value
           .map((t) => t.id == task.id ? persisted : t)
           .toList();
+    } catch (e) {
+      error.value = e.toString();
+    }
+  }
+
+  void selectTask(TaskModel? task) {
+    selectedTask.value = task;
+  }
+
+  Future<void> updateTask(TaskModel task) async {
+    try {
+      final updated = await _repository.updateTask(task);
+      tasks.value = tasks.value
+          .map((t) => t.id == updated.id ? updated : t)
+          .toList();
+      if (selectedTask.value?.id == updated.id) {
+        selectedTask.value = updated;
+      }
     } catch (e) {
       error.value = e.toString();
     }
