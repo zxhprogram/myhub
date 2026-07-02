@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:super_clipboard/super_clipboard.dart';
 
 import '../../theme/colors.dart';
 import '../../theme/radii.dart';
@@ -34,10 +36,12 @@ class NexusRichTextEditor extends StatefulWidget {
 class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
   late QuillController _controller;
   final _focusNode = FocusNode();
+  late final Future<bool> Function() _handleClipboardPaste;
 
   @override
   void initState() {
     super.initState();
+    _handleClipboardPaste = () => _pasteImageFromClipboard();
     _controller = _createController(widget.initialDeltaJson);
     _controller.addListener(_onChanged);
   }
@@ -67,6 +71,14 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
   }
 
   QuillController _createController(String? deltaJson) {
+    // ignore: experimental_member_use
+    final config = QuillControllerConfig(
+      // ignore: experimental_member_use
+      clipboardConfig: QuillClipboardConfig(
+        // ignore: experimental_member_use
+        onClipboardPaste: widget.readOnly ? null : _handleClipboardPaste,
+      ),
+    );
     try {
       final json = deltaJson != null && deltaJson.isNotEmpty
           ? jsonDecode(deltaJson) as List<dynamic>
@@ -75,6 +87,7 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
         document: Document.fromJson(json),
         selection: const TextSelection.collapsed(offset: 0),
         readOnly: widget.readOnly,
+        config: config,
       );
     } catch (_) {
       final text = deltaJson ?? '';
@@ -84,8 +97,59 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
         ]),
         selection: const TextSelection.collapsed(offset: 0),
         readOnly: widget.readOnly,
+        config: config,
       );
     }
+  }
+
+  Future<bool> _pasteImageFromClipboard() async {
+    final clipboard = SystemClipboard.instance;
+    if (clipboard == null) return false;
+
+    final reader = await clipboard.read();
+
+    final formats = <(SimpleFileFormat, String)>[
+      (Formats.png, 'image/png'),
+      (Formats.jpeg, 'image/jpeg'),
+      (Formats.gif, 'image/gif'),
+      (Formats.webp, 'image/webp'),
+      (Formats.bmp, 'image/bmp'),
+    ];
+
+    for (final (format, mimeType) in formats) {
+      if (!reader.canProvide(format)) continue;
+      final bytes = await _readClipboardImage(reader, format);
+      if (bytes != null && bytes.isNotEmpty) {
+        final base64 = base64Encode(bytes);
+        final imageUrl = 'data:$mimeType;base64,$base64';
+        final index = _controller.selection.start;
+        _controller.replaceText(
+          index,
+          _controller.selection.end - index,
+          BlockEmbed.image(imageUrl),
+          const TextSelection.collapsed(offset: -1),
+        );
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  Future<Uint8List?> _readClipboardImage(
+    ClipboardReader reader,
+    SimpleFileFormat format,
+  ) async {
+    final completer = Completer<Uint8List?>();
+    reader.getFile(format, (file) async {
+      try {
+        final bytes = await file.readAll();
+        completer.complete(bytes);
+      } catch (_) {
+        completer.complete(null);
+      }
+    });
+    return completer.future;
   }
 
   String _deltaJson(Document document) {
