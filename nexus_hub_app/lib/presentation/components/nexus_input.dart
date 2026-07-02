@@ -15,6 +15,7 @@ class NexusInput extends StatelessWidget {
     this.suffixIcon,
     this.maxLines = 1,
     this.autofocus = false,
+    this.enabled = true,
     this.onChanged,
     this.onSubmitted,
   });
@@ -26,6 +27,7 @@ class NexusInput extends StatelessWidget {
   final Widget? suffixIcon;
   final int maxLines;
   final bool autofocus;
+  final bool enabled;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
@@ -49,6 +51,7 @@ class NexusInput extends StatelessWidget {
           controller: controller,
           maxLines: maxLines,
           autofocus: autofocus,
+          enabled: enabled,
           onChanged: onChanged,
           onSubmitted: onSubmitted,
           style: NexusTypography.bodyMd,
