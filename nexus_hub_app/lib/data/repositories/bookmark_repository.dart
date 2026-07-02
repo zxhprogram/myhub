@@ -1,3 +1,5 @@
+import 'package:sqflite/sqflite.dart';
+
 import '../models/bookmark_model.dart';
 import '../services/api_client.dart';
 import '../services/local_database.dart';
@@ -20,6 +22,7 @@ class BookmarkRepository {
           .map(BookmarkModel.fromJson)
           .toList();
       await _cacheBookmarks(bookmarks);
+      await _cacheBookmarkCollections(bookmarks);
       return bookmarks;
     } catch (_) {
       return _loadCachedBookmarks(query: query);
@@ -42,6 +45,55 @@ class BookmarkRepository {
     }
   }
 
+  Future<BookmarkModel> updateBookmark(BookmarkModel bookmark) async {
+    final id = bookmark.id;
+    if (id == null) throw ArgumentError('Bookmark must have an id');
+
+    try {
+      final response = await _client.put<Map<String, dynamic>>(
+        '/bookmarks/$id',
+        data: bookmark.toJson(),
+      );
+      final updated = BookmarkModel.fromJson(response.data!);
+      await _insertLocal(updated);
+      await _cacheBookmarkCollections([updated]);
+      return updated;
+    } catch (_) {
+      final db = await LocalDatabase.instance;
+      await db.update(
+        'bookmarks',
+        {
+          'title': bookmark.title,
+          'url': bookmark.url,
+          'tags': bookmark.tags.join(','),
+          'category': bookmark.category,
+          'image': bookmark.image,
+          'sort_order': bookmark.sortOrder,
+          'updated_at': bookmark.updatedAt.millisecondsSinceEpoch,
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      await _cacheBookmarkCollections([bookmark]);
+      return bookmark;
+    }
+  }
+
+  Future<void> deleteBookmark(int id) async {
+    try {
+      await _client.delete<dynamic>('/bookmarks/$id');
+    } catch (_) {
+      // Continue to clean local data even if API fails.
+    }
+    final db = await LocalDatabase.instance;
+    await db.delete(
+      'bookmark_collections',
+      where: 'bookmark_id = ?',
+      whereArgs: [id],
+    );
+    await db.delete('bookmarks', where: 'id = ?', whereArgs: [id]);
+  }
+
   /// Fetches metadata (title, image, favicon) for a URL via the preview API.
   Future<BookmarkPreview> fetchPreview(String url) async {
     final response = await _client.get<Map<String, dynamic>>(
@@ -59,9 +111,37 @@ class BookmarkRepository {
     }
   }
 
+  Future<void> _cacheBookmarkCollections(List<BookmarkModel> bookmarks) async {
+    final db = await LocalDatabase.instance;
+    final bookmarkIds = bookmarks.map((b) => b.id).whereType<int>().toList();
+    if (bookmarkIds.isEmpty) return;
+
+    final placeholders = List.filled(bookmarkIds.length, '?').join(',');
+    await db.rawDelete('''
+      DELETE FROM bookmark_collections
+      WHERE bookmark_id IN ($placeholders)
+    ''', bookmarkIds);
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final bookmark in bookmarks) {
+      for (final collectionId in bookmark.collectionIds) {
+        try {
+          await db.insert('bookmark_collections', {
+            'bookmark_id': bookmark.id,
+            'collection_id': collectionId,
+            'created_at': now,
+          });
+        } catch (_) {
+          // Ignore duplicate entries.
+        }
+      }
+    }
+  }
+
   Future<void> _insertLocal(BookmarkModel bookmark) async {
     final db = await LocalDatabase.instance;
     await db.insert('bookmarks', {
+      'id': bookmark.id,
       'title': bookmark.title,
       'url': bookmark.url,
       'tags': bookmark.tags.join(','),
@@ -70,7 +150,7 @@ class BookmarkRepository {
       'sort_order': bookmark.sortOrder,
       'created_at': bookmark.createdAt.millisecondsSinceEpoch,
       'updated_at': bookmark.updatedAt.millisecondsSinceEpoch,
-    });
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<BookmarkModel>> _loadCachedBookmarks({String? query}) async {

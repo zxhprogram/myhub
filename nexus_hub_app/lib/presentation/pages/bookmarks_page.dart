@@ -6,6 +6,7 @@ import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/bookmark_model.dart';
+import '../../data/models/collection_model.dart';
 import '../../data/repositories/bookmark_repository.dart';
 import '../../theme/colors.dart';
 import '../../theme/radii.dart';
@@ -17,6 +18,7 @@ import '../components/nexus_category_select.dart';
 import '../components/nexus_chip_input.dart';
 import '../components/nexus_input.dart';
 import '../states/bookmarks_state.dart';
+import '../states/collections_state.dart';
 
 class BookmarksPage extends StatefulWidget {
   const BookmarksPage({super.key});
@@ -29,8 +31,11 @@ enum BookmarkView { grid, list, icons }
 
 class _BookmarksPageState extends State<BookmarksPage> {
   final _state = BookmarksState();
+  final _collectionsState = CollectionsState();
   final _filter = signal<String>('All');
   final _view = signal<BookmarkView>(BookmarkView.grid);
+  late final void Function() _disposeBookmarksErrorEffect;
+  late final void Function() _disposeCollectionsErrorEffect;
 
   static const _categories = [
     'All',
@@ -45,6 +50,30 @@ class _BookmarksPageState extends State<BookmarksPage> {
   void initState() {
     super.initState();
     _state.load();
+    _collectionsState.load();
+    _disposeBookmarksErrorEffect = effect(() {
+      final message = _state.error.value;
+      if (message != null && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    });
+    _disposeCollectionsErrorEffect = effect(() {
+      final message = _collectionsState.error.value;
+      if (message != null && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposeBookmarksErrorEffect();
+    _disposeCollectionsErrorEffect();
+    super.dispose();
   }
 
   List<BookmarkModel> _visibleBookmarks(List<BookmarkModel> all) {
@@ -115,10 +144,22 @@ class _BookmarksPageState extends State<BookmarksPage> {
                             BookmarkView.grid => _BookmarkGrid(
                               bookmarks: visible,
                               onReorder: _reorderFromEntities,
+                              collectionsState: _collectionsState,
+                              bookmarksState: _state,
+                              onEdit: (b) =>
+                                  _showAddDialog(context, bookmark: b),
+                              onDelete: (b) =>
+                                  _confirmDeleteBookmark(context, b),
                             ),
                             BookmarkView.list => _BookmarkList(
                               bookmarks: visible,
                               onReorder: _onListReorder,
+                              collectionsState: _collectionsState,
+                              bookmarksState: _state,
+                              onEdit: (b) =>
+                                  _showAddDialog(context, bookmark: b),
+                              onDelete: (b) =>
+                                  _confirmDeleteBookmark(context, b),
                             ),
                             BookmarkView.icons => _BookmarkIconGrid(
                               bookmarks: visible,
@@ -131,7 +172,13 @@ class _BookmarksPageState extends State<BookmarksPage> {
                   ),
                 ),
                 const SizedBox(width: NexusSpacing.xl),
-                const SizedBox(width: 256, child: _SecondaryPanel()),
+                SizedBox(
+                  width: 256,
+                  child: _SecondaryPanel(
+                    collectionsState: _collectionsState,
+                    bookmarksState: _state,
+                  ),
+                ),
               ],
             ),
           ),
@@ -179,7 +226,38 @@ class _BookmarksPageState extends State<BookmarksPage> {
     _state.reorder(oldFull, newFull);
   }
 
-  void _showAddDialog(BuildContext context) {
+  Future<void> _confirmDeleteBookmark(
+    BuildContext context,
+    BookmarkModel bookmark,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: NexusColors.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
+        title: Text('Delete Bookmark?', style: NexusTypography.headlineSm),
+        content: Text(
+          'Are you sure you want to delete "${bookmark.title}"?',
+          style: NexusTypography.bodyMd,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Delete', style: TextStyle(color: NexusColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && bookmark.id != null) {
+      await _state.delete(bookmark.id!);
+    }
+  }
+
+  void _showAddDialog(BuildContext context, {BookmarkModel? bookmark}) {
     final categories = _state.bookmarks.value
         .map((b) => b.category)
         .where((c) => c.isNotEmpty)
@@ -188,8 +266,17 @@ class _BookmarksPageState extends State<BookmarksPage> {
     showDialog(
       context: context,
       builder: (context) => _AddBookmarkDialog(
+        bookmark: bookmark,
         categories: categories,
-        onSave: (bookmark) => _state.add(bookmark),
+        collectionsState: _collectionsState,
+        bookmarksState: _state,
+        onSave: (updated) async {
+          if (bookmark == null) {
+            await _state.add(updated);
+          } else {
+            await _state.update(updated);
+          }
+        },
       ),
     );
   }
@@ -390,10 +477,21 @@ class _FilterBar extends StatelessWidget {
 }
 
 class _BookmarkGrid extends StatefulWidget {
-  const _BookmarkGrid({required this.bookmarks, required this.onReorder});
+  const _BookmarkGrid({
+    required this.bookmarks,
+    required this.onReorder,
+    required this.collectionsState,
+    required this.bookmarksState,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final List<BookmarkModel> bookmarks;
   final void Function(List<ReorderUpdateEntity>) onReorder;
+  final CollectionsState collectionsState;
+  final BookmarksState bookmarksState;
+  final ValueChanged<BookmarkModel> onEdit;
+  final ValueChanged<BookmarkModel> onDelete;
 
   @override
   State<_BookmarkGrid> createState() => _BookmarkGridState();
@@ -447,6 +545,10 @@ class _BookmarkGridState extends State<_BookmarkGrid> {
                 (b) => _BookmarkGridCard(
                   key: ValueKey('grid-${b.id}'),
                   bookmark: b,
+                  collectionsState: widget.collectionsState,
+                  bookmarksState: widget.bookmarksState,
+                  onEdit: widget.onEdit,
+                  onDelete: widget.onDelete,
                 ),
               )
               .toList(),
@@ -457,9 +559,20 @@ class _BookmarkGridState extends State<_BookmarkGrid> {
 }
 
 class _BookmarkGridCard extends StatefulWidget {
-  const _BookmarkGridCard({super.key, required this.bookmark});
+  const _BookmarkGridCard({
+    super.key,
+    required this.bookmark,
+    required this.collectionsState,
+    required this.bookmarksState,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final BookmarkModel bookmark;
+  final CollectionsState collectionsState;
+  final BookmarksState bookmarksState;
+  final ValueChanged<BookmarkModel> onEdit;
+  final ValueChanged<BookmarkModel> onDelete;
 
   @override
   State<_BookmarkGridCard> createState() => _BookmarkGridCardState();
@@ -551,12 +664,20 @@ class _BookmarkGridCardState extends State<_BookmarkGridCard> {
                       right: 8,
                       child: Row(
                         children: [
-                          _HoverAction(icon: Icons.edit, onTap: () {}),
+                          _HoverAction(
+                            icon: Icons.folder_outlined,
+                            onTap: () => _showAddToCollectionDialog(context),
+                          ),
+                          const SizedBox(width: 4),
+                          _HoverAction(
+                            icon: Icons.edit,
+                            onTap: () => widget.onEdit(widget.bookmark),
+                          ),
                           const SizedBox(width: 4),
                           _HoverAction(
                             icon: Icons.delete,
                             danger: true,
-                            onTap: () {},
+                            onTap: () => widget.onDelete(widget.bookmark),
                           ),
                         ],
                       ),
@@ -566,70 +687,105 @@ class _BookmarkGridCardState extends State<_BookmarkGridCard> {
             ),
             Padding(
               padding: const EdgeInsets.all(NexusSpacing.md),
-              child: Row(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: NexusColors.surfaceContainer,
-                      borderRadius: NexusRadii.smRadius,
-                      border: Border.all(
-                        color: NexusColors.outlineVariant.withValues(
-                          alpha: 0.3,
-                        ),
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      _firstLetter.toUpperCase(),
-                      style: NexusTypography.labelSm.copyWith(
-                        fontSize: 10,
-                        color: NexusColors.onSurface,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.bookmark.title,
-                          style: NexusTypography.bodyMd.copyWith(
-                            fontWeight: FontWeight.w600,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: NexusColors.surfaceContainer,
+                          borderRadius: NexusRadii.smRadius,
+                          border: Border.all(
+                            color: NexusColors.outlineVariant.withValues(
+                              alpha: 0.3,
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          _domain,
-                          style: NexusTypography.labelMd,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        alignment: Alignment.center,
+                        child: Text(
+                          _firstLetter.toUpperCase(),
+                          style: NexusTypography.labelSm.copyWith(
+                            fontSize: 10,
+                            color: NexusColors.onSurface,
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.bookmark.title,
+                              style: NexusTypography.bodyMd.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              _domain,
+                              style: NexusTypography.labelMd,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => setState(() => _favorite = !_favorite),
+                        icon: Icon(
+                          _favorite ? Icons.favorite : Icons.favorite_border,
+                          size: 18,
+                          color: _favorite
+                              ? NexusColors.secondary
+                              : NexusColors.onSurfaceVariant,
+                        ),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    onPressed: () => setState(() => _favorite = !_favorite),
-                    icon: Icon(
-                      _favorite ? Icons.favorite : Icons.favorite_border,
-                      size: 18,
-                      color: _favorite
-                          ? NexusColors.secondary
-                          : NexusColors.onSurfaceVariant,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
+                  const SizedBox(height: NexusSpacing.xs),
+                  Watch((_) {
+                    final collections =
+                        widget.collectionsState.collections.value;
+                    final names = collections
+                        .where(
+                          (c) => widget.bookmark.collectionIds.contains(c.id),
+                        )
+                        .map((c) => c.name)
+                        .toList();
+                    if (names.isEmpty) return const SizedBox.shrink();
+                    return Wrap(
+                      spacing: NexusSpacing.xs,
+                      runSpacing: NexusSpacing.xs,
+                      children: names
+                          .map((name) => NexusBadge(label: name))
+                          .toList(),
+                    );
+                  }),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showAddToCollectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => _AddToCollectionDialog(
+        collectionsState: widget.collectionsState,
+        bookmarksState: widget.bookmarksState,
+        bookmark: widget.bookmark,
       ),
     );
   }
@@ -697,10 +853,21 @@ class _HoverAction extends StatelessWidget {
 }
 
 class _BookmarkList extends StatelessWidget {
-  const _BookmarkList({required this.bookmarks, required this.onReorder});
+  const _BookmarkList({
+    required this.bookmarks,
+    required this.onReorder,
+    required this.collectionsState,
+    required this.bookmarksState,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final List<BookmarkModel> bookmarks;
   final ReorderCallback onReorder;
+  final CollectionsState collectionsState;
+  final BookmarksState bookmarksState;
+  final ValueChanged<BookmarkModel> onEdit;
+  final ValueChanged<BookmarkModel> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -710,15 +877,30 @@ class _BookmarkList extends StatelessWidget {
       itemBuilder: (context, index) => _BookmarkListRow(
         key: ValueKey('list-${bookmarks[index].id}'),
         bookmark: bookmarks[index],
+        collectionsState: collectionsState,
+        bookmarksState: bookmarksState,
+        onEdit: onEdit,
+        onDelete: onDelete,
       ),
     );
   }
 }
 
 class _BookmarkListRow extends StatelessWidget {
-  const _BookmarkListRow({super.key, required this.bookmark});
+  const _BookmarkListRow({
+    super.key,
+    required this.bookmark,
+    required this.collectionsState,
+    required this.bookmarksState,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final BookmarkModel bookmark;
+  final CollectionsState collectionsState;
+  final BookmarksState bookmarksState;
+  final ValueChanged<BookmarkModel> onEdit;
+  final ValueChanged<BookmarkModel> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -763,16 +945,47 @@ class _BookmarkListRow extends StatelessWidget {
                 const SizedBox(height: NexusSpacing.xs),
                 Wrap(
                   spacing: NexusSpacing.xs,
-                  children: [NexusBadge(label: bookmark.category)],
+                  runSpacing: NexusSpacing.xs,
+                  children: [
+                    NexusBadge(label: bookmark.category),
+                    ..._collectionBadges(),
+                  ],
                 ),
               ],
             ),
           ),
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.open_in_new, size: 18),
+            onPressed: () => _showAddToCollectionDialog(context),
+            icon: const Icon(Icons.folder_outlined, size: 18),
+          ),
+          IconButton(
+            onPressed: () => onEdit(bookmark),
+            icon: const Icon(Icons.edit, size: 18),
+          ),
+          IconButton(
+            onPressed: () => onDelete(bookmark),
+            icon: Icon(Icons.delete, size: 18, color: NexusColors.error),
           ),
         ],
+      ),
+    );
+  }
+
+  List<Widget> _collectionBadges() {
+    final names = collectionsState.collections.value
+        .where((c) => bookmark.collectionIds.contains(c.id))
+        .map((c) => c.name)
+        .toList();
+    return names.map((name) => NexusBadge(label: name)).toList();
+  }
+
+  void _showAddToCollectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => _AddToCollectionDialog(
+        collectionsState: collectionsState,
+        bookmarksState: bookmarksState,
+        bookmark: bookmark,
       ),
     );
   }
@@ -1021,19 +1234,28 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _SecondaryPanel extends StatelessWidget {
-  const _SecondaryPanel();
+  const _SecondaryPanel({
+    required this.collectionsState,
+    required this.bookmarksState,
+  });
+
+  final CollectionsState collectionsState;
+  final BookmarksState bookmarksState;
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: const [
-          _LibrarySection(),
-          SizedBox(height: NexusSpacing.lg),
-          _CollectionsSection(),
-          SizedBox(height: NexusSpacing.lg),
-          _TagsSection(),
+        children: [
+          const _LibrarySection(),
+          const SizedBox(height: NexusSpacing.lg),
+          _CollectionsSection(
+            collectionsState: collectionsState,
+            bookmarksState: bookmarksState,
+          ),
+          const SizedBox(height: NexusSpacing.lg),
+          const _TagsSection(),
         ],
       ),
     );
@@ -1073,14 +1295,13 @@ class _LibrarySection extends StatelessWidget {
 }
 
 class _CollectionsSection extends StatelessWidget {
-  const _CollectionsSection();
+  const _CollectionsSection({
+    required this.collectionsState,
+    required this.bookmarksState,
+  });
 
-  static const _items = [
-    (label: 'Inspiration', count: '42'),
-    (label: 'Work Projects', count: '18'),
-    (label: 'Personal', count: '7'),
-    (label: 'Read Later', count: '24'),
-  ];
+  final CollectionsState collectionsState;
+  final BookmarksState bookmarksState;
 
   @override
   Widget build(BuildContext context) {
@@ -1093,19 +1314,60 @@ class _CollectionsSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('COLLECTIONS', style: NexusTypography.labelSm),
-              Icon(Icons.add, size: 16, color: NexusColors.onSurfaceVariant),
+              IconButton(
+                icon: Icon(
+                  Icons.add,
+                  size: 16,
+                  color: NexusColors.onSurfaceVariant,
+                ),
+                onPressed: () => _showManageCollectionsDialog(context),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
             ],
           ),
         ),
         const SizedBox(height: NexusSpacing.sm),
-        ..._items.map(
-          (item) => _SidebarItem(
-            icon: Icons.folder_outlined,
-            label: item.label,
-            trailing: item.count,
-          ),
-        ),
+        Watch((_) {
+          final selectedId = bookmarksState.selectedCollectionId.value;
+          final collections = collectionsState.collections.value;
+          return Column(
+            children: [
+              _SidebarItem(
+                icon: Icons.folder_outlined,
+                label: 'All Bookmarks',
+                trailing: bookmarksState.bookmarks.value.length.toString(),
+                selected: selectedId == null,
+                onTap: () => bookmarksState.filterByCollection(null),
+              ),
+              ...collections.map((collection) {
+                return FutureBuilder<int>(
+                  key: ValueKey('collection-${collection.id}'),
+                  future: collectionsState.countBookmarks(collection.id!),
+                  builder: (context, snapshot) {
+                    return _SidebarItem(
+                      icon: Icons.folder_outlined,
+                      label: collection.name,
+                      trailing: (snapshot.data ?? 0).toString(),
+                      selected: selectedId == collection.id,
+                      onTap: () =>
+                          bookmarksState.filterByCollection(collection.id),
+                    );
+                  },
+                );
+              }),
+            ],
+          );
+        }),
       ],
+    );
+  }
+
+  void _showManageCollectionsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) =>
+          _ManageCollectionsDialog(collectionsState: collectionsState),
     );
   }
 }
@@ -1171,12 +1433,14 @@ class _SidebarItem extends StatelessWidget {
     required this.label,
     required this.trailing,
     this.selected = false,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String trailing;
   final bool selected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1184,7 +1448,7 @@ class _SidebarItem extends StatelessWidget {
       color: selected ? NexusColors.surfaceVariant : Colors.transparent,
       borderRadius: NexusRadii.lgRadius,
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         borderRadius: NexusRadii.lgRadius,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1218,11 +1482,414 @@ class _SidebarItem extends StatelessWidget {
   }
 }
 
-class _AddBookmarkDialog extends StatefulWidget {
-  const _AddBookmarkDialog({required this.onSave, required this.categories});
+class _ManageCollectionsDialog extends StatefulWidget {
+  const _ManageCollectionsDialog({required this.collectionsState});
 
+  final CollectionsState collectionsState;
+
+  @override
+  State<_ManageCollectionsDialog> createState() =>
+      _ManageCollectionsDialogState();
+}
+
+class _ManageCollectionsDialogState extends State<_ManageCollectionsDialog> {
+  final _name = TextEditingController();
+  final _editingName = TextEditingController();
+  int? _editingId;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _editingName.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: NexusColors.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
+      title: Text('Manage Collections', style: NexusTypography.headlineSm),
+      content: SizedBox(
+        width: 420,
+        child: Stack(
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: NexusInput(
+                        labelText: 'New collection',
+                        controller: _name,
+                        onSubmitted: (_) => _create(),
+                      ),
+                    ),
+                    const SizedBox(width: NexusSpacing.sm),
+                    NexusButton(
+                      label: 'Create',
+                      icon: Icons.add,
+                      onPressed: _create,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: NexusSpacing.md),
+                Watch((_) {
+                  final sort = widget.collectionsState.sort.value;
+                  return Wrap(
+                    spacing: NexusSpacing.sm,
+                    children: [
+                      _SortChip(
+                        label: 'Name A-Z',
+                        active: sort == 'name_asc',
+                        onTap: () =>
+                            widget.collectionsState.setSort('name_asc'),
+                      ),
+                      _SortChip(
+                        label: 'Name Z-A',
+                        active: sort == 'name_desc',
+                        onTap: () =>
+                            widget.collectionsState.setSort('name_desc'),
+                      ),
+                      _SortChip(
+                        label: 'Newest',
+                        active: sort == 'created_desc',
+                        onTap: () =>
+                            widget.collectionsState.setSort('created_desc'),
+                      ),
+                      _SortChip(
+                        label: 'Oldest',
+                        active: sort == 'created_asc',
+                        onTap: () =>
+                            widget.collectionsState.setSort('created_asc'),
+                      ),
+                    ],
+                  );
+                }),
+                const SizedBox(height: NexusSpacing.md),
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 320),
+                    child: Watch((_) {
+                      final collections =
+                          widget.collectionsState.collections.value;
+                      if (collections.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'No collections yet',
+                            style: NexusTypography.bodyMd.copyWith(
+                              color: NexusColors.onSurfaceVariant,
+                            ),
+                          ),
+                        );
+                      }
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: collections.length,
+                        separatorBuilder: (context, index) => const Divider(),
+                        itemBuilder: (context, index) {
+                          final collection = collections[index];
+                          final isEditing = _editingId == collection.id;
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: isEditing
+                                ? NexusInput(
+                                    labelText: 'Name',
+                                    controller: _editingName,
+                                    onSubmitted: (_) =>
+                                        _saveEdit(collection.id!),
+                                  )
+                                : Text(
+                                    collection.name,
+                                    style: NexusTypography.bodyMd,
+                                  ),
+                            trailing: isEditing
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.check, size: 18),
+                                        onPressed: () =>
+                                            _saveEdit(collection.id!),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.close, size: 18),
+                                        onPressed: () =>
+                                            setState(() => _editingId = null),
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.edit,
+                                          size: 18,
+                                          color: NexusColors.onSurfaceVariant,
+                                        ),
+                                        onPressed: () => _startEdit(collection),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete,
+                                          size: 18,
+                                          color: NexusColors.error,
+                                        ),
+                                        onPressed: () =>
+                                            _confirmDelete(context, collection),
+                                      ),
+                                    ],
+                                  ),
+                          );
+                        },
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            ),
+            Watch((_) {
+              if (!widget.collectionsState.isLoading.value) {
+                return const SizedBox.shrink();
+              }
+              return Container(
+                color: NexusColors.background.withValues(alpha: 0.7),
+                child: const Center(child: CircularProgressIndicator()),
+              );
+            }),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _create() async {
+    final name = _name.text.trim();
+    if (name.isEmpty) return;
+    _name.clear();
+    await widget.collectionsState.create(name);
+  }
+
+  void _startEdit(CollectionModel collection) {
+    setState(() {
+      _editingId = collection.id;
+      _editingName.text = collection.name;
+    });
+  }
+
+  Future<void> _saveEdit(int id) async {
+    final name = _editingName.text.trim();
+    if (name.isEmpty) return;
+    setState(() => _editingId = null);
+    await widget.collectionsState.rename(id, name);
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    CollectionModel collection,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: NexusColors.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
+        title: Text('Delete Collection?', style: NexusTypography.headlineSm),
+        content: Text(
+          'Are you sure you want to delete "${collection.name}"? Bookmarks will not be deleted.',
+          style: NexusTypography.bodyMd,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Delete', style: TextStyle(color: NexusColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && collection.id != null) {
+      await widget.collectionsState.delete(collection.id!);
+    }
+  }
+}
+
+class _SortChip extends StatelessWidget {
+  const _SortChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: active
+          ? NexusColors.primaryContainer
+          : NexusColors.surfaceContainer,
+      borderRadius: NexusRadii.fullRadius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: NexusRadii.fullRadius,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(
+            label,
+            style: NexusTypography.labelSm.copyWith(
+              color: active
+                  ? NexusColors.onPrimaryContainer
+                  : NexusColors.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddToCollectionDialog extends StatefulWidget {
+  const _AddToCollectionDialog({
+    required this.collectionsState,
+    required this.bookmarksState,
+    required this.bookmark,
+  });
+
+  final CollectionsState collectionsState;
+  final BookmarksState bookmarksState;
+  final BookmarkModel bookmark;
+
+  @override
+  State<_AddToCollectionDialog> createState() => _AddToCollectionDialogState();
+}
+
+class _AddToCollectionDialogState extends State<_AddToCollectionDialog> {
+  late Set<int> _selectedIds;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIds = Set<int>.from(widget.bookmark.collectionIds);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: NexusColors.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
+      title: Text('Add to Collection', style: NexusTypography.headlineSm),
+      content: SizedBox(
+        width: 360,
+        child: Watch((_) {
+          final collections = widget.collectionsState.collections.value;
+          if (collections.isEmpty) {
+            return Center(
+              child: Text(
+                'No collections yet',
+                style: NexusTypography.bodyMd.copyWith(
+                  color: NexusColors.onSurfaceVariant,
+                ),
+              ),
+            );
+          }
+          return ListView.builder(
+            shrinkWrap: true,
+            itemCount: collections.length,
+            itemBuilder: (context, index) {
+              final collection = collections[index];
+              final selected = _selectedIds.contains(collection.id);
+              return CheckboxListTile(
+                value: selected,
+                onChanged: _saving ? null : (_) => _toggle(collection.id!),
+                title: Text(collection.name, style: NexusTypography.bodyMd),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+                activeColor: NexusColors.primary,
+              );
+            },
+          );
+        }),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        NexusButton(
+          label: _saving ? 'Saving...' : 'Save',
+          onPressed: _saving
+              ? null
+              : () async {
+                  final navigator = Navigator.of(context);
+                  final bookmarkId = widget.bookmark.id;
+                  if (bookmarkId == null) {
+                    navigator.pop();
+                    return;
+                  }
+                  setState(() => _saving = true);
+                  final original = Set<int>.from(widget.bookmark.collectionIds);
+                  final toAdd = _selectedIds.difference(original).toList();
+                  final toRemove = original.difference(_selectedIds).toList();
+
+                  for (final collectionId in toAdd) {
+                    await widget.collectionsState.addBookmarks(collectionId, [
+                      bookmarkId,
+                    ]);
+                  }
+                  for (final collectionId in toRemove) {
+                    await widget.collectionsState.removeBookmarks(
+                      collectionId,
+                      [bookmarkId],
+                    );
+                  }
+                  await widget.bookmarksState.load();
+                  if (mounted) navigator.pop();
+                },
+        ),
+      ],
+    );
+  }
+
+  void _toggle(int collectionId) {
+    setState(() {
+      if (_selectedIds.contains(collectionId)) {
+        _selectedIds.remove(collectionId);
+      } else {
+        _selectedIds.add(collectionId);
+      }
+    });
+  }
+}
+
+class _AddBookmarkDialog extends StatefulWidget {
+  const _AddBookmarkDialog({
+    this.bookmark,
+    required this.onSave,
+    required this.categories,
+    this.collectionsState,
+    this.bookmarksState,
+  });
+
+  final BookmarkModel? bookmark;
   final ValueChanged<BookmarkModel> onSave;
   final List<String> categories;
+  final CollectionsState? collectionsState;
+  final BookmarksState? bookmarksState;
 
   @override
   State<_AddBookmarkDialog> createState() => _AddBookmarkDialogState();
@@ -1243,6 +1910,15 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
   @override
   void initState() {
     super.initState();
+    final bookmark = widget.bookmark;
+    if (bookmark != null) {
+      _title.text = bookmark.title;
+      _url.text = bookmark.url;
+      _tags = List<String>.from(bookmark.tags);
+      _category = bookmark.category;
+      _image = bookmark.image;
+      _titleEdited = true;
+    }
     _title.addListener(() {
       if (_title.text.isNotEmpty) _titleEdited = true;
     });
@@ -1296,7 +1972,10 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
     return AlertDialog(
       backgroundColor: NexusColors.surfaceContainerLowest,
       shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
-      title: Text('Add Bookmark', style: NexusTypography.headlineSm),
+      title: Text(
+        widget.bookmark == null ? 'Add Bookmark' : 'Edit Bookmark',
+        style: NexusTypography.headlineSm,
+      ),
       content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
@@ -1348,6 +2027,43 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
                   ),
                 ),
               ],
+              if (widget.bookmark != null &&
+                  widget.collectionsState != null) ...[
+                const SizedBox(height: NexusSpacing.md),
+                Text('Collections', style: NexusTypography.labelMd),
+                const SizedBox(height: NexusSpacing.xs),
+                Watch((_) {
+                  final collections =
+                      widget.collectionsState!.collections.value;
+                  final names = collections
+                      .where(
+                        (c) => widget.bookmark!.collectionIds.contains(c.id),
+                      )
+                      .map((c) => c.name)
+                      .toList();
+                  if (names.isEmpty) {
+                    return Text(
+                      'Not in any collection',
+                      style: NexusTypography.bodyMd.copyWith(
+                        color: NexusColors.onSurfaceVariant,
+                      ),
+                    );
+                  }
+                  return Wrap(
+                    spacing: NexusSpacing.xs,
+                    runSpacing: NexusSpacing.xs,
+                    children: names
+                        .map((name) => NexusBadge(label: name))
+                        .toList(),
+                  );
+                }),
+                const SizedBox(height: NexusSpacing.xs),
+                NexusButton(
+                  label: 'Manage Collections',
+                  icon: Icons.folder_outlined,
+                  onPressed: () => _showAddToCollectionDialog(context),
+                ),
+              ],
             ],
           ),
         ),
@@ -1360,15 +2076,18 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
         NexusButton(
           label: 'Save',
           onPressed: () {
+            final existing = widget.bookmark;
             final now = DateTime.now();
             widget.onSave(
               BookmarkModel(
+                id: existing?.id,
                 title: _title.text,
                 url: _url.text,
                 tags: _tags,
                 category: _category,
                 image: _image,
-                createdAt: now,
+                collectionIds: existing?.collectionIds ?? const [],
+                createdAt: existing?.createdAt ?? now,
                 updatedAt: now,
               ),
             );
@@ -1376,6 +2095,25 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
           },
         ),
       ],
+    );
+  }
+
+  void _showAddToCollectionDialog(BuildContext context) {
+    final bookmark = widget.bookmark;
+    final collectionsState = widget.collectionsState;
+    final bookmarksState = widget.bookmarksState;
+    if (bookmark == null ||
+        collectionsState == null ||
+        bookmarksState == null) {
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (context) => _AddToCollectionDialog(
+        collectionsState: collectionsState,
+        bookmarksState: bookmarksState,
+        bookmark: bookmark,
+      ),
     );
   }
 }

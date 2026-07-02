@@ -22,11 +22,8 @@ Future<Response> onRequest(RequestContext context) async {
             [query],
           )
           .cast<Row>();
-      final bookmarks = rows
-          .map(Bookmark.fromRow)
-          .map((b) => b.toJson())
-          .toList();
-      return Response.json(body: bookmarks);
+      final bookmarks = rows.map(Bookmark.fromRow).toList();
+      return Response.json(body: _attachCollectionIds(db, bookmarks));
 
     case HttpMethod.post:
       final body = await context.request.json() as Map<String, dynamic>;
@@ -91,7 +88,34 @@ Response _reorder(Database db, Map<String, dynamic> body) {
   }
 
   final rows = db.select('SELECT * FROM bookmarks ORDER BY sort_order ASC');
-  return Response.json(
-    body: rows.map(Bookmark.fromRow).map((b) => b.toJson()).toList(),
+  final bookmarks = rows.map(Bookmark.fromRow).toList();
+  return Response.json(body: _attachCollectionIds(db, bookmarks));
+}
+
+List<Map<String, dynamic>> _attachCollectionIds(
+  Database db,
+  List<Bookmark> bookmarks,
+) {
+  if (bookmarks.isEmpty) return [];
+
+  final ids = bookmarks.map((b) => b.id).whereType<int>().toList();
+  final placeholders = List.filled(ids.length, '?').join(',');
+  final rows = db.select(
+    '''
+    SELECT bookmark_id, collection_id FROM bookmark_collections
+    WHERE bookmark_id IN ($placeholders)
+  ''',
+    ids,
   );
+
+  final mapping = <int, List<int>>{};
+  for (final row in rows) {
+    final bookmarkId = row['bookmark_id'] as int;
+    final collectionId = row['collection_id'] as int;
+    mapping.putIfAbsent(bookmarkId, () => []).add(collectionId);
+  }
+
+  return bookmarks
+      .map((b) => b.toJson(collectionIds: mapping[b.id] ?? []))
+      .toList();
 }

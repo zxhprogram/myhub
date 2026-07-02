@@ -16,6 +16,7 @@ class NexusInput extends StatelessWidget {
     this.maxLines = 1,
     this.autofocus = false,
     this.onChanged,
+    this.onSubmitted,
   });
 
   final TextEditingController? controller;
@@ -26,6 +27,7 @@ class NexusInput extends StatelessWidget {
   final int maxLines;
   final bool autofocus;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +50,7 @@ class NexusInput extends StatelessWidget {
           maxLines: maxLines,
           autofocus: autofocus,
           onChanged: onChanged,
+          onSubmitted: onSubmitted,
           style: NexusTypography.bodyMd,
           decoration: InputDecoration(
             hintText: hintText,

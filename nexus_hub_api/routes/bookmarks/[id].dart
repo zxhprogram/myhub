@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import '../../lib/database.dart';
 import '../../lib/models/bookmark.dart';
@@ -22,7 +23,11 @@ Future<Response> onRequest(RequestContext context, String id) async {
 
   switch (context.request.method) {
     case HttpMethod.get:
-      return Response.json(body: Bookmark.fromRow(existing.first).toJson());
+      final bookmark = Bookmark.fromRow(existing.first);
+      final collectionIds = _collectionIdsFor(db, bookmarkId);
+      return Response.json(
+        body: bookmark.toJson(collectionIds: collectionIds),
+      );
 
     case HttpMethod.put:
       final body = await context.request.json() as Map<String, dynamic>;
@@ -55,6 +60,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
         ],
       );
 
+      final collectionIds = _collectionIdsFor(db, bookmarkId);
       return Response.json(
         body: bookmark
             .copyWith(
@@ -66,7 +72,7 @@ Future<Response> onRequest(RequestContext context, String id) async {
               sortOrder: sortOrder,
               updatedAt: DateTime.fromMillisecondsSinceEpoch(now),
             )
-            .toJson(),
+            .toJson(collectionIds: collectionIds),
       );
 
     case HttpMethod.delete:
@@ -76,4 +82,15 @@ Future<Response> onRequest(RequestContext context, String id) async {
     default:
       return Response(statusCode: HttpStatus.methodNotAllowed);
   }
+}
+
+List<int> _collectionIdsFor(Database db, int bookmarkId) {
+  final rows = db.select(
+    '''
+    SELECT collection_id FROM bookmark_collections
+    WHERE bookmark_id = ?
+  ''',
+    [bookmarkId],
+  );
+  return rows.map((r) => r['collection_id'] as int).toList();
 }

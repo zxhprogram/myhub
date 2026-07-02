@@ -8,6 +8,7 @@ class BookmarkModel {
     required this.category,
     this.image = '',
     this.sortOrder = 0,
+    this.collectionIds = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -19,6 +20,7 @@ class BookmarkModel {
   final String category;
   final String image;
   final int sortOrder;
+  final List<int> collectionIds;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -31,6 +33,9 @@ class BookmarkModel {
       category: json['category'] as String,
       image: (json['image'] as String?) ?? '',
       sortOrder: (json['sortOrder'] as int?) ?? 0,
+      collectionIds:
+          (json['collectionIds'] as List<dynamic>?)?.cast<int>().toList() ??
+          const [],
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -44,6 +49,7 @@ class BookmarkModel {
     'category': category,
     'image': image,
     'sortOrder': sortOrder,
+    'collectionIds': collectionIds,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
@@ -56,6 +62,7 @@ class BookmarkModel {
     String? category,
     String? image,
     int? sortOrder,
+    List<int>? collectionIds,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -67,6 +74,7 @@ class BookmarkModel {
       category: category ?? this.category,
       image: image ?? this.image,
       sortOrder: sortOrder ?? this.sortOrder,
+      collectionIds: collectionIds ?? this.collectionIds,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -41,7 +41,7 @@ class Bookmark {
     );
   }
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson({List<int> collectionIds = const []}) => {
     'id': id,
     'title': title,
     'url': url,
@@ -49,6 +49,7 @@ class Bookmark {
     'category': category,
     'image': image,
     'sortOrder': sortOrder,
+    'collectionIds': collectionIds,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };

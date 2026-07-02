@@ -7,15 +7,30 @@ class DatabaseProvider {
   DatabaseProvider._();
 
   static Database? _db;
+  static Database? _testDb;
 
   static Database get instance {
+    if (_testDb != null) return _testDb!;
     _db ??= _open();
     return _db!;
+  }
+
+  /// Sets a test database and runs migrations. Pass null to revert to the
+  /// production singleton.
+  static void useTestDatabase(Database? db) {
+    _testDb = db;
+    _db?.dispose();
+    _db = null;
+    if (db != null) {
+      db.execute('PRAGMA foreign_keys = ON;');
+      _migrate(db);
+    }
   }
 
   static Database _open() {
     final dbPath = Platform.environment['NEXUS_HUB_DB'] ?? 'nexus_hub.db';
     final db = sqlite3.open(dbPath);
+    db.execute('PRAGMA foreign_keys = ON;');
     _migrate(db);
     return db;
   }
@@ -110,6 +125,32 @@ class DatabaseProvider {
         is_read INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (feed_id) REFERENCES rss_feeds (id)
       );
+    ''');
+
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS collections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    ''');
+
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS bookmark_collections (
+        bookmark_id INTEGER NOT NULL,
+        collection_id INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (bookmark_id, collection_id),
+        FOREIGN KEY (bookmark_id) REFERENCES bookmarks (id) ON DELETE CASCADE,
+        FOREIGN KEY (collection_id) REFERENCES collections (id) ON DELETE CASCADE
+      );
+    ''');
+
+    db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_bookmark_collections_collection_id
+        ON bookmark_collections(collection_id);
     ''');
 
     db.execute('''

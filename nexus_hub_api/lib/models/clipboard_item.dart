@@ -30,11 +30,11 @@ class ClipboardItem {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'content': content,
-    'type': type,
-    'filePath': filePath,
-    'mimeType': mimeType,
-    'createdAt': createdAt.toIso8601String(),
-  };
+        'id': id,
+        'content': content,
+        'type': type,
+        'filePath': filePath,
+        'mimeType': mimeType,
+        'createdAt': createdAt.toIso8601String(),
+      };
 }
