@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -155,6 +157,7 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
               scrollController: ScrollController(),
               config: QuillEditorConfig(
                 padding: EdgeInsets.zero,
+                embedBuilders: const [_ImageEmbedBuilder()],
                 unknownEmbedBuilder: const _UnknownEmbedBuilder(),
               ),
             ),
@@ -162,6 +165,56 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
         ),
       ],
     );
+  }
+}
+
+class _ImageEmbedBuilder extends EmbedBuilder {
+  const _ImageEmbedBuilder();
+
+  @override
+  String get key => 'image';
+
+  @override
+  Widget build(BuildContext context, EmbedContext embedContext) {
+    final source = embedContext.node.value.data as String?;
+    if (source == null || source.isEmpty) {
+      return _embedPlaceholder('No image source');
+    }
+
+    final Widget image;
+    if (source.startsWith('data:image')) {
+      final bytes = _decodeBase64Image(source);
+      if (bytes == null) {
+        return _embedPlaceholder('Invalid image data');
+      }
+      image = Image.memory(bytes, fit: BoxFit.contain);
+    } else if (source.startsWith('http://') || source.startsWith('https://')) {
+      image = Image.network(source, fit: BoxFit.contain);
+    } else {
+      final file = File(source);
+      if (!file.existsSync()) {
+        return _embedPlaceholder('Image not found');
+      }
+      image = Image.file(file, fit: BoxFit.contain);
+    }
+
+    return ClipRRect(
+      borderRadius: NexusRadii.mdRadius,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 300),
+        child: image,
+      ),
+    );
+  }
+
+  Uint8List? _decodeBase64Image(String source) {
+    final commaIndex = source.indexOf(',');
+    if (commaIndex == -1) return null;
+    try {
+      return base64Decode(source.substring(commaIndex + 1));
+    } on FormatException {
+      return null;
+    }
   }
 }
 
@@ -173,30 +226,34 @@ class _UnknownEmbedBuilder extends EmbedBuilder {
 
   @override
   Widget build(BuildContext context, EmbedContext embedContext) {
-    return Container(
-      padding: const EdgeInsets.all(NexusSpacing.sm),
-      decoration: BoxDecoration(
-        color: NexusColors.surfaceContainer,
-        borderRadius: NexusRadii.mdRadius,
-        border: Border.all(color: NexusColors.outlineVariant),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.image_not_supported_outlined,
-            size: 16,
+    return _embedPlaceholder('Unsupported embed');
+  }
+}
+
+Widget _embedPlaceholder(String message) {
+  return Container(
+    padding: const EdgeInsets.all(NexusSpacing.sm),
+    decoration: BoxDecoration(
+      color: NexusColors.surfaceContainer,
+      borderRadius: NexusRadii.mdRadius,
+      border: Border.all(color: NexusColors.outlineVariant),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.image_not_supported_outlined,
+          size: 16,
+          color: NexusColors.onSurfaceVariant,
+        ),
+        const SizedBox(width: NexusSpacing.xs),
+        Text(
+          message,
+          style: NexusTypography.labelSm.copyWith(
             color: NexusColors.onSurfaceVariant,
           ),
-          const SizedBox(width: NexusSpacing.xs),
-          Text(
-            'Unsupported embed',
-            style: NexusTypography.labelSm.copyWith(
-              color: NexusColors.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }
