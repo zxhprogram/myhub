@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Data model for a task received from the API.
 class TaskModel {
   const TaskModel({
@@ -49,6 +51,22 @@ class TaskModel {
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
+
+  String get plainDescription {
+    try {
+      final json = jsonDecode(description) as Map<String, dynamic>;
+      final ops = json['ops'] as List<dynamic>?;
+      if (ops == null) return description;
+      final buffer = StringBuffer();
+      for (final op in ops) {
+        final map = op as Map<String, dynamic>;
+        buffer.write(map['insert'] ?? '');
+      }
+      return buffer.toString().trim();
+    } catch (_) {
+      return description;
+    }
+  }
 
   TaskModel copyWith({
     int? id,

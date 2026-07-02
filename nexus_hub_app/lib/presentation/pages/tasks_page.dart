@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
@@ -702,24 +700,5 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
         ),
       ],
     );
-  }
-}
-
-extension _TaskModelHelpers on TaskModel {
-  /// Returns a plain-text fallback of the description for previews.
-  String get plainDescription {
-    try {
-      final json = jsonDecode(description) as Map<String, dynamic>;
-      final ops = json['ops'] as List<dynamic>?;
-      if (ops == null) return description;
-      final buffer = StringBuffer();
-      for (final op in ops) {
-        final map = op as Map<String, dynamic>;
-        buffer.write(map['insert'] ?? '');
-      }
-      return buffer.toString().trim();
-    } catch (_) {
-      return description;
-    }
   }
 }
