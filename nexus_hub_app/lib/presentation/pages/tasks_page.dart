@@ -631,58 +631,62 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
       title: Text('New Task', style: NexusTypography.headlineSm),
       content: SizedBox(
         width: 520,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            NexusInput(labelText: 'Title', controller: _title),
-            const SizedBox(height: NexusSpacing.md),
-            Text(
-              'Description',
-              style: NexusTypography.labelMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: NexusSpacing.sm),
-            SizedBox(
-              height: 240,
-              child: NexusRichTextEditor(
-                onChanged: (value) => _descriptionDelta = value,
-              ),
-            ),
-            const SizedBox(height: NexusSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: NexusInput(labelText: 'Tag', controller: _tag),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              NexusInput(labelText: 'Title', controller: _title),
+              const SizedBox(height: NexusSpacing.md),
+              Text(
+                'Description',
+                style: NexusTypography.labelMd.copyWith(
+                  color: NexusColors.onSurfaceVariant,
                 ),
-                const SizedBox(width: NexusSpacing.md),
-                Expanded(
-                  child: NexusInput(
-                    labelText: 'Priority',
-                    controller: _priority,
+              ),
+              const SizedBox(height: NexusSpacing.sm),
+              SizedBox(
+                height: 240,
+                child: NexusRichTextEditor(
+                  onChanged: (value) => _descriptionDelta = value,
+                ),
+              ),
+              const SizedBox(height: NexusSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: NexusInput(labelText: 'Tag', controller: _tag),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: NexusSpacing.md),
-            DropdownButtonFormField<String>(
-              initialValue: _status,
-              decoration: InputDecoration(
-                labelText: 'List',
-                border: OutlineInputBorder(borderRadius: NexusRadii.mdRadius),
+                  const SizedBox(width: NexusSpacing.md),
+                  Expanded(
+                    child: NexusInput(
+                      labelText: 'Priority',
+                      controller: _priority,
+                    ),
+                  ),
+                ],
               ),
-              items: widget.columns
-                  .map(
-                    (c) =>
-                        DropdownMenuItem(value: c.status, child: Text(c.title)),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) setState(() => _status = value);
-              },
-            ),
-          ],
+              const SizedBox(height: NexusSpacing.md),
+              DropdownButtonFormField<String>(
+                initialValue: _status,
+                decoration: InputDecoration(
+                  labelText: 'List',
+                  border: OutlineInputBorder(borderRadius: NexusRadii.mdRadius),
+                ),
+                items: widget.columns
+                    .map(
+                      (c) => DropdownMenuItem(
+                        value: c.status,
+                        child: Text(c.title),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _status = value);
+                },
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
