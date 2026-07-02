@@ -194,23 +194,33 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
   }
 
   Widget _buildMetaRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: _isEditing
-              ? NexusInput(labelText: 'Tag', controller: _tagController)
-              : _MetaChip(label: 'Tag', value: _tagController.text),
-        ),
-        const SizedBox(width: NexusSpacing.md),
-        Expanded(
-          child: _isEditing
-              ? NexusInput(
-                  labelText: 'Priority',
-                  controller: _priorityController,
-                )
-              : _MetaChip(label: 'Priority', value: _priorityController.text),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - NexusSpacing.md) / 2;
+        return Row(
+          children: [
+            SizedBox(
+              width: itemWidth,
+              child: _isEditing
+                  ? NexusInput(labelText: 'Tag', controller: _tagController)
+                  : _MetaChip(label: 'Tag', value: _tagController.text),
+            ),
+            const SizedBox(width: NexusSpacing.md),
+            SizedBox(
+              width: itemWidth,
+              child: _isEditing
+                  ? NexusInput(
+                      labelText: 'Priority',
+                      controller: _priorityController,
+                    )
+                  : _MetaChip(
+                      label: 'Priority',
+                      value: _priorityController.text,
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
