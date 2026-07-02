@@ -1,14 +1,23 @@
+import 'dart:async';
+
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/clipboard_item_model.dart';
 import '../../data/repositories/clipboard_repository.dart';
+import '../../data/services/clipboard_monitor_service.dart';
 
 /// Signals-based state for the clipboard history page.
 class ClipboardState {
-  ClipboardState({ClipboardRepository? repository})
-    : _repository = repository ?? ClipboardRepository();
+  ClipboardState._({ClipboardRepository? repository})
+    : _repository = repository ?? ClipboardRepository() {
+    _monitorSubscription = ClipboardMonitorService.instance.onItem.listen(add);
+  }
+
+  /// The singleton instance used across the app.
+  static final ClipboardState instance = ClipboardState._();
 
   final ClipboardRepository _repository;
+  late final StreamSubscription<ClipboardItemModel> _monitorSubscription;
 
   final items = signal<List<ClipboardItemModel>>([]);
   final isLoading = signal<bool>(false);
@@ -81,5 +90,9 @@ class ClipboardState {
     } catch (e) {
       error.value = e.toString();
     }
+  }
+
+  void dispose() {
+    _monitorSubscription.cancel();
   }
 }

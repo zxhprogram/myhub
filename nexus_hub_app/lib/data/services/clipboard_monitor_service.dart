@@ -7,19 +7,25 @@ import 'package:super_clipboard/super_clipboard.dart';
 
 import '../models/clipboard_item_model.dart';
 
-/// Signature used to deduplicate consecutive clipboard reads.
-typedef ClipboardItemSink = Future<void> Function(ClipboardItemModel item);
-
-/// Monitors the system clipboard and persists new text, image, and file items.
+/// Monitors the system clipboard and exposes new text, image, and file items
+/// as a broadcast stream.
+///
+/// Start monitoring once at app launch via [instance.start] and stop on exit
+/// via [instance.stop].
 class ClipboardMonitorService {
-  ClipboardMonitorService({required ClipboardItemSink onItem})
-    : _onItem = onItem;
+  ClipboardMonitorService._();
 
-  final ClipboardItemSink _onItem;
+  /// The singleton instance used across the app.
+  static final ClipboardMonitorService instance = ClipboardMonitorService._();
+
+  final _controller = StreamController<ClipboardItemModel>.broadcast();
   Timer? _timer;
   String? _lastSignature;
 
   static const _pollInterval = Duration(seconds: 2);
+
+  /// Stream of newly detected clipboard items.
+  Stream<ClipboardItemModel> get onItem => _controller.stream;
 
   void start() {
     _timer?.cancel();
@@ -63,7 +69,7 @@ class ClipboardMonitorService {
         final signature = 'text:${text.trim()}';
         if (signature == _lastSignature) return;
         _lastSignature = signature;
-        await _onItem(
+        _controller.add(
           ClipboardItemModel(
             content: text.trim(),
             type: 'text',
@@ -79,7 +85,7 @@ class ClipboardMonitorService {
     if (!await source.exists()) return;
 
     final localPath = await _copyToLocalTemp(source, p.basename(source.path));
-    await _onItem(
+    _controller.add(
       ClipboardItemModel(
         content: p.basename(source.path),
         type: 'file',
@@ -105,7 +111,7 @@ class ClipboardMonitorService {
       final name =
           'clipboard_${DateTime.now().millisecondsSinceEpoch}.$extension';
       final localPath = await _writeToLocalTemp(bytes, name);
-      await _onItem(
+      _controller.add(
         ClipboardItemModel(
           content: name,
           type: 'image',

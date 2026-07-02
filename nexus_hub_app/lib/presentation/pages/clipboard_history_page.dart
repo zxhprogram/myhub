@@ -8,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/clipboard_item_model.dart';
 import '../../data/services/api_client.dart';
-import '../../data/services/clipboard_monitor_service.dart';
 import '../../presentation/states/clipboard_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/radii.dart';
@@ -28,23 +27,14 @@ class ClipboardHistoryPage extends StatefulWidget {
 }
 
 class _ClipboardHistoryPageState extends State<ClipboardHistoryPage> {
-  final _state = ClipboardState();
+  final _state = ClipboardState.instance;
   final _query = signal<String>('');
   final _view = signal<ClipboardView>(ClipboardView.grid);
-  late final ClipboardMonitorService _monitor;
 
   @override
   void initState() {
     super.initState();
-    _monitor = ClipboardMonitorService(onItem: _state.add);
     _state.load();
-    _monitor.start();
-  }
-
-  @override
-  void dispose() {
-    _monitor.stop();
-    super.dispose();
   }
 
   List<ClipboardItemModel> _visibleItems(List<ClipboardItemModel> all) {
