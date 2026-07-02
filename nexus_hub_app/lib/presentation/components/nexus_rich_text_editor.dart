@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:path/path.dart' as p;
 import 'package:super_clipboard/super_clipboard.dart';
 
 import '../../theme/colors.dart';
@@ -108,25 +110,24 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
 
     final reader = await clipboard.read();
 
-    final formats = <(SimpleFileFormat, String)>[
-      (Formats.png, 'image/png'),
-      (Formats.jpeg, 'image/jpeg'),
-      (Formats.gif, 'image/gif'),
-      (Formats.webp, 'image/webp'),
-      (Formats.bmp, 'image/bmp'),
+    final formats = <(SimpleFileFormat, String, String)>[
+      (Formats.png, 'image/png', 'png'),
+      (Formats.jpeg, 'image/jpeg', 'jpg'),
+      (Formats.gif, 'image/gif', 'gif'),
+      (Formats.webp, 'image/webp', 'webp'),
+      (Formats.bmp, 'image/bmp', 'bmp'),
     ];
 
-    for (final (format, mimeType) in formats) {
+    for (final (format, _, extension) in formats) {
       if (!reader.canProvide(format)) continue;
       final bytes = await _readClipboardImage(reader, format);
       if (bytes != null && bytes.isNotEmpty) {
-        final base64 = base64Encode(bytes);
-        final imageUrl = 'data:$mimeType;base64,$base64';
+        final filePath = await _persistClipboardImage(bytes, extension);
         final index = _controller.selection.start;
         _controller.replaceText(
           index,
           _controller.selection.end - index,
-          BlockEmbed.image(imageUrl),
+          BlockEmbed.image(filePath),
           const TextSelection.collapsed(offset: -1),
         );
         return true;
@@ -134,6 +135,38 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
     }
 
     return false;
+  }
+
+  Future<String> _persistClipboardImage(
+    Uint8List bytes,
+    String extension,
+  ) async {
+    final tempDir = await _clipboardTempDirectory();
+    final name =
+        '${DateTime.now().millisecondsSinceEpoch}_${_randomString(8)}.$extension';
+    final file = File(p.join(tempDir, name));
+    await file.writeAsBytes(bytes);
+    return file.path;
+  }
+
+  Future<String> _clipboardTempDirectory() async {
+    final base =
+        Platform.environment['NEXUS_HUB_TEMP_DIR'] ??
+        File(Platform.resolvedExecutable).parent.path;
+    final dir = Directory(p.join(base, 'temp'));
+    if (!dir.existsSync()) {
+      dir.createSync(recursive: true);
+    }
+    return dir.path;
+  }
+
+  String _randomString(int length) {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    final random = Random();
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   Future<Uint8List?> _readClipboardImage(

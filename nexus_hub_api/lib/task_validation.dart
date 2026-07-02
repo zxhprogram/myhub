@@ -5,8 +5,8 @@ import 'dart:convert';
 /// Returns `null` if valid, otherwise an error message.
 String? validateDescription(String? description) {
   if (description == null) return null;
-  if (description.length > 10000) {
-    return 'Description must be at most 10000 characters';
+  if (description.length > 10000000) {
+    return 'Description must be at most 10000000 characters';
   }
   final trimmed = description.trim();
   if (trimmed.isEmpty) return null;

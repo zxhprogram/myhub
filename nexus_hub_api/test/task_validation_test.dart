@@ -11,7 +11,7 @@ void main() {
 
   test('rejects too-long description', () {
     expect(
-      validateDescription('a' * 10001),
+      validateDescription('a' * 10000001),
       isNotNull,
     );
   });
