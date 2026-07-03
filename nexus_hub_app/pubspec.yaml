@@ -27,6 +27,7 @@ dependencies:
   super_clipboard: ^0.9.1
   flutter_quill: ^11.0.0
   diff_match_patch: ^0.4.1
+  easy_mail: ^0.1.0
 
 dev_dependencies:
   flutter_test:

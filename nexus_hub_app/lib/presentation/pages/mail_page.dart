@@ -1,0 +1,926 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:signals_flutter/signals_flutter.dart';
+// ignore: implementation_imports
+import 'package:easy_mail/src/models/mail_message.dart';
+
+import '../../data/models/mail_item_model.dart';
+import '../../data/repositories/mail_repository.dart';
+import '../../theme/colors.dart';
+import '../../theme/radii.dart';
+import '../../theme/spacing.dart';
+import '../../theme/typography.dart';
+import '../components/nexus_avatar.dart';
+import '../components/nexus_button.dart';
+import '../components/nexus_chip.dart';
+import '../components/nexus_input.dart';
+import '../states/mail_state.dart';
+
+class MailPage extends StatefulWidget {
+  const MailPage({super.key, this.repository});
+
+  final MailRepository? repository;
+
+  @override
+  State<MailPage> createState() => _MailPageState();
+}
+
+class _MailPageState extends State<MailPage> {
+  late final MailState _state;
+
+  @override
+  void initState() {
+    super.initState();
+    _state = MailState(repository: widget.repository);
+    _state.load();
+  }
+
+  @override
+  void dispose() {
+    _state.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: NexusColors.background,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 1100;
+          return Column(
+            children: [
+              _MailToolbar(state: _state, isWide: isWide),
+              Expanded(
+                child: isWide ? _buildWideLayout() : _buildNarrowLayout(),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildWideLayout() {
+    return Row(
+      children: [
+        SizedBox(width: 240, child: _FolderSidebar(state: _state)),
+        const VerticalDivider(width: 1),
+        SizedBox(width: 400, child: _MessageList(state: _state)),
+        const VerticalDivider(width: 1),
+        Expanded(child: _ReadingPane(state: _state)),
+      ],
+    );
+  }
+
+  Widget _buildNarrowLayout() {
+    return Watch((context) {
+      final selected = _state.selectedEmail.value;
+      if (selected == null) {
+        return Row(
+          children: [
+            SizedBox(width: 200, child: _FolderSidebar(state: _state)),
+            const VerticalDivider(width: 1),
+            Expanded(child: _MessageList(state: _state)),
+          ],
+        );
+      }
+      return _ReadingPane(state: _state, showBackButton: true);
+    });
+  }
+}
+
+class _MailToolbar extends StatelessWidget {
+  const _MailToolbar({required this.state, required this.isWide});
+
+  final MailState state;
+  final bool isWide;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.lg),
+      decoration: BoxDecoration(
+        color: NexusColors.surfaceContainerLowest,
+        border: Border(
+          bottom: BorderSide(color: NexusColors.outlineVariant),
+        ),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: isWide ? 360 : 200,
+            child: NexusInput(
+              hintText: 'Search messages...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              onChanged: (value) => state.search(value),
+            ),
+          ),
+          if (isWide) ...[
+            const SizedBox(width: NexusSpacing.lg),
+            Text('Inbox', style: NexusTypography.labelMd.copyWith(
+              color: NexusColors.secondary,
+              fontWeight: FontWeight.w700,
+            )),
+          ],
+          const Spacer(),
+          _ToolbarIconButton(icon: Icons.notifications_outlined, onTap: () {}),
+          _ToolbarIconButton(icon: Icons.settings_outlined, onTap: () {}),
+          const SizedBox(width: NexusSpacing.sm),
+          Container(width: 1, height: 24, color: NexusColors.outlineVariant),
+          const SizedBox(width: NexusSpacing.sm),
+          NexusButton(
+            label: 'Compose',
+            icon: Icons.add,
+            onPressed: () => _showComposeDialog(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showComposeDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: NexusColors.surfaceContainerLowest,
+        title: Text('Compose', style: NexusTypography.headlineSm),
+        content: Text(
+          'Compose functionality will be implemented in a follow-up.',
+          style: NexusTypography.bodyMd,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Close', style: NexusTypography.labelMd.copyWith(
+              color: NexusColors.secondary,
+            )),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolbarIconButton extends StatelessWidget {
+  const _ToolbarIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: NexusRadii.mdRadius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: NexusRadii.mdRadius,
+        child: Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          child: Icon(icon, size: 20, color: NexusColors.onSurfaceVariant),
+        ),
+      ),
+    );
+  }
+}
+
+class _FolderSidebar extends StatelessWidget {
+  const _FolderSidebar({required this.state});
+
+  final MailState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: NexusColors.surfaceContainerLowest,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(NexusSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFolderGroup(),
+                  const SizedBox(height: NexusSpacing.lg),
+                  _buildLabelsGroup(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFolderGroup() {
+    return Watch((context) {
+      final selected = state.selectedFolder.value;
+      final counts = state.unreadCounts.value;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: state.folders.value.map((folder) {
+          final count = counts[folder.id] ?? 0;
+          final isSelected = folder.id == selected;
+          return _SidebarItem(
+            icon: folder.icon,
+            label: folder.title,
+            count: count,
+            isSelected: isSelected,
+            onTap: () => state.loadFolder(folder.id),
+          );
+        }).toList(),
+      );
+    });
+  }
+
+  Widget _buildLabelsGroup() {
+    return Watch((context) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(
+              left: NexusSpacing.sm,
+              bottom: NexusSpacing.sm,
+            ),
+            child: Text(
+              'LABELS',
+              style: NexusTypography.labelSm.copyWith(
+                color: NexusColors.outline,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ...state.labels.value.map((label) {
+            return _SidebarItem(
+              icon: Icons.label,
+              label: label,
+              iconColor: _labelColor(label),
+              isSelected: false,
+              onTap: () {},
+            );
+          }),
+        ],
+      );
+    });
+  }
+}
+
+class _SidebarItem extends StatelessWidget {
+  const _SidebarItem({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.count = 0,
+    this.iconColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final int count;
+  final Color? iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Material(
+        color: isSelected
+            ? NexusColors.secondaryContainer
+            : Colors.transparent,
+        borderRadius: NexusRadii.mdRadius,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: NexusRadii.mdRadius,
+          child: Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.sm),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: iconColor ??
+                      (isSelected
+                          ? NexusColors.onSecondaryContainer
+                          : NexusColors.onSurfaceVariant),
+                ),
+                const SizedBox(width: NexusSpacing.md),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: NexusTypography.bodyMd.copyWith(
+                      color: isSelected
+                          ? NexusColors.onSecondaryContainer
+                          : NexusColors.onSurfaceVariant,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (count > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: NexusSpacing.sm,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? NexusColors.secondaryFixed
+                          : NexusColors.secondaryContainer,
+                      borderRadius: NexusRadii.fullRadius,
+                    ),
+                    child: Text(
+                      count.toString(),
+                      style: NexusTypography.labelSm.copyWith(
+                        color: isSelected
+                            ? NexusColors.onSecondaryFixed
+                            : NexusColors.onSecondaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageList extends StatelessWidget {
+  const _MessageList({required this.state});
+
+  final MailState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: NexusColors.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+          Expanded(
+            child: Watch((context) {
+              if (state.isLoading.value && state.emails.value.isEmpty) {
+                return _buildShimmer();
+              }
+              if (state.error.value != null && state.emails.value.isEmpty) {
+                return _ErrorState(
+                  message: state.error.value!,
+                  onRetry: state.retry,
+                );
+              }
+              if (state.emails.value.isEmpty) {
+                return _EmptyState(
+                  message: 'No messages in this folder.',
+                );
+              }
+              return RefreshIndicator(
+                color: NexusColors.secondary,
+                backgroundColor: NexusColors.surfaceContainerLowest,
+                onRefresh: state.refresh,
+                child: ListView.builder(
+                  itemCount: state.emails.value.length,
+                  itemBuilder: (context, index) {
+                    final item = state.emails.value[index];
+                    return _MessageListItem(
+                      item: item,
+                      isSelected: state.selectedEmail.value?.uid == item.uid,
+                      onTap: () => state.selectEmail(item),
+                    );
+                  },
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Watch((context) {
+      return Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: NexusColors.outlineVariant),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              state.selectedFolder.value,
+              style: NexusTypography.headlineSm.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            _ToolbarIconButton(
+              icon: Icons.filter_list,
+              onTap: () {},
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildShimmer() {
+    return Shimmer.fromColors(
+      baseColor: NexusColors.surfaceContainerLow,
+      highlightColor: NexusColors.surfaceContainerHigh,
+      child: ListView.builder(
+        itemCount: 6,
+        itemBuilder: (context, index) {
+          return Container(
+            height: 88,
+            margin: const EdgeInsets.symmetric(
+              horizontal: NexusSpacing.md,
+              vertical: NexusSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: NexusColors.surfaceContainerLowest,
+              borderRadius: NexusRadii.mdRadius,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MessageListItem extends StatelessWidget {
+  const _MessageListItem({
+    required this.item,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final MailItem item;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = isSelected
+        ? NexusColors.onSecondaryContainer
+        : item.isRead
+            ? NexusColors.onSurfaceVariant
+            : NexusColors.onSurface;
+    final subjectWeight = item.isRead ? FontWeight.w500 : FontWeight.w700;
+
+    return Material(
+      color: isSelected
+          ? NexusColors.secondaryContainer
+          : NexusColors.surfaceContainerLowest,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: NexusSpacing.md,
+            vertical: NexusSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: NexusColors.outlineVariant),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!item.isRead)
+                Container(
+                  width: 4,
+                  height: 32,
+                  margin: const EdgeInsets.only(right: NexusSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: NexusColors.secondary,
+                    borderRadius: NexusRadii.fullRadius,
+                  ),
+                )
+              else
+                const SizedBox(width: 4 + NexusSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.senderName.isEmpty
+                                ? item.senderAddress
+                                : item.senderName,
+                            style: NexusTypography.labelMd.copyWith(
+                              color: foreground,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: NexusSpacing.sm),
+                        Text(
+                          _formatDate(item.date),
+                          style: NexusTypography.labelSm.copyWith(
+                            color: isSelected
+                                ? NexusColors.onSecondaryContainer
+                                : NexusColors.outline,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.subject,
+                      style: NexusTypography.bodyMd.copyWith(
+                        color: foreground,
+                        fontWeight: subjectWeight,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.snippet,
+                      style: NexusTypography.bodyMd.copyWith(
+                        color: isSelected
+                            ? NexusColors.onSecondaryContainer
+                            : NexusColors.onSurfaceVariant,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadingPane extends StatelessWidget {
+  const _ReadingPane({required this.state, this.showBackButton = false});
+
+  final MailState state;
+  final bool showBackButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: NexusColors.surfaceContainerLowest,
+      child: Column(
+        children: [
+          _buildToolbar(context),
+          Expanded(
+            child: Watch((context) {
+              final item = state.selectedEmail.value;
+              if (item == null) {
+                return _EmptyState(message: 'Select a message to read');
+              }
+              final message = state.selectedEmailMessage.value;
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(NexusSpacing.lg),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSubjectHeader(item),
+                      const SizedBox(height: NexusSpacing.lg),
+                      _buildSenderCard(item),
+                      const SizedBox(height: NexusSpacing.lg),
+                      _buildBody(message),
+                      if (message != null && message.attachments.isNotEmpty) ...[
+                        const SizedBox(height: NexusSpacing.lg),
+                        _buildAttachments(message),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolbar(BuildContext context) {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
+      decoration: BoxDecoration(
+        color: NexusColors.surfaceContainerLowest,
+        border: Border(
+          bottom: BorderSide(color: NexusColors.outlineVariant),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (showBackButton)
+            _ToolbarIconButton(
+              icon: Icons.arrow_back,
+              onTap: () => state.selectEmail(null),
+            ),
+          _ToolbarIconButton(
+            icon: Icons.reply,
+            onTap: () {},
+          ),
+          _ToolbarIconButton(
+            icon: Icons.forward,
+            onTap: () {},
+          ),
+          Container(width: 1, height: 24, color: NexusColors.outlineVariant),
+          _ToolbarIconButton(
+            icon: Icons.archive_outlined,
+            onTap: () {},
+          ),
+          _ToolbarIconButton(
+            icon: Icons.delete_outlined,
+            onTap: () {},
+          ),
+          const Spacer(),
+          _ToolbarIconButton(
+            icon: Icons.star_border,
+            onTap: () {},
+          ),
+          _ToolbarIconButton(
+            icon: Icons.more_vert,
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubjectHeader(MailItem item) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            item.subject,
+            style: NexusTypography.headlineXl.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(width: NexusSpacing.md),
+        ...item.labels.map((label) {
+          return Padding(
+            padding: const EdgeInsets.only(left: NexusSpacing.xs),
+            child: NexusChip(
+              label: label,
+              color: _labelColor(label),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildSenderCard(MailItem item) {
+    return Container(
+      padding: const EdgeInsets.all(NexusSpacing.md),
+      decoration: BoxDecoration(
+        color: NexusColors.surfaceContainerLow,
+        borderRadius: NexusRadii.lgRadius,
+        border: Border.all(color: NexusColors.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          NexusAvatar(
+            label: item.senderName.isEmpty
+                ? item.senderAddress
+                : item.senderName,
+            size: 48,
+          ),
+          const SizedBox(width: NexusSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      item.senderName.isEmpty
+                          ? item.senderAddress
+                          : item.senderName,
+                      style: NexusTypography.bodyLg.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: NexusSpacing.sm),
+                    Text(
+                      item.senderName.isEmpty ? '' : '<${item.senderAddress}>',
+                      style: NexusTypography.bodyMd.copyWith(
+                        color: NexusColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'To: nexus.user@hub.io • ${_formatDate(item.date, full: true)}',
+                  style: NexusTypography.bodyMd.copyWith(
+                    color: NexusColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(MailMessage? message) {
+    final body = message?.plainTextBody ?? '';
+    return SelectableText(
+      body,
+      style: NexusTypography.bodyLg.copyWith(
+        height: 1.5,
+        color: NexusColors.onSurface,
+      ),
+    );
+  }
+
+  Widget _buildAttachments(MailMessage message) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Attachments (${message.attachments.length})',
+          style: NexusTypography.labelSm.copyWith(
+            color: NexusColors.outline,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: NexusSpacing.md),
+        Wrap(
+          spacing: NexusSpacing.md,
+          runSpacing: NexusSpacing.md,
+          children: message.attachments.map((attachment) {
+            return Container(
+              width: 240,
+              padding: const EdgeInsets.all(NexusSpacing.md),
+              decoration: BoxDecoration(
+                color: NexusColors.surfaceContainerLowest,
+                borderRadius: NexusRadii.mdRadius,
+                border: Border.all(color: NexusColors.outlineVariant),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    color: NexusColors.secondary,
+                    size: 28,
+                  ),
+                  const SizedBox(width: NexusSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          attachment.fileName,
+                          style: NexusTypography.labelMd.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${(attachment.size / 1024).ceil()} KB',
+                          style: NexusTypography.labelSm.copyWith(
+                            color: NexusColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.download_outlined,
+                    size: 20,
+                    color: NexusColors.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.mail_outline,
+            size: 48,
+            color: NexusColors.onSurfaceVariant,
+          ),
+          const SizedBox(height: NexusSpacing.md),
+          Text(
+            message,
+            style: NexusTypography.bodyMd.copyWith(
+              color: NexusColors.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: NexusColors.error,
+            ),
+            const SizedBox(height: NexusSpacing.md),
+            Text(
+              message,
+              style: NexusTypography.bodyMd.copyWith(color: NexusColors.error),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: NexusSpacing.md),
+            NexusButton(
+              label: 'Retry',
+              onPressed: onRetry,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Color _labelColor(String label) {
+  return switch (label.toLowerCase()) {
+    'work' => NexusColors.secondary,
+    'personal' => const Color(0xFF9333EA),
+    _ => NexusColors.outline,
+  };
+}
+
+String _formatDate(DateTime? date, {bool full = false}) {
+  if (date == null) return '';
+  final now = DateTime.now();
+  final local = date.toLocal();
+  if (full) {
+    return DateFormat('MMM d, y (h:mm a)').format(local);
+  }
+  if (local.year == now.year &&
+      local.month == now.month &&
+      local.day == now.day) {
+    return DateFormat('h:mm a').format(local);
+  }
+  if (local.year == now.year &&
+      local.month == now.month &&
+      local.day == now.day - 1) {
+    return 'Yesterday';
+  }
+  return DateFormat('MMM d').format(local);
+}

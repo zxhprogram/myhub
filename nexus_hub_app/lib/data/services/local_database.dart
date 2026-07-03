@@ -41,7 +41,7 @@ class LocalDatabase {
     }
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -105,6 +105,21 @@ class LocalDatabase {
         PRIMARY KEY (bookmark_id, collection_id)
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE mail_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uid INTEGER NOT NULL,
+        folder TEXT NOT NULL,
+        envelope_json TEXT NOT NULL,
+        message_json TEXT,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        labels TEXT NOT NULL DEFAULT '',
+        snippet TEXT NOT NULL DEFAULT '',
+        fetched_at INTEGER NOT NULL,
+        UNIQUE(uid, folder)
+      )
+    ''');
   }
 
   static Future<void> close() async {
@@ -150,6 +165,22 @@ class LocalDatabase {
           collection_id INTEGER NOT NULL,
           created_at INTEGER NOT NULL,
           PRIMARY KEY (bookmark_id, collection_id)
+        )
+      ''');
+    }
+    if (oldVersion < 6) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS mail_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uid INTEGER NOT NULL,
+          folder TEXT NOT NULL,
+          envelope_json TEXT NOT NULL,
+          message_json TEXT,
+          is_read INTEGER NOT NULL DEFAULT 0,
+          labels TEXT NOT NULL DEFAULT '',
+          snippet TEXT NOT NULL DEFAULT '',
+          fetched_at INTEGER NOT NULL,
+          UNIQUE(uid, folder)
         )
       ''');
     }

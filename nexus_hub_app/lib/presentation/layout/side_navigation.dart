@@ -65,6 +65,12 @@ class SideNavigation extends StatelessWidget {
                         path: '/rss',
                         currentPath: currentPath,
                       ),
+                      _NavItem(
+                        label: 'Mail',
+                        icon: Icons.mail_outlined,
+                        path: '/mail',
+                        currentPath: currentPath,
+                      ),
                     ],
                   ),
                   _NavGroup(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../theme/colors.dart';
 import 'side_navigation.dart';
@@ -81,6 +82,12 @@ class _BottomNavBar extends StatelessWidget {
                 currentPath: currentPath,
               ),
               _BottomNavItem(
+                icon: Icons.mail_outlined,
+                label: 'Mail',
+                path: '/mail',
+                currentPath: currentPath,
+              ),
+              _BottomNavItem(
                 icon: Icons.menu,
                 label: 'More',
                 path: '/bookmarks',
@@ -114,7 +121,7 @@ class _BottomNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isActive ? NexusColors.primary : NexusColors.onSurfaceVariant;
     return InkWell(
-      onTap: () {},
+      onTap: () => context.go(path),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
