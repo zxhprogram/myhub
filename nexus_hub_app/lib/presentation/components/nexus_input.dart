@@ -16,6 +16,10 @@ class NexusInput extends StatelessWidget {
     this.maxLines = 1,
     this.autofocus = false,
     this.enabled = true,
+    this.obscureText = false,
+    this.keyboardType,
+    this.validator,
+    this.autovalidateMode,
     this.onChanged,
     this.onSubmitted,
   });
@@ -28,6 +32,10 @@ class NexusInput extends StatelessWidget {
   final int maxLines;
   final bool autofocus;
   final bool enabled;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final FormFieldValidator<String>? validator;
+  final AutovalidateMode? autovalidateMode;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
@@ -47,13 +55,17 @@ class NexusInput extends StatelessWidget {
               ),
             ),
           ),
-        TextField(
+        TextFormField(
           controller: controller,
           maxLines: maxLines,
           autofocus: autofocus,
           enabled: enabled,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          validator: validator,
+          autovalidateMode: autovalidateMode,
           onChanged: onChanged,
-          onSubmitted: onSubmitted,
+          onFieldSubmitted: onSubmitted,
           style: NexusTypography.bodyMd,
           decoration: InputDecoration(
             hintText: hintText,

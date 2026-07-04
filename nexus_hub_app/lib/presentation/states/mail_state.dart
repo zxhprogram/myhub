@@ -7,6 +7,7 @@ import '../../data/client/mail_client.dart';
 import '../../data/models/mail_account_model.dart';
 import '../../data/models/mail_item_model.dart';
 import '../../data/repositories/mail_repository.dart';
+import '../../data/services/mail_account_storage.dart';
 
 /// A mail folder shown in the sidebar.
 class MailFolder {
@@ -31,21 +32,24 @@ class MailFolder {
 /// Signals-backed state for the mail page.
 class MailState {
   MailState({MailRepository? repository})
-      : _repository = repository ??
-            MailRepository(
-              account: _defaultAccount,
-            );
+      : _repositoryOverride = repository;
 
-  static const _defaultAccount = MailAccount(
-    host: 'imap.example.com',
-    port: 993,
-    username: 'demo',
-    password: 'demo',
-    mailbox: 'INBOX',
-    useSsl: true,
+  final MailRepository? _repositoryOverride;
+  MailRepository? _repository;
+
+  final account = signal<MailAccount>(
+    const MailAccount(
+      emailAddress: '',
+      username: '',
+      password: '',
+      host: '',
+      port: 993,
+      smtpHost: '',
+      smtpPort: 587,
+    ),
   );
-
-  final MailRepository _repository;
+  final hasValidAccount = signal<bool>(false);
+  final configError = signal<String?>(null);
 
   final folders = signal<List<MailFolder>>([
     const MailFolder(id: 'INBOX', title: 'Inbox', icon: Icons.inbox),
@@ -66,11 +70,91 @@ class MailState {
   final searchQuery = signal<String>('');
   final unreadCounts = signal<Map<String, int>>({});
 
+  /// Loads the persisted account configuration and then fetches mail if valid.
+  Future<void> init() async {
+    if (_repositoryOverride != null) {
+      _repository = _repositoryOverride;
+      hasValidAccount.value = true;
+    } else {
+      final saved = await MailAccountStorage.load();
+      account.value = saved;
+      hasValidAccount.value = saved.isValid;
+      if (saved.isValid) {
+        _repository = MailRepository(account: saved);
+      }
+    }
+    if (hasValidAccount.value) {
+      await loadFolder(selectedFolder.value);
+    }
+  }
+
+  /// Validates and saves a new account configuration.
+  Future<bool> saveAccount(MailAccount value) async {
+    configError.value = null;
+    final validationError = _validate(value);
+    if (validationError != null) {
+      configError.value = validationError;
+      return false;
+    }
+    try {
+      if (_repositoryOverride == null) {
+        await MailAccountStorage.save(value);
+      }
+    } catch (e) {
+      configError.value = 'Failed to save account settings: $e';
+      return false;
+    }
+    account.value = value;
+    hasValidAccount.value = true;
+    _repository?.dispose();
+    _repository = _repositoryOverride ?? MailRepository(account: value);
+    await loadFolder(selectedFolder.value);
+    return true;
+  }
+
+  String? _validate(MailAccount value) {
+    if (value.emailAddress.trim().isEmpty) {
+      return 'Email address is required.';
+    }
+    if (!value.emailAddress.contains('@') || !value.emailAddress.contains('.')) {
+      return 'Please enter a valid email address.';
+    }
+    if (value.username.trim().isEmpty) {
+      return 'Username is required.';
+    }
+    if (value.password.isEmpty) {
+      return 'Password is required.';
+    }
+    if (value.host.trim().isEmpty) {
+      return 'Incoming server (IMAP/POP3) host is required.';
+    }
+    if (value.port <= 0 || value.port > 65535) {
+      return 'Incoming server port must be between 1 and 65535.';
+    }
+    if (value.smtpHost.trim().isEmpty) {
+      return 'Outgoing server (SMTP) host is required.';
+    }
+    if (value.smtpPort <= 0 || value.smtpPort > 65535) {
+      return 'Outgoing server port must be between 1 and 65535.';
+    }
+    return null;
+  }
+
   Future<void> load() async {
+    if (!hasValidAccount.value) return;
     await loadFolder(selectedFolder.value);
   }
 
+  MailRepository get _requireRepository {
+    final repo = _repository;
+    if (repo == null) {
+      throw StateError('Mail repository not initialized.');
+    }
+    return repo;
+  }
+
   Future<void> loadFolder(String folder) async {
+    if (!hasValidAccount.value) return;
     selectedFolder.value = folder;
     selectedEmail.value = null;
     selectedEmailMessage.value = null;
@@ -79,10 +163,10 @@ class MailState {
     try {
       final query = searchQuery.value.trim();
       final result = query.isEmpty
-          ? await _repository.fetchFolder(folder)
-          : await _repository.search(query, folder);
+          ? await _requireRepository.fetchFolder(folder)
+          : await _requireRepository.search(query, folder);
       emails.value = result;
-      unreadCounts.value = await _repository.getUnreadCounts();
+      unreadCounts.value = await _requireRepository.getUnreadCounts();
     } on MailException catch (e) {
       error.value = e.message;
     } catch (e) {
@@ -93,15 +177,16 @@ class MailState {
   }
 
   Future<void> refresh() async {
+    if (!hasValidAccount.value) return;
     isLoading.value = true;
     error.value = null;
     try {
       final query = searchQuery.value.trim();
       final result = query.isEmpty
-          ? await _repository.fetchFolder(selectedFolder.value, forceRefresh: true)
-          : await _repository.search(query, selectedFolder.value);
+          ? await _requireRepository.fetchFolder(selectedFolder.value, forceRefresh: true)
+          : await _requireRepository.search(query, selectedFolder.value);
       emails.value = result;
-      unreadCounts.value = await _repository.getUnreadCounts();
+      unreadCounts.value = await _requireRepository.getUnreadCounts();
     } on MailException catch (e) {
       error.value = e.message;
     } catch (e) {
@@ -127,7 +212,7 @@ class MailState {
       await markAsRead(item);
     }
     try {
-      selectedEmailMessage.value = await _repository.fetchMessage(item.uid);
+      selectedEmailMessage.value = await _requireRepository.fetchMessage(item.uid);
     } catch (e) {
       selectedEmailMessage.value = null;
     }
@@ -145,8 +230,8 @@ class MailState {
       item.folder: (unreadCounts.value[item.folder] ?? 1) - 1,
     };
     try {
-      await _repository.markAsRead(item.uid);
-      unreadCounts.value = await _repository.getUnreadCounts();
+      await _requireRepository.markAsRead(item.uid);
+      unreadCounts.value = await _requireRepository.getUnreadCounts();
     } catch (e) {
       // Keep optimistic update; next refresh will reconcile.
     }
@@ -158,6 +243,6 @@ class MailState {
   }
 
   Future<void> dispose() async {
-    await _repository.dispose();
+    await _repository?.dispose();
   }
 }

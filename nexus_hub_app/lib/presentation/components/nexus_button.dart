@@ -13,12 +13,14 @@ class NexusButton extends StatelessWidget {
     required this.label,
     this.variant = NexusButtonVariant.filled,
     this.icon,
+    this.isLoading = false,
     this.onPressed,
   });
 
   final String label;
   final NexusButtonVariant variant;
   final IconData? icon;
+  final bool isLoading;
   final VoidCallback? onPressed;
 
   @override
@@ -45,7 +47,7 @@ class NexusButton extends StatelessWidget {
       color: backgroundColor,
       borderRadius: NexusRadii.mdRadius,
       child: InkWell(
-        onTap: onPressed,
+        onTap: isLoading ? null : onPressed,
         borderRadius: NexusRadii.mdRadius,
         child: Container(
           padding: const EdgeInsets.symmetric(
@@ -59,17 +61,27 @@ class NexusButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null) ...[
+              if (isLoading)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
+                  ),
+                )
+              else if (icon != null)
                 Icon(icon, size: 18, color: foregroundColor),
+              if ((isLoading || icon != null) && label.isNotEmpty)
                 const SizedBox(width: NexusSpacing.sm),
-              ],
-              Text(
-                label,
-                style: NexusTypography.labelMd.copyWith(
-                  color: foregroundColor,
-                  fontWeight: FontWeight.w600,
+              if (label.isNotEmpty)
+                Text(
+                  label,
+                  style: NexusTypography.labelMd.copyWith(
+                    color: foregroundColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
             ],
           ),
         ),

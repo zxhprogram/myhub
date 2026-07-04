@@ -98,6 +98,7 @@ void main() {
     setUp(() {
       repository = MailRepository(
         account: const MailAccount(
+          emailAddress: 'user@example.com',
           host: 'test.example.com',
           port: 993,
           username: 'user',

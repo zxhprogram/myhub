@@ -75,6 +75,7 @@ class _FakeMailClient implements MailClient {
 
 MailRepository _makeRepository() => MailRepository(
       account: const MailAccount(
+        emailAddress: 'user@example.com',
         host: 'test',
         port: 993,
         username: 'user',
@@ -124,6 +125,51 @@ void main() {
 
     expect(state.selectedFolder.value, 'SENT');
     expect(state.emails.value.length, 2);
+
+    await state.dispose();
+  });
+
+  test('MailState rejects invalid account configuration', () async {
+    final state = MailState(repository: _makeRepository());
+
+    final result = await state.saveAccount(
+      const MailAccount(
+        emailAddress: 'not-an-email',
+        username: '',
+        password: '',
+        host: '',
+        port: 0,
+        smtpHost: '',
+        smtpPort: 0,
+      ),
+    );
+
+    expect(result, isFalse);
+    expect(state.configError.value, isNotNull);
+    expect(state.hasValidAccount.value, isFalse);
+
+    await state.dispose();
+  });
+
+  test('MailState saves valid account and transitions to mail content', () async {
+    final state = MailState(repository: _makeRepository());
+
+    final result = await state.saveAccount(
+      const MailAccount(
+        emailAddress: 'user@example.com',
+        username: 'user',
+        password: 'pass',
+        host: 'imap.example.com',
+        port: 993,
+        smtpHost: 'smtp.example.com',
+        smtpPort: 587,
+      ),
+    );
+
+    expect(result, isTrue);
+    expect(state.configError.value, isNull);
+    expect(state.hasValidAccount.value, isTrue);
+    expect(state.account.value.emailAddress, 'user@example.com');
 
     await state.dispose();
   });

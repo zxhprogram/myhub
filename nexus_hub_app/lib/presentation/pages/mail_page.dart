@@ -5,6 +5,7 @@ import 'package:signals_flutter/signals_flutter.dart';
 // ignore: implementation_imports
 import 'package:easy_mail/src/models/mail_message.dart';
 
+import '../../data/models/mail_account_model.dart';
 import '../../data/models/mail_item_model.dart';
 import '../../data/repositories/mail_repository.dart';
 import '../../theme/colors.dart';
@@ -13,6 +14,7 @@ import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import '../components/nexus_avatar.dart';
 import '../components/nexus_button.dart';
+import '../components/nexus_card.dart';
 import '../components/nexus_chip.dart';
 import '../components/nexus_input.dart';
 import '../states/mail_state.dart';
@@ -33,7 +35,7 @@ class _MailPageState extends State<MailPage> {
   void initState() {
     super.initState();
     _state = MailState(repository: widget.repository);
-    _state.load();
+    _state.init();
   }
 
   @override
@@ -46,19 +48,24 @@ class _MailPageState extends State<MailPage> {
   Widget build(BuildContext context) {
     return Container(
       color: NexusColors.background,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 1100;
-          return Column(
-            children: [
-              _MailToolbar(state: _state, isWide: isWide),
-              Expanded(
-                child: isWide ? _buildWideLayout() : _buildNarrowLayout(),
-              ),
-            ],
-          );
-        },
-      ),
+      child: Watch((context) {
+        if (!_state.hasValidAccount.value) {
+          return _MailAccountSetup(state: _state);
+        }
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 1100;
+            return Column(
+              children: [
+                _MailToolbar(state: _state, isWide: isWide),
+                Expanded(
+                  child: isWide ? _buildWideLayout() : _buildNarrowLayout(),
+                ),
+              ],
+            );
+          },
+        );
+      }),
     );
   }
 
@@ -894,6 +901,323 @@ class _ErrorState extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _MailAccountSetup extends StatefulWidget {
+  const _MailAccountSetup({required this.state});
+
+  final MailState state;
+
+  @override
+  State<_MailAccountSetup> createState() => _MailAccountSetupState();
+}
+
+class _MailAccountSetupState extends State<_MailAccountSetup> {
+  final _formKey = GlobalKey<FormState>();
+  late final _emailController = TextEditingController();
+  late final _usernameController = TextEditingController();
+  late final _passwordController = TextEditingController();
+  late final _incomingHostController = TextEditingController();
+  late final _incomingPortController = TextEditingController(text: '993');
+  late final _smtpHostController = TextEditingController();
+  late final _smtpPortController = TextEditingController(text: '587');
+  bool _useIncomingSsl = true;
+  bool _useSmtpSsl = true;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final saved = widget.state.account.value;
+    _emailController.text = saved.emailAddress;
+    _usernameController.text = saved.username;
+    _incomingHostController.text = saved.host;
+    _incomingPortController.text = saved.port.toString();
+    _useIncomingSsl = saved.useSsl;
+    _smtpHostController.text = saved.smtpHost;
+    _smtpPortController.text = saved.smtpPort.toString();
+    _useSmtpSsl = saved.smtpUseSsl;
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _incomingHostController.dispose();
+    _incomingPortController.dispose();
+    _smtpHostController.dispose();
+    _smtpPortController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(NexusSpacing.lg),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: NexusCard(
+            padding: const EdgeInsets.all(NexusSpacing.lg),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.mail_outlined,
+                        size: 32,
+                        color: NexusColors.secondary,
+                      ),
+                      const SizedBox(width: NexusSpacing.md),
+                      Text(
+                        'Mail Account Setup',
+                        style: NexusTypography.headlineLg.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: NexusSpacing.sm),
+                  Text(
+                    'Enter your email account details to get started.',
+                    style: NexusTypography.bodyMd.copyWith(
+                      color: NexusColors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: NexusSpacing.lg),
+                  _buildSectionTitle('Account'),
+                  const SizedBox(height: NexusSpacing.md),
+                  NexusInput(
+                    controller: _emailController,
+                    labelText: 'Email address',
+                    hintText: 'you@example.com',
+                    keyboardType: TextInputType.emailAddress,
+                    validator: _validateEmail,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    onChanged: _onEmailChanged,
+                  ),
+                  const SizedBox(height: NexusSpacing.md),
+                  NexusInput(
+                    controller: _usernameController,
+                    labelText: 'Username',
+                    hintText: 'Usually your email address',
+                    validator: _validateRequired,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                  ),
+                  const SizedBox(height: NexusSpacing.md),
+                  NexusInput(
+                    controller: _passwordController,
+                    labelText: 'Password',
+                    hintText: 'Your email password',
+                    obscureText: true,
+                    validator: _validateRequired,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                  ),
+                  const SizedBox(height: NexusSpacing.lg),
+                  _buildSectionTitle('Incoming server (IMAP/POP3)'),
+                  const SizedBox(height: NexusSpacing.md),
+                  NexusInput(
+                    controller: _incomingHostController,
+                    labelText: 'Server host',
+                    hintText: 'imap.example.com',
+                    validator: _validateRequired,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                  ),
+                  const SizedBox(height: NexusSpacing.md),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: NexusInput(
+                          controller: _incomingPortController,
+                          labelText: 'Port',
+                          hintText: '993',
+                          keyboardType: TextInputType.number,
+                          validator: _validatePort,
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                        ),
+                      ),
+                      const SizedBox(width: NexusSpacing.md),
+                      Expanded(
+                        flex: 3,
+                        child: _buildSwitchTile(
+                          label: 'Use SSL/TLS',
+                          value: _useIncomingSsl,
+                          onChanged: (value) => setState(() => _useIncomingSsl = value),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: NexusSpacing.lg),
+                  _buildSectionTitle('Outgoing server (SMTP)'),
+                  const SizedBox(height: NexusSpacing.md),
+                  NexusInput(
+                    controller: _smtpHostController,
+                    labelText: 'Server host',
+                    hintText: 'smtp.example.com',
+                    validator: _validateRequired,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                  ),
+                  const SizedBox(height: NexusSpacing.md),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: NexusInput(
+                          controller: _smtpPortController,
+                          labelText: 'Port',
+                          hintText: '587',
+                          keyboardType: TextInputType.number,
+                          validator: _validatePort,
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                        ),
+                      ),
+                      const SizedBox(width: NexusSpacing.md),
+                      Expanded(
+                        flex: 3,
+                        child: _buildSwitchTile(
+                          label: 'Use SSL/TLS',
+                          value: _useSmtpSsl,
+                          onChanged: (value) => setState(() => _useSmtpSsl = value),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: NexusSpacing.lg),
+                  Watch((context) {
+                    final error = widget.state.configError.value;
+                    if (error == null) return const SizedBox.shrink();
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(NexusSpacing.md),
+                      decoration: BoxDecoration(
+                        color: NexusColors.errorContainer,
+                        borderRadius: NexusRadii.mdRadius,
+                      ),
+                      child: Text(
+                        error,
+                        style: NexusTypography.bodyMd.copyWith(
+                          color: NexusColors.onErrorContainer,
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: NexusSpacing.lg),
+                  SizedBox(
+                    width: double.infinity,
+                    child: NexusButton(
+                      label: 'Connect Account',
+                      icon: Icons.check,
+                      isLoading: _isSaving,
+                      onPressed: _submit,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title.toUpperCase(),
+      style: NexusTypography.labelSm.copyWith(
+        color: NexusColors.outline,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile({
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
+      decoration: BoxDecoration(
+        color: NexusColors.surfaceContainerLow,
+        borderRadius: NexusRadii.mdRadius,
+        border: Border.all(color: NexusColors.outlineVariant),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: NexusTypography.bodyMd,
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: NexusColors.secondary,
+            activeTrackColor: NexusColors.secondary.withValues(alpha: 0.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onEmailChanged(String value) {
+    if (_usernameController.text.trim().isEmpty) {
+      _usernameController.text = value.trim();
+    }
+  }
+
+  String? _validateEmail(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return 'Email address is required.';
+    if (!trimmed.contains('@') || !trimmed.contains('.')) {
+      return 'Please enter a valid email address.';
+    }
+    return null;
+  }
+
+  String? _validateRequired(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'This field is required.';
+    }
+    return null;
+  }
+
+  String? _validatePort(String? value) {
+    final port = int.tryParse(value ?? '');
+    if (port == null || port <= 0 || port > 65535) {
+      return 'Port 1-65535';
+    }
+    return null;
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
+    final account = MailAccount(
+      emailAddress: _emailController.text.trim(),
+      username: _usernameController.text.trim(),
+      password: _passwordController.text,
+      host: _incomingHostController.text.trim(),
+      port: int.parse(_incomingPortController.text.trim()),
+      useSsl: _useIncomingSsl,
+      smtpHost: _smtpHostController.text.trim(),
+      smtpPort: int.parse(_smtpPortController.text.trim()),
+      smtpUseSsl: _useSmtpSsl,
+    );
+    await widget.state.saveAccount(account);
+    if (mounted) {
+      setState(() => _isSaving = false);
+    }
   }
 }
 
