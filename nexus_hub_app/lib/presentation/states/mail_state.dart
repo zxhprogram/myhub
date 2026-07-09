@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 // ignore: implementation_imports
@@ -11,11 +13,7 @@ import '../../data/services/mail_account_storage.dart';
 
 /// A mail folder shown in the sidebar.
 class MailFolder {
-  const MailFolder({
-    required this.id,
-    required this.title,
-    required this.icon,
-  });
+  const MailFolder({required this.id, required this.title, required this.icon});
 
   final String id;
   final String title;
@@ -31,8 +29,7 @@ class MailFolder {
 
 /// Signals-backed state for the mail page.
 class MailState {
-  MailState({MailRepository? repository})
-      : _repositoryOverride = repository;
+  MailState({MailRepository? repository}) : _repositoryOverride = repository;
 
   final MailRepository? _repositoryOverride;
   MailRepository? _repository;
@@ -42,19 +39,26 @@ class MailState {
       emailAddress: '',
       username: '',
       password: '',
-      host: '',
+      host: 'imap.qq.com',
       port: 993,
-      smtpHost: '',
-      smtpPort: 587,
+      useSsl: true,
+      smtpHost: 'smtp.qq.com',
+      smtpPort: 465,
+      smtpUseSsl: true,
     ),
   );
   final hasValidAccount = signal<bool>(false);
+  final isEditingAccount = signal<bool>(false);
   final configError = signal<String?>(null);
 
   final folders = signal<List<MailFolder>>([
     const MailFolder(id: 'INBOX', title: 'Inbox', icon: Icons.inbox),
     const MailFolder(id: 'SENT', title: 'Sent', icon: Icons.send_outlined),
-    const MailFolder(id: 'DRAFTS', title: 'Drafts', icon: Icons.drafts_outlined),
+    const MailFolder(
+      id: 'DRAFTS',
+      title: 'Drafts',
+      icon: Icons.drafts_outlined,
+    ),
     const MailFolder(id: 'TRASH', title: 'Trash', icon: Icons.delete_outlined),
     const MailFolder(id: 'SPAM', title: 'Spam', icon: Icons.report_outlined),
   ]);
@@ -106,17 +110,68 @@ class MailState {
     }
     account.value = value;
     hasValidAccount.value = true;
-    _repository?.dispose();
+    isEditingAccount.value = false;
+    try {
+      await _repository?.dispose().timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Best-effort cleanup; continue with the new configuration.
+    }
     _repository = _repositoryOverride ?? MailRepository(account: value);
-    await loadFolder(selectedFolder.value);
+    try {
+      await loadFolder(
+        selectedFolder.value,
+      ).timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      error.value =
+          'Connection timed out while loading messages. Please verify your server address, port, and password.';
+      isLoading.value = false;
+    }
     return true;
+  }
+
+  /// Enters account editing mode so the user can update credentials.
+  void startAccountEdit() {
+    isEditingAccount.value = true;
+  }
+
+  /// Exits account editing mode without saving changes.
+  void cancelAccountEdit() {
+    isEditingAccount.value = false;
+    configError.value = null;
+  }
+
+  /// Clears the saved account and returns to the setup form.
+  Future<void> signOut() async {
+    if (_repositoryOverride == null) {
+      await MailAccountStorage.clear();
+    }
+    await _repository?.dispose();
+    _repository = null;
+    account.value = const MailAccount(
+      emailAddress: '',
+      username: '',
+      password: '',
+      host: '',
+      port: 993,
+      smtpHost: '',
+      smtpPort: 587,
+    );
+    hasValidAccount.value = false;
+    isEditingAccount.value = false;
+    configError.value = null;
+    emails.value = [];
+    selectedEmail.value = null;
+    selectedEmailMessage.value = null;
+    unreadCounts.value = {};
+    error.value = null;
   }
 
   String? _validate(MailAccount value) {
     if (value.emailAddress.trim().isEmpty) {
       return 'Email address is required.';
     }
-    if (!value.emailAddress.contains('@') || !value.emailAddress.contains('.')) {
+    if (!value.emailAddress.contains('@') ||
+        !value.emailAddress.contains('.')) {
       return 'Please enter a valid email address.';
     }
     if (value.username.trim().isEmpty) {
@@ -183,7 +238,10 @@ class MailState {
     try {
       final query = searchQuery.value.trim();
       final result = query.isEmpty
-          ? await _requireRepository.fetchFolder(selectedFolder.value, forceRefresh: true)
+          ? await _requireRepository.fetchFolder(
+              selectedFolder.value,
+              forceRefresh: true,
+            )
           : await _requireRepository.search(query, selectedFolder.value);
       emails.value = result;
       unreadCounts.value = await _requireRepository.getUnreadCounts();
@@ -212,7 +270,9 @@ class MailState {
       await markAsRead(item);
     }
     try {
-      selectedEmailMessage.value = await _requireRepository.fetchMessage(item.uid);
+      selectedEmailMessage.value = await _requireRepository.fetchMessage(
+        item.uid,
+      );
     } catch (e) {
       selectedEmailMessage.value = null;
     }
@@ -221,7 +281,9 @@ class MailState {
   Future<void> markAsRead(MailItem item) async {
     if (item.isRead) return;
     final updated = item.copyWith(isRead: true);
-    emails.value = emails.value.map((e) => e.uid == item.uid ? updated : e).toList();
+    emails.value = emails.value
+        .map((e) => e.uid == item.uid ? updated : e)
+        .toList();
     if (selectedEmail.value?.uid == item.uid) {
       selectedEmail.value = updated;
     }

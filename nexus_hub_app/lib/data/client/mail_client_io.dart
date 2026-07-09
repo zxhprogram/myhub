@@ -1,11 +1,4 @@
-// ignore: implementation_imports
-import 'package:easy_mail/src/client/imap_client.dart';
-// ignore: implementation_imports
-import 'package:easy_mail/src/models/mail_envelope.dart';
-// ignore: implementation_imports
-import 'package:easy_mail/src/models/mail_message.dart';
-// ignore: implementation_imports
-import 'package:easy_mail/src/security/tls_options.dart';
+import 'package:easy_mail/easy_mail.dart';
 
 import '../models/mail_account_model.dart';
 import 'mail_client.dart';
@@ -35,7 +28,13 @@ class _ImapMailClient implements MailClient {
       await client.connect();
       _client = client;
     } on ImapException catch (e) {
-      throw MailException('Connection failed: ${e.message}', recoverable: true);
+      var message = 'Connection failed: ${e.message}';
+      if (e.message.contains('Bad greeting')) {
+        message = 'Connection failed: the server did not respond with a valid IMAP greeting. '
+            'Please check that the incoming server host, port, and SSL/TLS setting are correct '
+            '(e.g. imap.qq.com:993 with SSL enabled).';
+      }
+      throw MailException(message, recoverable: true);
     } catch (e) {
       throw MailException('Connection failed: $e', recoverable: true);
     }

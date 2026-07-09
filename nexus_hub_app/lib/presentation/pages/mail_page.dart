@@ -49,8 +49,11 @@ class _MailPageState extends State<MailPage> {
     return Container(
       color: NexusColors.background,
       child: Watch((context) {
-        if (!_state.hasValidAccount.value) {
-          return _MailAccountSetup(state: _state);
+        if (!_state.hasValidAccount.value || _state.isEditingAccount.value) {
+          return _MailAccountSetup(
+            state: _state,
+            isEditing: _state.hasValidAccount.value,
+          );
         }
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -134,7 +137,10 @@ class _MailToolbar extends StatelessWidget {
           ],
           const Spacer(),
           _ToolbarIconButton(icon: Icons.notifications_outlined, onTap: () {}),
-          _ToolbarIconButton(icon: Icons.settings_outlined, onTap: () {}),
+          _ToolbarIconButton(
+            icon: Icons.settings_outlined,
+            onTap: () => state.startAccountEdit(),
+          ),
           const SizedBox(width: NexusSpacing.sm),
           Container(width: 1, height: 24, color: NexusColors.outlineVariant),
           const SizedBox(width: NexusSpacing.sm),
@@ -904,10 +910,91 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
+class _ServerPreset {
+  const _ServerPreset({
+    required this.incomingHost,
+    required this.incomingPort,
+    required this.incomingSsl,
+    required this.smtpHost,
+    required this.smtpPort,
+    required this.smtpSsl,
+  });
+
+  final String incomingHost;
+  final int incomingPort;
+  final bool incomingSsl;
+  final String smtpHost;
+  final int smtpPort;
+  final bool smtpSsl;
+}
+
+const _serverPresets = <String, _ServerPreset>{
+  'qq.com': _ServerPreset(
+    incomingHost: 'imap.qq.com',
+    incomingPort: 993,
+    incomingSsl: true,
+    smtpHost: 'smtp.qq.com',
+    smtpPort: 465,
+    smtpSsl: true,
+  ),
+  'gmail.com': _ServerPreset(
+    incomingHost: 'imap.gmail.com',
+    incomingPort: 993,
+    incomingSsl: true,
+    smtpHost: 'smtp.gmail.com',
+    smtpPort: 587,
+    smtpSsl: true,
+  ),
+  'outlook.com': _ServerPreset(
+    incomingHost: 'outlook.office365.com',
+    incomingPort: 993,
+    incomingSsl: true,
+    smtpHost: 'smtp.office365.com',
+    smtpPort: 587,
+    smtpSsl: true,
+  ),
+  'hotmail.com': _ServerPreset(
+    incomingHost: 'outlook.office365.com',
+    incomingPort: 993,
+    incomingSsl: true,
+    smtpHost: 'smtp.office365.com',
+    smtpPort: 587,
+    smtpSsl: true,
+  ),
+  'live.com': _ServerPreset(
+    incomingHost: 'outlook.office365.com',
+    incomingPort: 993,
+    incomingSsl: true,
+    smtpHost: 'smtp.office365.com',
+    smtpPort: 587,
+    smtpSsl: true,
+  ),
+  '163.com': _ServerPreset(
+    incomingHost: 'imap.163.com',
+    incomingPort: 993,
+    incomingSsl: true,
+    smtpHost: 'smtp.163.com',
+    smtpPort: 465,
+    smtpSsl: true,
+  ),
+  'yeah.net': _ServerPreset(
+    incomingHost: 'imap.yeah.net',
+    incomingPort: 993,
+    incomingSsl: true,
+    smtpHost: 'smtp.yeah.net',
+    smtpPort: 465,
+    smtpSsl: true,
+  ),
+};
+
 class _MailAccountSetup extends StatefulWidget {
-  const _MailAccountSetup({required this.state});
+  const _MailAccountSetup({
+    required this.state,
+    this.isEditing = false,
+  });
 
   final MailState state;
+  final bool isEditing;
 
   @override
   State<_MailAccountSetup> createState() => _MailAccountSetupState();
@@ -932,6 +1019,7 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
     final saved = widget.state.account.value;
     _emailController.text = saved.emailAddress;
     _usernameController.text = saved.username;
+    _passwordController.text = widget.isEditing ? saved.password : '';
     _incomingHostController.text = saved.host;
     _incomingPortController.text = saved.port.toString();
     _useIncomingSsl = saved.useSsl;
@@ -970,13 +1058,13 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
                   Row(
                     children: [
                       Icon(
-                        Icons.mail_outlined,
+                        widget.isEditing ? Icons.settings_outlined : Icons.mail_outlined,
                         size: 32,
                         color: NexusColors.secondary,
                       ),
                       const SizedBox(width: NexusSpacing.md),
                       Text(
-                        'Mail Account Setup',
+                        widget.isEditing ? 'Mail Account Settings' : 'Mail Account Setup',
                         style: NexusTypography.headlineLg.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -985,7 +1073,9 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
                   ),
                   const SizedBox(height: NexusSpacing.sm),
                   Text(
-                    'Enter your email account details to get started.',
+                    widget.isEditing
+                        ? 'Update your account details below.'
+                        : 'Enter your email account details to get started.',
                     style: NexusTypography.bodyMd.copyWith(
                       color: NexusColors.onSurfaceVariant,
                     ),
@@ -1111,15 +1201,49 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
                     );
                   }),
                   const SizedBox(height: NexusSpacing.lg),
-                  SizedBox(
-                    width: double.infinity,
-                    child: NexusButton(
-                      label: 'Connect Account',
-                      icon: Icons.check,
-                      isLoading: _isSaving,
-                      onPressed: _submit,
+                  if (widget.isEditing)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: NexusButton(
+                            label: 'Save Changes',
+                            icon: Icons.check,
+                            isLoading: _isSaving,
+                            onPressed: _submit,
+                          ),
+                        ),
+                        const SizedBox(width: NexusSpacing.md),
+                        Expanded(
+                          child: NexusButton(
+                            label: 'Cancel',
+                            variant: NexusButtonVariant.outlined,
+                            onPressed: widget.state.cancelAccountEdit,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: NexusButton(
+                        label: 'Connect Account',
+                        icon: Icons.check,
+                        isLoading: _isSaving,
+                        onPressed: _submit,
+                      ),
                     ),
-                  ),
+                  if (widget.isEditing) ...[
+                    const SizedBox(height: NexusSpacing.md),
+                    SizedBox(
+                      width: double.infinity,
+                      child: NexusButton(
+                        label: 'Sign Out',
+                        variant: NexusButtonVariant.text,
+                        icon: Icons.logout,
+                        onPressed: _signOut,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1127,6 +1251,37 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
         ),
       ),
     );
+  }
+
+  Future<void> _signOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: NexusColors.surfaceContainerLowest,
+        title: Text('Sign out?', style: NexusTypography.headlineSm),
+        content: Text(
+          'This will remove the saved account and return to the setup screen.',
+          style: NexusTypography.bodyMd,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel', style: NexusTypography.labelMd.copyWith(
+              color: NexusColors.onSurfaceVariant,
+            )),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Sign Out', style: NexusTypography.labelMd.copyWith(
+              color: NexusColors.error,
+            )),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await widget.state.signOut();
+    }
   }
 
   Widget _buildSectionTitle(String title) {
@@ -1171,9 +1326,35 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
   }
 
   void _onEmailChanged(String value) {
+    final trimmed = value.trim();
     if (_usernameController.text.trim().isEmpty) {
-      _usernameController.text = value.trim();
+      _usernameController.text = trimmed;
     }
+    _applyServerPreset(trimmed);
+  }
+
+  void _applyServerPreset(String email) {
+    final at = email.lastIndexOf('@');
+    if (at == -1 || at == email.length - 1) return;
+    final domain = email.substring(at + 1).toLowerCase();
+    final preset = _serverPresets[domain];
+    if (preset == null) return;
+
+    if (_incomingHostController.text.trim().isEmpty) {
+      _incomingHostController.text = preset.incomingHost;
+    }
+    if (_incomingPortController.text.trim().isEmpty) {
+      _incomingPortController.text = preset.incomingPort.toString();
+      _useIncomingSsl = preset.incomingSsl;
+    }
+    if (_smtpHostController.text.trim().isEmpty) {
+      _smtpHostController.text = preset.smtpHost;
+    }
+    if (_smtpPortController.text.trim().isEmpty) {
+      _smtpPortController.text = preset.smtpPort.toString();
+      _useSmtpSsl = preset.smtpSsl;
+    }
+    if (mounted) setState(() {});
   }
 
   String? _validateEmail(String? value) {
@@ -1203,20 +1384,23 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
-    final account = MailAccount(
-      emailAddress: _emailController.text.trim(),
-      username: _usernameController.text.trim(),
-      password: _passwordController.text,
-      host: _incomingHostController.text.trim(),
-      port: int.parse(_incomingPortController.text.trim()),
-      useSsl: _useIncomingSsl,
-      smtpHost: _smtpHostController.text.trim(),
-      smtpPort: int.parse(_smtpPortController.text.trim()),
-      smtpUseSsl: _useSmtpSsl,
-    );
-    await widget.state.saveAccount(account);
-    if (mounted) {
-      setState(() => _isSaving = false);
+    try {
+      final account = MailAccount(
+        emailAddress: _emailController.text.trim(),
+        username: _usernameController.text.trim(),
+        password: _passwordController.text,
+        host: _incomingHostController.text.trim(),
+        port: int.parse(_incomingPortController.text.trim()),
+        useSsl: _useIncomingSsl,
+        smtpHost: _smtpHostController.text.trim(),
+        smtpPort: int.parse(_smtpPortController.text.trim()),
+        smtpUseSsl: _useSmtpSsl,
+      );
+      await widget.state.saveAccount(account);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 }
