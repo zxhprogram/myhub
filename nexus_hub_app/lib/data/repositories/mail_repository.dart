@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 // ignore: implementation_imports
@@ -14,16 +15,22 @@ import '../services/local_database.dart';
 
 /// Repository that orchestrates mail fetching, caching, and mutations.
 class MailRepository {
-  MailRepository({
-    required MailAccount account,
-    MailClient? client,
-  }) : _client = client ?? createMailClient(account);
+  MailRepository({required MailAccount account, MailClient? client})
+    : _client = client ?? createMailClient(account);
 
   final MailClient _client;
   bool _initialized = false;
 
   /// Fetches messages for a folder, using cache unless [forceRefresh] is true.
-  Future<List<MailItem>> fetchFolder(String folder, {bool forceRefresh = false}) async {
+  ///
+  /// Only fetches envelopes (headers) for the list view — full message bodies
+  /// are fetched on-demand when the user opens a message. This avoids the
+  /// freeze caused by downloading every full RFC822 message (with attachments)
+  /// just to build the list.
+  Future<List<MailItem>> fetchFolder(
+    String folder, {
+    bool forceRefresh = false,
+  }) async {
     if (!forceRefresh) {
       final cached = await _loadCachedFolder(folder);
       if (cached.isNotEmpty) return cached;
@@ -32,15 +39,17 @@ class MailRepository {
     await _ensureReady();
 
     try {
-      final unseenUids = await _client.searchUnseen(folder);
-      final envelopes = await _client.fetchEnvelopes(folder);
+      final unseenUids = await _client
+          .searchUnseen(folder)
+          .timeout(const Duration(seconds: 30));
+      final envelopes = await _client
+          .fetchEnvelopes(folder, limit: 50)
+          .timeout(const Duration(seconds: 60));
       final items = <MailItem>[];
       for (final entry in envelopes.entries) {
         final uid = entry.key;
         final envelope = entry.value;
-        final message = await _client.fetchMessage(uid);
-        final labels = _inferLabels(envelope, message);
-        final snippet = _makeSnippet(message);
+        final labels = _inferLabels(envelope);
         items.add(
           MailItem(
             uid: uid,
@@ -48,7 +57,7 @@ class MailRepository {
             envelope: envelope,
             isRead: !unseenUids.contains(uid),
             labels: labels,
-            snippet: snippet,
+            snippet: '',
           ),
         );
       }
@@ -58,6 +67,13 @@ class MailRepository {
       final cached = await _loadCachedFolder(folder);
       if (cached.isNotEmpty) return cached;
       rethrow;
+    } on TimeoutException {
+      final cached = await _loadCachedFolder(folder);
+      if (cached.isNotEmpty) return cached;
+      throw MailException(
+        'Timed out while fetching messages. Please check your network and try again.',
+        recoverable: true,
+      );
     }
   }
 
@@ -159,14 +175,10 @@ class MailRepository {
     final db = await LocalDatabase.instance;
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final item in items) {
-      await db.insert(
-        'mail_messages',
-        {
-          ...item.toJson(),
-          'fetched_at': now,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await db.insert('mail_messages', {
+        ...item.toJson(),
+        'fetched_at': now,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
   }
 
@@ -193,8 +205,8 @@ class MailRepository {
     );
   }
 
-  List<String> _inferLabels(MailEnvelope envelope, MailMessage message) {
-    final text = '${envelope.subject} ${message.plainTextBody}'.toLowerCase();
+  List<String> _inferLabels(MailEnvelope envelope) {
+    final text = envelope.subject.toLowerCase();
     final from = envelope.from.firstOrNull?.address.toLowerCase() ?? '';
     final labels = <String>[];
     final workHints = [
@@ -212,15 +224,11 @@ class MailRepository {
     if (workHints.any((hint) => text.contains(hint) || from.contains(hint))) {
       labels.add('Work');
     }
-    if (personalHints.any((hint) => text.contains(hint) || from.contains(hint))) {
+    if (personalHints.any(
+      (hint) => text.contains(hint) || from.contains(hint),
+    )) {
       labels.add('Personal');
     }
     return labels;
-  }
-
-  String _makeSnippet(MailMessage message) {
-    final text = message.plainTextBody.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (text.length <= 140) return text;
-    return '${text.substring(0, 140)}...';
   }
 }

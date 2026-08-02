@@ -35,5 +35,11 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+hooks:
+  user_defines:
+    sqlite3:
+      source: system
+      name: sqlite3
+
 flutter:
   uses-material-design: true

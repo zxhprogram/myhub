@@ -33,6 +33,7 @@ class MailState {
 
   final MailRepository? _repositoryOverride;
   MailRepository? _repository;
+  Timer? _initLoadTimeout;
 
   final account = signal<MailAccount>(
     const MailAccount(
@@ -88,7 +89,20 @@ class MailState {
       }
     }
     if (hasValidAccount.value) {
-      await loadFolder(selectedFolder.value);
+      _initLoadTimeout?.cancel();
+      _initLoadTimeout = Timer(const Duration(seconds: 30), () {
+        if (isLoading.value) {
+          error.value =
+              'Connection timed out while loading messages. Please verify your server address, port, and password.';
+          isLoading.value = false;
+        }
+      });
+      try {
+        await loadFolder(selectedFolder.value);
+      } finally {
+        _initLoadTimeout?.cancel();
+        _initLoadTimeout = null;
+      }
     }
   }
 
@@ -196,6 +210,13 @@ class MailState {
   }
 
   Future<void> load() async {
+    // When a repository override is provided but hasn't been wired up yet
+    // (e.g. tests calling [load] directly without [init]), initialize it
+    // lazily so the account is treated as valid.
+    if (_repository == null && _repositoryOverride != null) {
+      _repository = _repositoryOverride;
+      hasValidAccount.value = true;
+    }
     if (!hasValidAccount.value) return;
     await loadFolder(selectedFolder.value);
   }
@@ -305,6 +326,8 @@ class MailState {
   }
 
   Future<void> dispose() async {
+    _initLoadTimeout?.cancel();
+    _initLoadTimeout = null;
     await _repository?.dispose();
   }
 }

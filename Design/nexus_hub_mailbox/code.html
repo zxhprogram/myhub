@@ -1,0 +1,404 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Nexus Hub | Mail</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed-dim": "#bec6e0",
+                    "error": "#ba1a1a",
+                    "on-secondary-fixed-variant": "#004395",
+                    "on-error-container": "#93000a",
+                    "outline": "#76777d",
+                    "on-tertiary-container": "#808488",
+                    "on-primary-fixed": "#131b2e",
+                    "primary-fixed": "#dae2fd",
+                    "on-error": "#ffffff",
+                    "surface": "#f8f9ff",
+                    "outline-variant": "#c6c6cd",
+                    "primary-container": "#131b2e",
+                    "on-tertiary-fixed-variant": "#43474b",
+                    "background": "#f8f9ff",
+                    "inverse-primary": "#bec6e0",
+                    "inverse-on-surface": "#eaf1ff",
+                    "surface-tint": "#565e74",
+                    "surface-container-highest": "#d3e4fe",
+                    "surface-bright": "#f8f9ff",
+                    "primary": "#000000",
+                    "secondary-fixed": "#d8e2ff",
+                    "on-primary": "#ffffff",
+                    "tertiary-container": "#171c1f",
+                    "on-primary-fixed-variant": "#3f465c",
+                    "tertiary": "#000000",
+                    "on-secondary-container": "#fefcff",
+                    "surface-container": "#e5eeff",
+                    "on-tertiary": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "secondary-container": "#2170e4",
+                    "on-background": "#0b1c30",
+                    "tertiary-fixed-dim": "#c3c7cb",
+                    "surface-variant": "#d3e4fe",
+                    "secondary": "#0058be",
+                    "on-surface-variant": "#45464d",
+                    "tertiary-fixed": "#dfe3e7",
+                    "surface-container-high": "#dce9ff",
+                    "on-primary-container": "#7c839b",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-fixed": "#001a42",
+                    "inverse-surface": "#213145",
+                    "surface-dim": "#cbdbf5",
+                    "secondary-fixed-dim": "#adc6ff",
+                    "on-tertiary-fixed": "#171c1f",
+                    "on-secondary": "#ffffff",
+                    "surface-container-low": "#eff4ff",
+                    "on-surface": "#0b1c30"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "2xl": "1rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "gutter": "24px",
+                    "sm": "8px",
+                    "xl": "32px",
+                    "base": "8px",
+                    "sidebar_width": "280px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Inter"],
+                    "label-md": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "headline-xl": ["30px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                    "headline-sm": ["18px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #F8FAFC;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #E2E8F0;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #CBD5E1;
+        }
+        .mail-active {
+            background-color: #0F172A;
+            color: #FFFFFF;
+        }
+    </style>
+</head>
+<body class="flex h-screen w-full text-on-surface">
+<!-- SIDEBAR (Shared Component: SideNavBar) -->
+<aside class="fixed left-0 top-0 h-full w-sidebar_width bg-surface-container-low border-r border-outline-variant flex flex-col z-50">
+  <div class="p-lg mb-md">
+    <div class="flex items-center gap-md">
+      <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-on-primary">
+        <span class="material-symbols-outlined">hub</span>
+      </div>
+      <span class="text-headline-sm font-bold tracking-tight">Nexus Hub</span>
+    </div>
+  </div>
+  <nav class="flex-1 px-md space-y-1"><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">home</span><span class="font-label-md">Home</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">bookmark</span><span class="font-label-md">Bookmarks</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">content_paste</span><span class="font-label-md">Clipboard History</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">terminal</span><span class="font-label-md">DevTools</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">computer</span><span class="font-label-md">My Computer</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">code</span><span class="font-label-md">My GitHub</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">rss_feed</span><span class="font-label-md">RSS</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">show_chart</span><span class="font-label-md">Stocks</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">chat</span><span class="font-label-md">AI Chat</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">task_alt</span><span class="font-label-md">Tasks</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl bg-secondary-container text-on-secondary-container font-bold"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">mail</span><span class="font-label-md">Mail</span></a><a href="#" class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined">sticky_note_2</span><span class="font-label-md">Quick Notes</span></a></nav>
+  <div class="p-md border-t border-outline-variant">
+    <div class="flex items-center gap-md p-sm rounded-2xl bg-surface-container-lowest border border-outline-variant">
+      <div class="w-10 h-10 rounded-full bg-surface-dim overflow-hidden">
+        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2PLts255KdyouLEBNWyTQIHVDXz4beKUptrn6vVcUtGCTiALOR61WCMWP9MxadXqW5ywVvfA3GNGrsMqlY7nbucGFbE-vD8nWZICFeToSazdRIvop5CxB0OWgAICdxKNYcbmFuWdpLd1fSUbouPsZd8tDNwlKnzBMXNsa3NAZgBMoKDtfLs-U25-qHGVrNV9g6Kkbw3UIUFezD1JuBFFAsPUdpZ3QgoWwyJuqIrWXjsn0rA6uTicYaTajcf1CMHBjsOySfXaE3qY" class="w-full h-full object-cover">
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-label-md font-bold truncate">Alex Rivera</p>
+        <p class="text-label-sm text-on-surface-variant truncate">alex.r@hub.io</p>
+      </div>
+      <button class="text-on-surface-variant">
+        <span class="material-symbols-outlined">more_vert</span>
+      </button>
+    </div>
+  </div>
+</aside>
+<!-- MAIN APP CANVAS (Right of Sidebar) -->
+<main class="ml-sidebar_width flex flex-col w-full h-full">
+<!-- TOP NAV BAR (Shared Component: TopNavBar) -->
+<header class="h-16 flex items-center justify-between px-lg bg-surface-container-lowest border-b border-outline-variant"><div class="flex items-center gap-lg"><div class="relative w-96"><span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span><input type="text" placeholder="Search messages..." class="w-full bg-surface-container-low border-none rounded-xl py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-secondary outline-none"></div><nav class="flex items-center gap-md ml-md"><a href="#" class="text-label-md font-bold text-secondary border-b-2 border-secondary pb-4 mt-4">Inbox</a><a href="#" class="text-label-md text-on-surface-variant hover:text-on-surface pb-4 mt-4">Analytics</a></nav></div><div class="flex items-center gap-md"><button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-surface-container transition-colors text-on-surface-variant"><span class="material-symbols-outlined">notifications</span></button><button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-surface-container transition-colors text-on-surface-variant"><span class="material-symbols-outlined">settings</span></button><div class="w-px h-6 bg-outline-variant mx-1"></div><button class="px-md py-2 bg-primary text-on-primary rounded-xl font-label-md flex items-center gap-sm"><span class="material-symbols-outlined">add</span>Compose</button></div></header>
+<!-- THREE-PANE MAIL CONTENT -->
+<div class="flex flex-1 overflow-hidden">
+<!-- LEFT PANE: Folders & Labels -->
+<nav class="w-64 bg-white border-r border-outline-variant p-md flex flex-col gap-sm overflow-y-auto">
+
+<div class="space-y-1">
+<a class="flex items-center justify-between p-sm rounded-xl bg-secondary-container text-on-secondary-container" href="#">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">inbox</span>
+<span class="font-label-md text-label-md">Inbox</span>
+</div>
+<span class="text-label-sm px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed">12</span>
+</a>
+<a class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">send</span>
+<span class="font-label-md text-label-md">Sent</span>
+</a>
+<a class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">draft</span>
+<span class="font-label-md text-label-md">Drafts</span>
+</a>
+<a class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">delete</span>
+<span class="font-label-md text-label-md">Trash</span>
+</a>
+<a class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">report</span>
+<span class="font-label-md text-label-md">Spam</span>
+</a>
+</div>
+<div class="mt-lg">
+<p class="px-sm text-label-sm text-outline uppercase tracking-wider mb-2">Labels</p>
+<div class="space-y-1">
+<a class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="w-3 h-3 rounded-full bg-blue-500"></span>
+<span class="font-label-md text-label-md">Work</span>
+</a>
+<a class="flex items-center gap-md p-sm rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="w-3 h-3 rounded-full bg-purple-500"></span>
+<span class="font-label-md text-label-md">Personal</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- MIDDLE PANE: Message List -->
+<section class="w-[400px] bg-surface flex flex-col border-r border-outline-variant">
+<div class="p-md border-b border-outline-variant flex items-center justify-between">
+<h2 class="font-headline-sm text-headline-sm">Inbox</h2>
+<div class="flex gap-xs">
+<button class="p-xs text-on-surface-variant hover:bg-surface-container rounded-lg">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar">
+<!-- Unread Email -->
+<div class="p-md bg-white border-b border-outline-variant cursor-pointer hover:bg-surface-container-low transition-colors relative">
+<div class="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-secondary rounded-full" style="display: block;"></div>
+<div class="flex justify-between items-start mb-1">
+<span class="font-label-md text-label-md text-on-surface">Linear App</span>
+<span class="text-label-sm text-outline">10:45 AM</span>
+</div>
+<h3 class="font-bold text-body-md text-on-surface mb-1 truncate">New feature update: Project views are here</h3>
+<p class="text-body-md text-on-surface-variant line-clamp-2">Hi Team, we've just rolled out significant updates to how you view your projects. Check out the new bento-style dashboard...</p>
+</div>
+<!-- Read Email -->
+<div class="p-md border-b border-outline-variant cursor-pointer hover:bg-surface-container-low transition-colors bg-white">
+<div class="flex justify-between items-start mb-1">
+<span class="font-label-md text-label-md text-on-surface-variant">Stripe</span>
+<span class="text-label-sm text-outline">Yesterday</span>
+</div>
+<h3 class="font-medium text-body-md text-on-surface-variant mb-1 truncate">Your weekly payout summary</h3>
+<p class="text-body-md text-on-surface-variant line-clamp-2">The summary of your payouts for the period ending November 14 is now available in your dashboard. Total processed: $1,240.00</p>
+</div>
+<!-- Active Email -->
+<div class="p-md border-b border-outline-variant cursor-pointer transition-colors bg-white">
+<div class="flex justify-between items-start mb-1">
+<span class="font-label-md text-label-md text-on-secondary-container">Figma Design</span>
+<span class="text-label-sm text-on-secondary-container">Yesterday</span>
+</div>
+<h3 class="font-bold text-body-md text-on-secondary-container mb-1 truncate">Nexus Hub: Design System v2.1 Feedback</h3>
+<p class="text-body-md text-on-secondary-container opacity-80 line-clamp-2">Alex mentioned you in a comment on the "Shared Components" file. Take a look at the updated 8px grid alignment rules...</p>
+</div>
+<!-- Additional Emails -->
+<div class="p-md border-b border-outline-variant cursor-pointer hover:bg-surface-container-low transition-colors bg-secondary-container text-on-secondary-container">
+<div class="flex justify-between items-start mb-1">
+<span class="font-label-md text-label-md text-on-surface">GitHub</span>
+<span class="text-label-sm text-outline">Nov 12</span>
+</div>
+<h3 class="font-bold text-body-md text-on-surface mb-1 truncate">[Security] New SSH key added</h3>
+<p class="text-body-md text-on-surface-variant line-clamp-2">A new public SSH key was added to your GitHub account (nexus-mac-m3). If you did not perform this action, please review...</p>
+</div>
+<div class="p-md bg-surface border-b border-outline-variant cursor-pointer hover:bg-surface-container-low transition-colors bg-white">
+<div class="flex justify-between items-start mb-1">
+<span class="font-label-md text-label-md text-on-surface-variant">Medium Daily</span>
+<span class="text-label-sm text-outline">Nov 11</span>
+</div>
+<h3 class="font-medium text-body-md text-on-surface-variant mb-1 truncate">10 UI Trends to Watch in 2025</h3>
+<p class="text-body-md text-on-surface-variant line-clamp-2">From hyper-minimalism to advanced glassmorphism, here are the trends that will define digital interfaces next year...</p>
+</div>
+</div>
+</section>
+<!-- RIGHT PANE: Reading Pane -->
+<section class="flex-1 bg-white flex flex-col overflow-hidden">
+<!-- Toolbar -->
+<div class="p-md border-b border-outline-variant flex items-center justify-between bg-surface-container-lowest">
+<div class="flex gap-sm">
+<button class="p-sm hover:bg-surface-container rounded-xl text-on-surface-variant flex items-center gap-sm">
+<span class="material-symbols-outlined">reply</span>
+<span class="text-label-md font-label-md">Reply</span>
+</button>
+<button class="p-sm hover:bg-surface-container rounded-xl text-on-surface-variant flex items-center gap-sm">
+<span class="material-symbols-outlined">forward</span>
+<span class="text-label-md font-label-md">Forward</span>
+</button>
+<div class="w-px h-6 bg-outline-variant mx-1"></div>
+<button class="p-sm hover:bg-surface-container rounded-xl text-on-surface-variant">
+<span class="material-symbols-outlined">archive</span>
+</button>
+<button class="p-sm hover:bg-surface-container rounded-xl text-on-surface-variant">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<div class="flex gap-sm">
+<button class="p-sm hover:bg-surface-container rounded-xl text-on-surface-variant">
+<span class="material-symbols-outlined">star</span>
+</button>
+<button class="p-sm hover:bg-surface-container rounded-xl text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Content Area -->
+<div class="flex-1 overflow-y-auto p-xl custom-scrollbar">
+<div class="max-w-3xl mx-auto">
+<!-- Header -->
+<div class="flex justify-between items-start mb-xl">
+<h1 class="text-headline-xl font-headline-xl text-on-surface leading-tight">Nexus Hub: Design System v2.1 Feedback</h1>
+<span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-label-sm font-label-sm">Work</span>
+</div>
+<div class="flex items-center gap-md mb-xl p-md bg-surface-container-low rounded-2xl border border-outline-variant">
+<div class="w-12 h-12 rounded-full bg-secondary-container overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A macro portrait of a design director with sharp features and a thoughtful gaze. The image uses a clean, studio lighting setup with a neutral gray background. The overall aesthetic is professional, sophisticated, and high-end, focusing on clarity and modern corporate elegance." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfZN_qcu8aC2nAoXMqJQC_Y9y4l5WjsBtNbh8aHVQbVV8yuV4qMDgskWOFz278OP1-X32cJS8c6BJ9avfPh4klSAGtKV9cxl7hJbBcfLwT8QfHA7LA6xvge3PDJCdrJK02q-AqZBX9gUTNPPiBMZoR0d9U5kWXLhpiH2NoHOWWsqVZGN7VgsjRmU9j2685HHo7GfADqO_wLJ3ep26uSNY3adXwUvJGhaYwIGOx0parauvp7KLacWj4xr3LYDUAZ9crQ8cpd00YYSY">
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-sm">
+<span class="font-bold text-body-lg text-on-surface">Alex Rivera</span>
+<span class="text-body-md text-on-surface-variant">&lt;alex.rivera@figma.com&gt;</span>
+</div>
+<div class="text-body-md text-on-surface-variant">
+                                    To: <span class="font-medium">nexus.user@hub.io</span>
+<span class="mx-2">•</span>
+                                    Nov 14, 2024 (12 hours ago)
+                                </div>
+</div>
+</div>
+<!-- Body Content -->
+<div class="text-body-lg text-on-surface space-y-md leading-relaxed">
+<p class="">Hey there,</p>
+<p class="">I’ve just finished reviewing the latest iteration of the <strong>Nexus Hub Design System (v2.1)</strong>. The move towards a more rigid 8px grid system is definitely paying off in terms of layout consistency across the dashboard views.</p>
+<p class="">A few specific points from my review:</p>
+<ul class="list-disc pl-lg space-y-sm">
+<li class="">The <strong>SideNavBar</strong> separation logic feels much cleaner now that we've removed the border-t on items and focused on elevation shifts.</li>
+<li class="">We might need to adjust the <strong>primary-container</strong> contrast ratio for darker themes to ensure AA accessibility for small label text.</li>
+<li class="">The new 2xl corner radius on cards really softens the "industrial" feel while maintaining that professional edge we're aiming for.</li>
+</ul>
+<p class="">I've left several detailed comments directly in the Figma file. Let's touch base tomorrow morning at 10 AM to go over the next steps for implementation.</p>
+<p class="">Best regards,<br><span class="font-bold">Alex Rivera</span><br><span class="text-on-surface-variant text-body-md">Senior Product Designer</span></p>
+</div>
+<!-- Attachments Area (Visual Flourish) -->
+<div class="mt-xl pt-xl border-t border-outline-variant">
+<h4 class="text-label-sm font-label-sm text-outline uppercase mb-md">Attachments (2)</h4>
+<div class="flex gap-md">
+<div class="flex items-center gap-md p-md border border-outline-variant rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-colors cursor-pointer w-64">
+<span class="material-symbols-outlined text-secondary">description</span>
+<div class="flex-1 overflow-hidden">
+<p class="font-label-md text-label-md text-on-surface truncate">Grid_Specs_v2.pdf</p>
+<p class="text-label-sm text-on-surface-variant">1.4 MB</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">download</span>
+</div>
+<div class="flex items-center gap-md p-md border border-outline-variant rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-colors cursor-pointer w-64">
+<div class="w-10 h-10 bg-surface-dim rounded-lg overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A clean, high-resolution screenshot of a modern UI design file in Figma. The screenshot shows a complex grid system with blue layout guides over a set of minimalist bento-style dashboard cards. The aesthetic is extremely clean, geometric, and professional." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUy--juRYUJNysvHoDx5Mj08am7Og7sB60NlATK4UxkBZrv6RAur8lRfhodJwDAkW1dFEGqoFa2twyupvRo9XDbA-3vzmpeRB6-3fx_W4kHTEPJhbNubcNWeWzQwWRBXFTsHOJuat3tDOYxPUkO5rEw-cBXciFgrYOtYwzQC5jJUsWCQmB0QxN4vM6_kXcChJfCHRNkGXPVFjqrx6xirA9WfnLpEOg75YE6faO2Ijea9LJkovQBed_RT0uchvhD9VvYF3etcGF-G0">
+</div>
+<div class="flex-1 overflow-hidden">
+<p class="font-label-md text-label-md text-on-surface truncate">Preview_Dashboard.jpg</p>
+<p class="text-label-sm text-on-surface-variant">2.8 MB</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">download</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Quick Reply -->
+<div class="p-lg border-t border-outline-variant bg-surface-container-lowest">
+<div class="relative">
+<textarea class="w-full p-lg rounded-2xl border border-outline-variant bg-white focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all resize-none h-32 text-body-md" placeholder="Click here to reply..."></textarea>
+<div class="absolute bottom-md right-md flex gap-sm">
+<button class="p-sm text-on-surface-variant hover:bg-surface-container rounded-xl">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<button class="px-lg py-sm bg-secondary text-on-secondary rounded-xl font-label-md text-label-md shadow-sm hover:shadow-md transition-all">
+                                Send
+                            </button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- FAB (Contextual Action - New Message) -->
+<button class="fixed bottom-lg right-lg w-14 h-14 bg-on-background text-on-primary rounded-2xl flex items-center justify-center shadow-lg hover:scale-105 transition-transform z-[100] md:hidden">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add</span>
+</button>
+<script>
+        // Simple micro-interaction for list item selection
+        document.querySelectorAll('section.w-\\[400px\\] > div.overflow-y-auto > div').forEach(item => {
+            item.addEventListener('click', function() {
+                // Remove active classes from all
+                document.querySelectorAll('section.w-\\[400px\\] > div.overflow-y-auto > div').forEach(i => {
+                    i.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+                    i.classList.add('bg-white');
+                    const indicator = i.querySelector('.absolute.left-1');
+                    if (indicator) indicator.style.display = 'block';
+                });
+                
+                // Add to current (simulated selection)
+                this.classList.add('bg-secondary-container', 'text-on-secondary-container');
+                this.classList.remove('bg-white', 'bg-surface');
+                const indicator = this.querySelector('.absolute.left-1');
+                if (indicator) indicator.style.display = 'none';
+            });
+        });
+    </script>
+
+
+
+
+
+
+</body></html>

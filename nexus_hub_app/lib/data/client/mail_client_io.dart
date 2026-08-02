@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_mail/easy_mail.dart';
 
 import '../models/mail_account_model.dart';
@@ -25,8 +27,13 @@ class _ImapMailClient implements MailClient {
             ? TlsOptions.secureImplicit
             : TlsOptions.insecure,
       );
-      await client.connect();
+      await client.connect().timeout(const Duration(seconds: 30));
       _client = client;
+    } on TimeoutException {
+      throw MailException(
+        'Connection timed out. Please check the server host, port, and network.',
+        recoverable: true,
+      );
     } on ImapException catch (e) {
       var message = 'Connection failed: ${e.message}';
       if (e.message.contains('Bad greeting')) {
@@ -47,7 +54,11 @@ class _ImapMailClient implements MailClient {
       throw MailException('Not connected', recoverable: true);
     }
     try {
-      await client.login(_account.username, _account.password);
+      await client.login(_account.username, _account.password).timeout(
+        const Duration(seconds: 30),
+      );
+    } on TimeoutException {
+      throw MailException('Authentication timed out.', recoverable: true);
     } on ImapException catch (e) {
       throw MailException('Authentication failed: ${e.message}', recoverable: false);
     }
@@ -61,8 +72,11 @@ class _ImapMailClient implements MailClient {
     final client = await _ensureSelected(folder);
     try {
       final uids = await client.search(filter: 'ALL');
+      // IMAP SEARCH returns UIDs in ascending order (oldest first). Take the
+      // NEWEST [limit] messages by slicing from the end, matching the
+      // behavior of the easy_mail example (uids.reversed.take(50)).
       final effectiveUids = limit != null && uids.length > limit
-          ? uids.sublist(0, limit)
+          ? uids.sublist(uids.length - limit)
           : uids;
       final result = <int, MailEnvelope>{};
       for (final uid in effectiveUids) {

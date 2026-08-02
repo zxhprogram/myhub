@@ -174,6 +174,36 @@ void main() {
     await state.dispose();
   });
 
+  test('MailState enters and cancels account editing mode', () async {
+    final state = MailState(repository: _makeRepository());
+    await state.load();
+    expect(state.hasValidAccount.value, isTrue);
+
+    state.startAccountEdit();
+    expect(state.isEditingAccount.value, isTrue);
+
+    state.cancelAccountEdit();
+    expect(state.isEditingAccount.value, isFalse);
+    expect(state.configError.value, isNull);
+
+    await state.dispose();
+  });
+
+  test('MailState signs out and clears account', () async {
+    final state = MailState(repository: _makeRepository());
+    await state.load();
+    expect(state.hasValidAccount.value, isTrue);
+
+    await state.signOut();
+
+    expect(state.hasValidAccount.value, isFalse);
+    expect(state.isEditingAccount.value, isFalse);
+    expect(state.account.value.emailAddress, isEmpty);
+    expect(state.emails.value, isEmpty);
+
+    await state.dispose();
+  });
+
   testWidgets('MailPage renders without error', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
