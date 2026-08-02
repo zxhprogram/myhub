@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:easy_mail/src/models/mail_envelope.dart';
 // ignore: implementation_imports
 import 'package:easy_mail/src/models/mail_message.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../client/mail_client.dart';
 import '../client/mail_client_factory.dart';
@@ -78,12 +77,12 @@ class MailRepository {
   }
 
   /// Returns the full message for a UID, preferring cache.
-  Future<MailMessage> fetchMessage(int uid) async {
+  Future<MailMessage> fetchMessage(int uid, {String? folder}) async {
     final cached = await _loadCachedMessage(uid);
     if (cached != null) return cached;
 
     await _ensureReady();
-    final message = await _client.fetchMessage(uid);
+    final message = await _client.fetchMessage(uid, folder: folder);
     await _cacheMessage(uid, message);
     return message;
   }
@@ -113,16 +112,15 @@ class MailRepository {
 
   /// Returns unread counts per folder from the cache.
   Future<Map<String, int>> getUnreadCounts() async {
-    final db = await LocalDatabase.instance;
-    final rows = await db.rawQuery('''
-      SELECT folder, COUNT(*) as cnt
-      FROM mail_messages
-      WHERE is_read = 0
-      GROUP BY folder
-    ''');
+    final box = await LocalDatabase.box('mail_messages');
     final result = <String, int>{};
-    for (final row in rows) {
-      result[row['folder'] as String] = row['cnt'] as int;
+    for (final value in box.values) {
+      final record = Map<String, dynamic>.from(value as Map);
+      final isRead = (record['is_read'] as int) == 1;
+      if (!isRead) {
+        final folder = record['folder'] as String;
+        result[folder] = (result[folder] ?? 0) + 1;
+      }
     }
     return result;
   }
@@ -136,73 +134,81 @@ class MailRepository {
   }
 
   Future<void> _ensureReady() async {
-    if (_initialized) return;
+    // Check the actual connection state rather than a flag, because the
+    // server may have dropped the connection since we last initialized.
+    if (_client.isConnected) return;
     await _client.connect();
     await _client.authenticate();
     _initialized = true;
   }
 
+  String _key(String folder, int uid) => '$folder:$uid';
+
   Future<List<MailItem>> _loadCachedFolder(String folder) async {
-    final db = await LocalDatabase.instance;
-    final rows = await db.query(
-      'mail_messages',
-      where: 'folder = ?',
-      whereArgs: [folder],
-      orderBy: 'fetched_at DESC',
-    );
-    return rows.map(MailItem.fromJson).toList();
+    final box = await LocalDatabase.box('mail_messages');
+    final items = <MailItem>[];
+    for (final value in box.values) {
+      final record = Map<String, dynamic>.from(value as Map);
+      if (record['folder'] == folder) {
+        items.add(MailItem.fromJson(record));
+      }
+    }
+    items.sort((a, b) {
+      final aDate = a.date?.millisecondsSinceEpoch ?? 0;
+      final bDate = b.date?.millisecondsSinceEpoch ?? 0;
+      return bDate.compareTo(aDate);
+    });
+    return items;
   }
 
   Future<MailMessage?> _loadCachedMessage(int uid) async {
-    final db = await LocalDatabase.instance;
-    final rows = await db.query(
-      'mail_messages',
-      where: 'uid = ?',
-      whereArgs: [uid],
-    );
-    if (rows.isEmpty) return null;
-    final json = rows.first['message_json'] as String?;
-    if (json == null || json.isEmpty) return null;
-    return MailMessage.fromJson(
-      Map<String, dynamic>.from(
-        // ignore: avoid_dynamic_calls
-        const JsonCodec().decode(json) as Map,
-      ),
-    );
+    final box = await LocalDatabase.box('mail_messages');
+    for (final value in box.values) {
+      final record = Map<String, dynamic>.from(value as Map);
+      if (record['uid'] == uid) {
+        final json = record['message_json'] as String?;
+        if (json == null || json.isEmpty) return null;
+        return MailMessage.fromJson(
+          Map<String, dynamic>.from(const JsonCodec().decode(json) as Map),
+        );
+      }
+    }
+    return null;
   }
 
   Future<void> _cacheItems(List<MailItem> items) async {
-    final db = await LocalDatabase.instance;
+    final box = await LocalDatabase.box('mail_messages');
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final item in items) {
-      await db.insert('mail_messages', {
-        ...item.toJson(),
-        'fetched_at': now,
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      final record = Map<String, dynamic>.from(item.toJson());
+      record['fetched_at'] = now;
+      await box.put(_key(item.folder, item.uid), record);
     }
   }
 
   Future<void> _cacheMessage(int uid, MailMessage message) async {
-    final db = await LocalDatabase.instance;
-    await db.update(
-      'mail_messages',
-      {
-        'message_json': const JsonCodec().encode(message.toJson()),
-        'fetched_at': DateTime.now().millisecondsSinceEpoch,
-      },
-      where: 'uid = ?',
-      whereArgs: [uid],
-    );
+    final box = await LocalDatabase.box('mail_messages');
+    for (final key in box.keys) {
+      final record = Map<String, dynamic>.from(box.get(key) as Map);
+      if (record['uid'] == uid) {
+        record['message_json'] = const JsonCodec().encode(message.toJson());
+        record['fetched_at'] = DateTime.now().millisecondsSinceEpoch;
+        await box.put(key, record);
+        return;
+      }
+    }
   }
 
   Future<void> _markLocalRead(int uid, bool read) async {
-    final db = await LocalDatabase.instance;
-    await db.update(
-      'mail_messages',
-      {'is_read': read ? 1 : 0},
-      where: 'uid = ?',
-      whereArgs: [uid],
-    );
+    final box = await LocalDatabase.box('mail_messages');
+    for (final key in box.keys) {
+      final record = Map<String, dynamic>.from(box.get(key) as Map);
+      if (record['uid'] == uid) {
+        record['is_read'] = read ? 1 : 0;
+        await box.put(key, record);
+        return;
+      }
+    }
   }
 
   List<String> _inferLabels(MailEnvelope envelope) {

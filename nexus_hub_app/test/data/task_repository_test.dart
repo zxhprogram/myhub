@@ -18,6 +18,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   LocalDatabase.useInMemoryDatabaseForTesting();
 
+  setUp(() async {
+    await LocalDatabase.clearAll();
+  });
+
   test('createTask caches task with id', () async {
     final repo = TaskRepository(client: _ThrowingApiClient());
     final task = TaskModel(

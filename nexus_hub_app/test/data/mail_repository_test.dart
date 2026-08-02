@@ -34,14 +34,11 @@ class _FakeMailClient implements MailClient {
     String folder, {
     int? limit,
   }) async {
-    return {
-      1: _envelope(subject: 'Hello'),
-      2: _envelope(subject: 'Update'),
-    };
+    return {1: _envelope(subject: 'Hello'), 2: _envelope(subject: 'Update')};
   }
 
   @override
-  Future<MailMessage> fetchMessage(int uid) async {
+  Future<MailMessage> fetchMessage(int uid, {String? folder}) async {
     return _message(uid: uid, subject: 'Hello', body: 'Body for $uid');
   }
 
@@ -59,11 +56,11 @@ class _FakeMailClient implements MailClient {
   }
 
   MailEnvelope _envelope({required String subject}) => MailEnvelope(
-        subject: subject,
-        from: [const MailAddress(name: 'Sender', address: 'sender@example.com')],
-        to: [const MailAddress(address: 'user@example.com')],
-        date: DateTime.utc(2026, 6, 28, 10, 0),
-      );
+    subject: subject,
+    from: [const MailAddress(name: 'Sender', address: 'sender@example.com')],
+    to: [const MailAddress(address: 'user@example.com')],
+    date: DateTime.utc(2026, 6, 28, 10, 0),
+  );
 
   MailMessage _message({
     required int uid,
@@ -88,8 +85,9 @@ class _FakeMailClient implements MailClient {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() {
+  setUp(() async {
     LocalDatabase.useInMemoryDatabaseForTesting();
+    await LocalDatabase.clearAll();
   });
 
   group('MailRepository', () {

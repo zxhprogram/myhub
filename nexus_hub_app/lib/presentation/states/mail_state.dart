@@ -159,7 +159,11 @@ class MailState {
     if (_repositoryOverride == null) {
       await MailAccountStorage.clear();
     }
-    await _repository?.dispose();
+    try {
+      await _repository?.dispose().timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Best-effort disconnect; don't let a hung connection block sign-out.
+    }
     _repository = null;
     account.value = const MailAccount(
       emailAddress: '',
@@ -293,6 +297,7 @@ class MailState {
     try {
       selectedEmailMessage.value = await _requireRepository.fetchMessage(
         item.uid,
+        folder: item.folder,
       );
     } catch (e) {
       selectedEmailMessage.value = null;

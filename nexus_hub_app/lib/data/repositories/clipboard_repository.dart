@@ -120,36 +120,45 @@ class ClipboardRepository {
   }
 
   Future<void> _cacheItems(List<ClipboardItemModel> items) async {
-    final db = await LocalDatabase.instance;
-    await db.delete('clipboard');
+    final box = await LocalDatabase.box('clipboard');
+    await box.clear();
     for (final item in items) {
       await _insertLocal(item);
     }
   }
 
   Future<int> _insertLocal(ClipboardItemModel item) async {
-    final db = await LocalDatabase.instance;
-    return db.insert('clipboard', item.toDb());
+    final box = await LocalDatabase.box('clipboard');
+    final id = item.id;
+    if (id != null) {
+      await box.put(id, item.toJson());
+      return id;
+    }
+    return await box.add(item.toJson());
   }
 
   Future<List<ClipboardItemModel>> _loadCachedItems({String? query}) async {
-    final db = await LocalDatabase.instance;
-    final rows = await db.query(
-      'clipboard',
-      where: query != null ? 'content LIKE ?' : null,
-      whereArgs: query != null ? ['%$query%'] : null,
-      orderBy: 'created_at DESC',
-    );
-    return rows.map(ClipboardItemModel.fromDb).toList();
+    final box = await LocalDatabase.box('clipboard');
+    final rows = box.values.cast<Map<String, dynamic>>().where((row) {
+      if (query == null) return true;
+      final content = (row['content'] as String?) ?? '';
+      return content.toLowerCase().contains(query.toLowerCase());
+    }).toList();
+    rows.sort((a, b) {
+      final aCreated = DateTime.parse(a['createdAt'] as String);
+      final bCreated = DateTime.parse(b['createdAt'] as String);
+      return bCreated.compareTo(aCreated);
+    });
+    return rows.map(ClipboardItemModel.fromJson).toList();
   }
 
   Future<void> _deleteLocal(int id) async {
-    final db = await LocalDatabase.instance;
-    await db.delete('clipboard', where: 'id = ?', whereArgs: [id]);
+    final box = await LocalDatabase.box('clipboard');
+    await box.delete(id);
   }
 
   Future<void> _clearLocal() async {
-    final db = await LocalDatabase.instance;
-    await db.delete('clipboard');
+    final box = await LocalDatabase.box('clipboard');
+    await box.clear();
   }
 }

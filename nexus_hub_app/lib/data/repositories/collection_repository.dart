@@ -1,5 +1,3 @@
-import 'package:sqflite/sqflite.dart';
-
 import '../models/bookmark_model.dart';
 import '../models/collection_model.dart';
 import '../services/api_client.dart';
@@ -59,13 +57,14 @@ class CollectionRepository {
       await _insertLocalCollection(updated);
       return updated;
     } catch (_) {
-      final db = await LocalDatabase.instance;
-      await db.update(
-        'collections',
-        {'name': name, 'updated_at': now.millisecondsSinceEpoch},
-        where: 'id = ?',
-        whereArgs: [id],
-      );
+      final box = await LocalDatabase.box('collections');
+      final existing = box.get(id);
+      if (existing != null) {
+        final record = Map<String, dynamic>.from(existing as Map);
+        record['name'] = name;
+        record['updatedAt'] = now.toIso8601String();
+        await box.put(id, record);
+      }
       final cached = await _loadCachedCollections();
       return cached.firstWhere((c) => c.id == id);
     }
@@ -77,13 +76,21 @@ class CollectionRepository {
     } catch (_) {
       // Still clean local data even if API fails.
     }
-    final db = await LocalDatabase.instance;
-    await db.delete(
-      'bookmark_collections',
-      where: 'collection_id = ?',
-      whereArgs: [id],
-    );
-    await db.delete('collections', where: 'id = ?', whereArgs: [id]);
+    // Remove all bookmark-collection associations for this collection.
+    final bcBox = await LocalDatabase.box('bookmark_collections');
+    final keysToDelete = <dynamic>[];
+    for (final key in bcBox.keys) {
+      final record = Map<String, dynamic>.from(bcBox.get(key) as Map);
+      if (record['collection_id'] == id) {
+        keysToDelete.add(key);
+      }
+    }
+    for (final key in keysToDelete) {
+      await bcBox.delete(key);
+    }
+
+    final box = await LocalDatabase.box('collections');
+    await box.delete(id);
   }
 
   Future<List<BookmarkModel>> getBookmarksInCollection(int collectionId) async {
@@ -115,18 +122,15 @@ class CollectionRepository {
     } catch (_) {
       // Continue to update local cache.
     }
-    final db = await LocalDatabase.instance;
+    final box = await LocalDatabase.box('bookmark_collections');
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final bookmarkId in bookmarkIds) {
-      try {
-        await db.insert('bookmark_collections', {
-          'bookmark_id': bookmarkId,
-          'collection_id': collectionId,
-          'created_at': now,
-        });
-      } catch (_) {
-        // Ignore duplicate entries.
-      }
+      final bcKey = '$bookmarkId:$collectionId';
+      await box.put(bcKey, {
+        'bookmark_id': bookmarkId,
+        'collection_id': collectionId,
+        'created_at': now,
+      });
     }
   }
 
@@ -144,112 +148,115 @@ class CollectionRepository {
         // Continue to clean local cache.
       }
     }
-    final db = await LocalDatabase.instance;
+    final box = await LocalDatabase.box('bookmark_collections');
     for (final bookmarkId in bookmarkIds) {
-      await db.delete(
-        'bookmark_collections',
-        where: 'collection_id = ? AND bookmark_id = ?',
-        whereArgs: [collectionId, bookmarkId],
-      );
+      final bcKey = '$bookmarkId:$collectionId';
+      await box.delete(bcKey);
     }
   }
 
   Future<int> countBookmarks(int collectionId) async {
-    final db = await LocalDatabase.instance;
-    final rows = await db.rawQuery(
-      '''
-      SELECT COUNT(*) AS count FROM bookmark_collections
-      WHERE collection_id = ?
-    ''',
-      [collectionId],
-    );
-    return (rows.firstOrNull?['count'] as int?) ?? 0;
+    final box = await LocalDatabase.box('bookmark_collections');
+    var count = 0;
+    for (final value in box.values) {
+      final record = Map<String, dynamic>.from(value as Map);
+      if (record['collection_id'] == collectionId) {
+        count++;
+      }
+    }
+    return count;
   }
 
   Future<void> _cacheCollections(List<CollectionModel> collections) async {
-    final db = await LocalDatabase.instance;
-    await db.delete('collections');
+    final box = await LocalDatabase.box('collections');
+    await box.clear();
     for (final c in collections) {
       await _insertLocalCollection(c);
     }
   }
 
   Future<void> _insertLocalCollection(CollectionModel collection) async {
-    final db = await LocalDatabase.instance;
-    await db.insert('collections', {
-      'id': collection.id,
-      'name': collection.name,
-      'sort_order': collection.sortOrder,
-      'created_at': collection.createdAt.millisecondsSinceEpoch,
-      'updated_at': collection.updatedAt.millisecondsSinceEpoch,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    final box = await LocalDatabase.box('collections');
+    final id = collection.id;
+    if (id != null) {
+      await box.put(id, collection.toJson());
+    } else {
+      await box.add(collection.toJson());
+    }
   }
 
   Future<List<CollectionModel>> _loadCachedCollections({String? sort}) async {
-    final db = await LocalDatabase.instance;
-    final orderBy = _orderByClause(sort);
-    final rows = await db.query('collections', orderBy: orderBy);
-    return rows.map(_rowToCollection).toList();
+    final box = await LocalDatabase.box('collections');
+    final rows = box.values.cast<Map<String, dynamic>>().toList();
+    _sortCollections(rows, sort);
+    return rows.map(CollectionModel.fromJson).toList();
   }
 
-  CollectionModel _rowToCollection(Map<String, dynamic> row) {
-    return CollectionModel(
-      id: row['id'] as int?,
-      name: row['name'] as String,
-      sortOrder: (row['sort_order'] as int?) ?? 0,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at'] as int),
-    );
-  }
-
-  String _orderByClause(String? sort) {
+  void _sortCollections(List<Map<String, dynamic>> rows, String? sort) {
     switch (sort) {
       case 'name_asc':
-        return 'name ASC';
+        rows.sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
       case 'name_desc':
-        return 'name DESC';
+        rows.sort((a, b) => (b['name'] as String).compareTo(a['name'] as String));
       case 'created_asc':
-        return 'created_at ASC';
+        rows.sort((a, b) {
+          final aDate = DateTime.parse(a['createdAt'] as String);
+          final bDate = DateTime.parse(b['createdAt'] as String);
+          return aDate.compareTo(bDate);
+        });
       case 'created_desc':
-        return 'created_at DESC';
+        rows.sort((a, b) {
+          final aDate = DateTime.parse(a['createdAt'] as String);
+          final bDate = DateTime.parse(b['createdAt'] as String);
+          return bDate.compareTo(aDate);
+        });
       default:
-        return 'sort_order ASC, name ASC';
+        rows.sort((a, b) {
+          final aOrder = (a['sortOrder'] as int?) ?? 0;
+          final bOrder = (b['sortOrder'] as int?) ?? 0;
+          final cmp = aOrder.compareTo(bOrder);
+          if (cmp != 0) return cmp;
+          return (a['name'] as String).compareTo(b['name'] as String);
+        });
     }
   }
 
   Future<List<BookmarkModel>> _loadCachedBookmarksInCollection(
     int collectionId,
   ) async {
-    final db = await LocalDatabase.instance;
-    final rows = await db.rawQuery(
-      '''
-      SELECT b.* FROM bookmarks b
-      INNER JOIN bookmark_collections bc ON bc.bookmark_id = b.id
-      WHERE bc.collection_id = ?
-      ORDER BY b.sort_order ASC, b.updated_at DESC
-    ''',
-      [collectionId],
-    );
-    return rows
-        .map(_rowToBookmark)
+    final bcBox = await LocalDatabase.box('bookmark_collections');
+    final bookmarkBox = await LocalDatabase.box('bookmarks');
+
+    // Collect bookmark IDs associated with this collection.
+    final bookmarkIds = <int>[];
+    for (final value in bcBox.values) {
+      final record = Map<String, dynamic>.from(value as Map);
+      if (record['collection_id'] == collectionId) {
+        bookmarkIds.add(record['bookmark_id'] as int);
+      }
+    }
+
+    // Fetch the bookmark records and sort by sortOrder ASC, updatedAt DESC.
+    final bookmarks = <Map<String, dynamic>>[];
+    for (final id in bookmarkIds) {
+      final record = bookmarkBox.get(id);
+      if (record != null) {
+        bookmarks.add(Map<String, dynamic>.from(record as Map));
+      }
+    }
+    bookmarks.sort((a, b) {
+      final aOrder = (a['sortOrder'] as int?) ?? 0;
+      final bOrder = (b['sortOrder'] as int?) ?? 0;
+      final cmp = aOrder.compareTo(bOrder);
+      if (cmp != 0) return cmp;
+      final aDate = DateTime.parse(a['updatedAt'] as String);
+      final bDate = DateTime.parse(b['updatedAt'] as String);
+      return bDate.compareTo(aDate);
+    });
+
+    return bookmarks
+        .map(BookmarkModel.fromJson)
         .map((b) => b.copyWith(collectionIds: [collectionId]))
         .toList();
-  }
-
-  BookmarkModel _rowToBookmark(Map<String, dynamic> row) {
-    return BookmarkModel(
-      id: row['id'] as int,
-      title: row['title'] as String,
-      url: row['url'] as String,
-      tags: (row['tags'] as String)
-          .split(',')
-          .where((t) => t.isNotEmpty)
-          .toList(),
-      category: row['category'] as String,
-      image: (row['image'] as String?) ?? '',
-      sortOrder: (row['sort_order'] as int?) ?? 0,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at'] as int),
-    );
   }
 }

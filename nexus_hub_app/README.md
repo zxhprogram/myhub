@@ -28,4 +28,4 @@ flutter test
 - **State management**: Signals
 - **Routing**: go_router
 - **Networking**: Dio
-- **Local persistence**: sqflite
+- **Local persistence**: Hive

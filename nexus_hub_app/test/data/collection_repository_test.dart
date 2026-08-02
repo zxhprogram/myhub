@@ -86,10 +86,7 @@ void main() {
   LocalDatabase.useInMemoryDatabaseForTesting();
 
   setUp(() async {
-    final db = await LocalDatabase.instance;
-    await db.delete('bookmark_collections');
-    await db.delete('collections');
-    await db.delete('bookmarks');
+    await LocalDatabase.clearAll();
   });
 
   tearDown(() async {
@@ -119,10 +116,10 @@ void main() {
       expect(collections.first.name, 'Work');
       expect(client.calls, contains('GET /collections'));
 
-      final db = await LocalDatabase.instance;
-      final rows = await db.query('collections');
-      expect(rows.length, 1);
-      expect(rows.first['name'], 'Work');
+      final box = await LocalDatabase.box('collections');
+      expect(box.length, 1);
+      final record = box.get(1) as Map;
+      expect(record['name'], 'Work');
     });
 
     test('fetchCollections falls back to local cache when API fails', () async {
@@ -170,24 +167,18 @@ void main() {
       expect(created.id, 3);
       expect(client.calls, contains('POST /collections'));
 
-      final db = await LocalDatabase.instance;
-      final rows = await db.query(
-        'collections',
-        where: 'id = ?',
-        whereArgs: [3],
-      );
-      expect(rows.length, 1);
+      final box = await LocalDatabase.box('collections');
+      expect(box.get(3), isNotNull);
     });
 
     test('updateCollection puts to API and updates local row', () async {
-      final db = await LocalDatabase.instance;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      await db.insert('collections', {
+      final box = await LocalDatabase.box('collections');
+      await box.put(4, {
         'id': 4,
         'name': 'Old',
-        'sort_order': 0,
-        'created_at': now,
-        'updated_at': now,
+        'sortOrder': 0,
+        'createdAt': '2026-06-28T00:00:00.000',
+        'updatedAt': '2026-06-28T00:00:00.000',
       });
 
       final client = _FakeApiClient(
@@ -208,39 +199,38 @@ void main() {
       expect(updated.name, 'Renamed');
       expect(client.calls, contains('PUT /collections/4'));
 
-      final rows = await db.query(
-        'collections',
-        where: 'id = ?',
-        whereArgs: [4],
-      );
-      expect(rows.first['name'], 'Renamed');
+      final record = box.get(4) as Map;
+      expect(record['name'], 'Renamed');
     });
 
     test('deleteCollection removes API resource and local rows', () async {
-      final db = await LocalDatabase.instance;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      await db.insert('bookmarks', {
+      final bookmarkBox = await LocalDatabase.box('bookmarks');
+      await bookmarkBox.put(1, {
         'id': 1,
         'title': 'Flutter',
         'url': 'https://flutter.dev',
-        'tags': '',
+        'tags': <String>[],
         'category': 'dev',
         'image': '',
-        'sort_order': 0,
-        'created_at': now,
-        'updated_at': now,
+        'sortOrder': 0,
+        'createdAt': '2026-06-28T00:00:00.000',
+        'updatedAt': '2026-06-28T00:00:00.000',
       });
-      await db.insert('collections', {
+
+      final collectionBox = await LocalDatabase.box('collections');
+      await collectionBox.put(5, {
         'id': 5,
         'name': 'Work',
-        'sort_order': 0,
-        'created_at': now,
-        'updated_at': now,
+        'sortOrder': 0,
+        'createdAt': '2026-06-28T00:00:00.000',
+        'updatedAt': '2026-06-28T00:00:00.000',
       });
-      await db.insert('bookmark_collections', {
+
+      final bcBox = await LocalDatabase.box('bookmark_collections');
+      await bcBox.put('1:5', {
         'bookmark_id': 1,
         'collection_id': 5,
-        'created_at': now,
+        'created_at': DateTime.now().millisecondsSinceEpoch,
       });
 
       final client = _FakeApiClient();
@@ -248,46 +238,43 @@ void main() {
       await repository.deleteCollection(5);
 
       expect(client.calls, contains('DELETE /collections/5'));
-      final collections = await db.query(
-        'collections',
-        where: 'id = ?',
-        whereArgs: [5],
-      );
-      expect(collections, isEmpty);
-      final relations = await db.query(
-        'bookmark_collections',
-        where: 'collection_id = ?',
-        whereArgs: [5],
-      );
-      expect(relations, isEmpty);
-      final bookmarks = await db.query(
-        'bookmarks',
-        where: 'id = ?',
-        whereArgs: [1],
-      );
-      expect(bookmarks.length, 1);
+      expect(collectionBox.get(5), isNull);
+
+      // Verify association is removed.
+      var hasAssoc = false;
+      for (final value in bcBox.values) {
+        final record = Map<String, dynamic>.from(value as Map);
+        if (record['collection_id'] == 5) {
+          hasAssoc = true;
+        }
+      }
+      expect(hasAssoc, isFalse);
+
+      // Bookmark should still exist.
+      expect(bookmarkBox.get(1), isNotNull);
     });
 
     test('addBookmarksToCollection posts and inserts association', () async {
-      final db = await LocalDatabase.instance;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      await db.insert('bookmarks', {
+      final bookmarkBox = await LocalDatabase.box('bookmarks');
+      await bookmarkBox.put(1, {
         'id': 1,
         'title': 'Flutter',
         'url': 'https://flutter.dev',
-        'tags': '',
+        'tags': <String>[],
         'category': 'dev',
         'image': '',
-        'sort_order': 0,
-        'created_at': now,
-        'updated_at': now,
+        'sortOrder': 0,
+        'createdAt': '2026-06-28T00:00:00.000',
+        'updatedAt': '2026-06-28T00:00:00.000',
       });
-      await db.insert('collections', {
+
+      final collectionBox = await LocalDatabase.box('collections');
+      await collectionBox.put(6, {
         'id': 6,
         'name': 'Articles',
-        'sort_order': 0,
-        'created_at': now,
-        'updated_at': now,
+        'sortOrder': 0,
+        'createdAt': '2026-06-28T00:00:00.000',
+        'updatedAt': '2026-06-28T00:00:00.000',
       });
 
       final client = _FakeApiClient();
@@ -295,23 +282,18 @@ void main() {
       await repository.addBookmarksToCollection(6, [1]);
 
       expect(client.calls, contains('POST /collections/6/bookmarks'));
-      final relations = await db.query(
-        'bookmark_collections',
-        where: 'collection_id = ? AND bookmark_id = ?',
-        whereArgs: [6, 1],
-      );
-      expect(relations.length, 1);
+      final bcBox = await LocalDatabase.box('bookmark_collections');
+      expect(bcBox.get('1:6'), isNotNull);
     });
 
     test(
       'removeBookmarksFromCollection deletes association locally and remotely',
       () async {
-        final db = await LocalDatabase.instance;
-        final now = DateTime.now().millisecondsSinceEpoch;
-        await db.insert('bookmark_collections', {
+        final bcBox = await LocalDatabase.box('bookmark_collections');
+        await bcBox.put('1:7', {
           'bookmark_id': 1,
           'collection_id': 7,
-          'created_at': now,
+          'created_at': DateTime.now().millisecondsSinceEpoch,
         });
 
         final client = _FakeApiClient();
@@ -319,42 +301,40 @@ void main() {
         await repository.removeBookmarksFromCollection(7, [1]);
 
         expect(client.calls, contains('DELETE /collections/7/bookmarks/1'));
-        final relations = await db.query(
-          'bookmark_collections',
-          where: 'collection_id = ? AND bookmark_id = ?',
-          whereArgs: [7, 1],
-        );
-        expect(relations, isEmpty);
+        expect(bcBox.get('1:7'), isNull);
       },
     );
 
     test(
       'getBookmarksInCollection returns cached bookmarks with collectionIds',
       () async {
-        final db = await LocalDatabase.instance;
-        final now = DateTime.now().millisecondsSinceEpoch;
-        await db.insert('bookmarks', {
+        final bookmarkBox = await LocalDatabase.box('bookmarks');
+        await bookmarkBox.put(10, {
           'id': 10,
           'title': 'Dart',
           'url': 'https://dart.dev',
-          'tags': '',
+          'tags': <String>[],
           'category': 'dev',
           'image': '',
-          'sort_order': 0,
-          'created_at': now,
-          'updated_at': now,
+          'sortOrder': 0,
+          'createdAt': '2026-06-28T00:00:00.000',
+          'updatedAt': '2026-06-28T00:00:00.000',
         });
-        await db.insert('collections', {
+
+        final collectionBox = await LocalDatabase.box('collections');
+        await collectionBox.put(8, {
           'id': 8,
           'name': 'Dev',
-          'sort_order': 0,
-          'created_at': now,
-          'updated_at': now,
+          'sortOrder': 0,
+          'createdAt': '2026-06-28T00:00:00.000',
+          'updatedAt': '2026-06-28T00:00:00.000',
         });
-        await db.insert('bookmark_collections', {
+
+        final bcBox = await LocalDatabase.box('bookmark_collections');
+        await bcBox.put('10:8', {
           'bookmark_id': 10,
           'collection_id': 8,
-          'created_at': now,
+          'created_at': DateTime.now().millisecondsSinceEpoch,
         });
 
         final client = _FakeApiClient(fail: {'/collections/8/bookmarks'});

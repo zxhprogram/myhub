@@ -8,7 +8,7 @@ abstract class MailClient {
   Future<void> connect();
   Future<void> authenticate();
   Future<Map<int, MailEnvelope>> fetchEnvelopes(String folder, {int? limit});
-  Future<MailMessage> fetchMessage(int uid);
+  Future<MailMessage> fetchMessage(int uid, {String? folder});
   Future<void> markAsRead(int uid);
   Future<List<int>> searchUnseen(String folder);
   Future<void> disconnect();

@@ -32,14 +32,11 @@ class _FakeMailClient implements MailClient {
     String folder, {
     int? limit,
   }) async {
-    return {
-      1: _envelope('Inbox message'),
-      2: _envelope('Another inbox'),
-    };
+    return {1: _envelope('Inbox message'), 2: _envelope('Another inbox')};
   }
 
   @override
-  Future<MailMessage> fetchMessage(int uid) async {
+  Future<MailMessage> fetchMessage(int uid, {String? folder}) async {
     return _message(uid);
   }
 
@@ -53,11 +50,11 @@ class _FakeMailClient implements MailClient {
   Future<void> disconnect() async {}
 
   MailEnvelope _envelope(String subject) => MailEnvelope(
-        subject: subject,
-        from: [const MailAddress(name: 'Linear App', address: 'a@b.com')],
-        to: [const MailAddress(address: 'user@example.com')],
-        date: DateTime.now(),
-      );
+    subject: subject,
+    from: [const MailAddress(name: 'Linear App', address: 'a@b.com')],
+    to: [const MailAddress(address: 'user@example.com')],
+    date: DateTime.now(),
+  );
 
   MailMessage _message(int uid) {
     final body = 'Body for $uid';
@@ -74,21 +71,22 @@ class _FakeMailClient implements MailClient {
 }
 
 MailRepository _makeRepository() => MailRepository(
-      account: const MailAccount(
-        emailAddress: 'user@example.com',
-        host: 'test',
-        port: 993,
-        username: 'user',
-        password: 'pass',
-      ),
-      client: _FakeMailClient(),
-    );
+  account: const MailAccount(
+    emailAddress: 'user@example.com',
+    host: 'test',
+    port: 993,
+    username: 'user',
+    password: 'pass',
+  ),
+  client: _FakeMailClient(),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() {
+  setUp(() async {
     LocalDatabase.useInMemoryDatabaseForTesting();
+    await LocalDatabase.clearAll();
   });
 
   test('MailState loads inbox messages', () async {
@@ -151,28 +149,31 @@ void main() {
     await state.dispose();
   });
 
-  test('MailState saves valid account and transitions to mail content', () async {
-    final state = MailState(repository: _makeRepository());
+  test(
+    'MailState saves valid account and transitions to mail content',
+    () async {
+      final state = MailState(repository: _makeRepository());
 
-    final result = await state.saveAccount(
-      const MailAccount(
-        emailAddress: 'user@example.com',
-        username: 'user',
-        password: 'pass',
-        host: 'imap.example.com',
-        port: 993,
-        smtpHost: 'smtp.example.com',
-        smtpPort: 587,
-      ),
-    );
+      final result = await state.saveAccount(
+        const MailAccount(
+          emailAddress: 'user@example.com',
+          username: 'user',
+          password: 'pass',
+          host: 'imap.example.com',
+          port: 993,
+          smtpHost: 'smtp.example.com',
+          smtpPort: 587,
+        ),
+      );
 
-    expect(result, isTrue);
-    expect(state.configError.value, isNull);
-    expect(state.hasValidAccount.value, isTrue);
-    expect(state.account.value.emailAddress, 'user@example.com');
+      expect(result, isTrue);
+      expect(state.configError.value, isNull);
+      expect(state.hasValidAccount.value, isTrue);
+      expect(state.account.value.emailAddress, 'user@example.com');
 
-    await state.dispose();
-  });
+      await state.dispose();
+    },
+  );
 
   test('MailState enters and cancels account editing mode', () async {
     final state = MailState(repository: _makeRepository());

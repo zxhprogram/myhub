@@ -1,5 +1,3 @@
-import 'package:sqflite/sqflite.dart';
-
 import '../models/bookmark_model.dart';
 import '../services/api_client.dart';
 import '../services/local_database.dart';
@@ -59,21 +57,20 @@ class BookmarkRepository {
       await _cacheBookmarkCollections([updated]);
       return updated;
     } catch (_) {
-      final db = await LocalDatabase.instance;
-      await db.update(
-        'bookmarks',
-        {
-          'title': bookmark.title,
-          'url': bookmark.url,
-          'tags': bookmark.tags.join(','),
-          'category': bookmark.category,
-          'image': bookmark.image,
-          'sort_order': bookmark.sortOrder,
-          'updated_at': bookmark.updatedAt.millisecondsSinceEpoch,
-        },
-        where: 'id = ?',
-        whereArgs: [id],
-      );
+      final box = await LocalDatabase.box('bookmarks');
+      final existing = box.get(id);
+      if (existing != null) {
+        final record = Map<String, dynamic>.from(existing as Map);
+        record
+          ..['title'] = bookmark.title
+          ..['url'] = bookmark.url
+          ..['tags'] = bookmark.tags
+          ..['category'] = bookmark.category
+          ..['image'] = bookmark.image
+          ..['sortOrder'] = bookmark.sortOrder
+          ..['updatedAt'] = bookmark.updatedAt.toIso8601String();
+        await box.put(id, record);
+      }
       await _cacheBookmarkCollections([bookmark]);
       return bookmark;
     }
@@ -85,13 +82,20 @@ class BookmarkRepository {
     } catch (_) {
       // Continue to clean local data even if API fails.
     }
-    final db = await LocalDatabase.instance;
-    await db.delete(
-      'bookmark_collections',
-      where: 'bookmark_id = ?',
-      whereArgs: [id],
-    );
-    await db.delete('bookmarks', where: 'id = ?', whereArgs: [id]);
+    final bcBox = await LocalDatabase.box('bookmark_collections');
+    final keysToDelete = <dynamic>[];
+    for (final key in bcBox.keys) {
+      final record = Map<String, dynamic>.from(bcBox.get(key) as Map);
+      if (record['bookmark_id'] == id) {
+        keysToDelete.add(key);
+      }
+    }
+    for (final key in keysToDelete) {
+      await bcBox.delete(key);
+    }
+
+    final box = await LocalDatabase.box('bookmarks');
+    await box.delete(id);
   }
 
   /// Fetches metadata (title, image, favicon) for a URL via the preview API.
@@ -104,81 +108,66 @@ class BookmarkRepository {
   }
 
   Future<void> _cacheBookmarks(List<BookmarkModel> bookmarks) async {
-    final db = await LocalDatabase.instance;
-    await db.delete('bookmarks');
+    final box = await LocalDatabase.box('bookmarks');
+    await box.clear();
     for (final b in bookmarks) {
       await _insertLocal(b);
     }
   }
 
   Future<void> _cacheBookmarkCollections(List<BookmarkModel> bookmarks) async {
-    final db = await LocalDatabase.instance;
+    final box = await LocalDatabase.box('bookmark_collections');
     final bookmarkIds = bookmarks.map((b) => b.id).whereType<int>().toList();
     if (bookmarkIds.isEmpty) return;
 
-    final placeholders = List.filled(bookmarkIds.length, '?').join(',');
-    await db.rawDelete('''
-      DELETE FROM bookmark_collections
-      WHERE bookmark_id IN ($placeholders)
-    ''', bookmarkIds);
+    // Delete existing associations for these bookmarks.
+    final keysToDelete = <dynamic>[];
+    for (final key in box.keys) {
+      final record = Map<String, dynamic>.from(box.get(key) as Map);
+      if (bookmarkIds.contains(record['bookmark_id'])) {
+        keysToDelete.add(key);
+      }
+    }
+    for (final key in keysToDelete) {
+      await box.delete(key);
+    }
 
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final bookmark in bookmarks) {
       for (final collectionId in bookmark.collectionIds) {
-        try {
-          await db.insert('bookmark_collections', {
-            'bookmark_id': bookmark.id,
-            'collection_id': collectionId,
-            'created_at': now,
-          });
-        } catch (_) {
-          // Ignore duplicate entries.
-        }
+        final bcKey = '${bookmark.id}:$collectionId';
+        await box.put(bcKey, {
+          'bookmark_id': bookmark.id,
+          'collection_id': collectionId,
+          'created_at': now,
+        });
       }
     }
   }
 
   Future<void> _insertLocal(BookmarkModel bookmark) async {
-    final db = await LocalDatabase.instance;
-    await db.insert('bookmarks', {
-      'id': bookmark.id,
-      'title': bookmark.title,
-      'url': bookmark.url,
-      'tags': bookmark.tags.join(','),
-      'category': bookmark.category,
-      'image': bookmark.image,
-      'sort_order': bookmark.sortOrder,
-      'created_at': bookmark.createdAt.millisecondsSinceEpoch,
-      'updated_at': bookmark.updatedAt.millisecondsSinceEpoch,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    final box = await LocalDatabase.box('bookmarks');
+    final id = bookmark.id;
+    if (id != null) {
+      await box.put(id, bookmark.toJson());
+    } else {
+      await box.add(bookmark.toJson());
+    }
   }
 
   Future<List<BookmarkModel>> _loadCachedBookmarks({String? query}) async {
-    final db = await LocalDatabase.instance;
-    final rows = await db.query(
-      'bookmarks',
-      where: query != null ? 'title LIKE ?' : null,
-      whereArgs: query != null ? ['%$query%'] : null,
-      orderBy: 'sort_order ASC',
-    );
-    return rows.map(_rowToModel).toList();
-  }
-
-  BookmarkModel _rowToModel(Map<String, dynamic> row) {
-    return BookmarkModel(
-      id: row['id'] as int,
-      title: row['title'] as String,
-      url: row['url'] as String,
-      tags: (row['tags'] as String)
-          .split(',')
-          .where((t) => t.isNotEmpty)
-          .toList(),
-      category: row['category'] as String,
-      image: (row['image'] as String?) ?? '',
-      sortOrder: (row['sort_order'] as int?) ?? 0,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at'] as int),
-    );
+    final box = await LocalDatabase.box('bookmarks');
+    final rows = box.values.cast<Map<String, dynamic>>().where((row) {
+      if (query == null) return true;
+      final title = (row['title'] as String?) ?? '';
+      return title.toLowerCase().contains(query.toLowerCase());
+    }).toList();
+    rows.sort((a, b) {
+      final aOrder = (a['sortOrder'] as int?) ?? 0;
+      final bOrder = (b['sortOrder'] as int?) ?? 0;
+      return aOrder.compareTo(bOrder);
+    });
+    return rows.map(BookmarkModel.fromJson).toList();
   }
 
   /// Reorders bookmarks according to the provided list of ids.
@@ -199,14 +188,14 @@ class BookmarkRepository {
       await _cacheBookmarks(bookmarks);
       return bookmarks;
     } catch (_) {
-      final db = await LocalDatabase.instance;
+      final box = await LocalDatabase.box('bookmarks');
       for (var i = 0; i < ids.length; i++) {
-        await db.update(
-          'bookmarks',
-          {'sort_order': i},
-          where: 'id = ?',
-          whereArgs: [ids[i]],
-        );
+        final existing = box.get(ids[i]);
+        if (existing != null) {
+          final record = Map<String, dynamic>.from(existing as Map);
+          record['sortOrder'] = i;
+          await box.put(ids[i], record);
+        }
       }
       return _loadCachedBookmarks();
     }

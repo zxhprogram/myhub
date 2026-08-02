@@ -1,5 +1,3 @@
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-
 import '../models/task_model.dart';
 import '../services/api_client.dart';
 import '../services/local_database.dart';
@@ -73,77 +71,46 @@ class TaskRepository {
   }
 
   Future<void> _cacheTasks(List<TaskModel> tasks) async {
-    final db = await LocalDatabase.instance;
-    await db.delete('tasks');
+    final box = await LocalDatabase.box('tasks');
+    await box.clear();
     for (final t in tasks) {
       await _insertLocal(t);
     }
   }
 
   Future<int> _insertLocal(TaskModel task) async {
-    final db = await LocalDatabase.instance;
-    return db.insert('tasks', {
-      'id': task.id,
-      'title': task.title,
-      'description': task.description,
-      'tag': task.tag,
-      'priority': task.priority,
-      'status': task.status,
-      'due_date': task.dueDate?.millisecondsSinceEpoch,
-      'created_at': task.createdAt.millisecondsSinceEpoch,
-      'updated_at': task.updatedAt.millisecondsSinceEpoch,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    final box = await LocalDatabase.box('tasks');
+    final id = task.id;
+    if (id != null) {
+      await box.put(id, task.toJson());
+      return id;
+    }
+    return await box.add(task.toJson());
   }
 
   Future<void> _updateLocal(TaskModel task) async {
-    final db = await LocalDatabase.instance;
     final id = task.id;
     if (id == null) return;
-    await db.update(
-      'tasks',
-      {
-        'title': task.title,
-        'description': task.description,
-        'tag': task.tag,
-        'priority': task.priority,
-        'status': task.status,
-        'due_date': task.dueDate?.millisecondsSinceEpoch,
-        'updated_at': task.updatedAt.millisecondsSinceEpoch,
-      },
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    final box = await LocalDatabase.box('tasks');
+    await box.put(id, task.toJson());
   }
 
   Future<void> _deleteLocal(int id) async {
-    final db = await LocalDatabase.instance;
-    await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
+    final box = await LocalDatabase.box('tasks');
+    await box.delete(id);
   }
 
   Future<List<TaskModel>> _loadCachedTasks({String? status}) async {
-    final db = await LocalDatabase.instance;
-    final rows = await db.query(
-      'tasks',
-      where: status != null ? 'status = ?' : null,
-      whereArgs: status != null ? [status] : null,
-      orderBy: 'updated_at DESC',
-    );
-    return rows.map(_rowToModel).toList();
-  }
-
-  TaskModel _rowToModel(Map<String, dynamic> row) {
-    return TaskModel(
-      id: row['id'] as int,
-      title: row['title'] as String,
-      description: row['description'] as String,
-      tag: row['tag'] as String,
-      priority: row['priority'] as String,
-      status: row['status'] as String,
-      dueDate: row['due_date'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(row['due_date'] as int)
-          : null,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at'] as int),
-    );
+    final box = await LocalDatabase.box('tasks');
+    final rows = box.values.cast<Map<String, dynamic>>().where((row) {
+      if (status == null) return true;
+      return row['status'] == status;
+    }).toList();
+    rows.sort((a, b) {
+      final aUpdated = DateTime.parse(a['updatedAt'] as String);
+      final bUpdated = DateTime.parse(b['updatedAt'] as String);
+      return bUpdated.compareTo(aUpdated);
+    });
+    return rows.map(TaskModel.fromJson).toList();
   }
 }

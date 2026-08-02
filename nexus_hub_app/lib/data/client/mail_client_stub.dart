@@ -56,7 +56,7 @@ class _StubMailClient implements MailClient {
   }
 
   @override
-  Future<MailMessage> fetchMessage(int uid) async {
+  Future<MailMessage> fetchMessage(int uid, {String? folder}) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final all = _allMessages();
     final message = all[uid];
