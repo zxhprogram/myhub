@@ -1,15 +1,80 @@
 import 'package:flutter/material.dart';
 
+import '../../data/models/global_index_model.dart';
+import '../../data/services/global_index_service.dart';
 import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
+import '../components/global_index_carousel.dart';
 import '../components/nexus_badge.dart';
 import '../components/nexus_card.dart';
 import '../layout/page_scaffold.dart';
 
-class StocksPage extends StatelessWidget {
+class StocksPage extends StatefulWidget {
   const StocksPage({super.key});
+
+  @override
+  State<StocksPage> createState() => _StocksPageState();
+}
+
+class _StocksPageState extends State<StocksPage> {
+  final _globalIndexService = GlobalIndexService();
+  List<GlobalIndex> _globalIndices = [];
+  bool _isLoadingIndices = true;
+  String? _indexError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadIndices();
+  }
+
+  Future<void> _loadIndices() async {
+    setState(() {
+      _isLoadingIndices = true;
+      _indexError = null;
+    });
+    try {
+      final indices = await _globalIndexService.fetchIndices();
+      if (mounted) {
+        setState(() {
+          _globalIndices = indices;
+          _isLoadingIndices = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _indexError = 'Failed to load global indices.';
+          _isLoadingIndices = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshIndices() async {
+    setState(() {
+      _isLoadingIndices = true;
+      _indexError = null;
+    });
+    try {
+      final indices = await _globalIndexService.refreshIndices();
+      if (mounted) {
+        setState(() {
+          _globalIndices = indices;
+          _isLoadingIndices = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _indexError = 'Failed to refresh global indices.';
+          _isLoadingIndices = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,21 +145,79 @@ class StocksPage extends StatelessWidget {
           final isWide = constraints.maxWidth > 1000;
           return Column(
             children: [
+              // Global indices carousel
+              if (_isLoadingIndices)
+                NexusCard(
+                  child: SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: NexusColors.primary.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else if (_indexError != null)
+                NexusCard(
+                  child: SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.cloud_off,
+                            size: 32,
+                            color: NexusColors.onSurfaceVariant.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: NexusSpacing.sm),
+                          Text(
+                            _indexError!,
+                            style: NexusTypography.bodyMd.copyWith(
+                              color: NexusColors.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: NexusSpacing.sm),
+                          TextButton.icon(
+                            onPressed: _loadIndices,
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                GlobalIndexCarousel(
+                  indices: _globalIndices,
+                  onRefresh: _refreshIndices,
+                ),
+              const SizedBox(height: NexusSpacing.md),
+
+              // Market cards
               if (isWide)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Expanded(flex: 8, child: _IndexChartCard()),
+                    const Expanded(flex: 8, child: _WatchlistCard()),
                     const SizedBox(width: NexusSpacing.md),
-                    const Expanded(flex: 4, child: _WatchlistCard()),
+                    const Expanded(flex: 4, child: _MarketOverviewCard()),
                   ],
                 )
               else
                 const Column(
                   children: [
-                    _IndexChartCard(),
-                    SizedBox(height: NexusSpacing.md),
                     _WatchlistCard(),
+                    SizedBox(height: NexusSpacing.md),
+                    _MarketOverviewCard(),
                   ],
                 ),
               const SizedBox(height: NexusSpacing.md),
@@ -105,178 +228,6 @@ class StocksPage extends StatelessWidget {
       ),
     );
   }
-}
-
-class _IndexChartCard extends StatelessWidget {
-  const _IndexChartCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return NexusCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text('S&P 500 Index', style: NexusTypography.headlineSm),
-                      const SizedBox(width: NexusSpacing.sm),
-                      const NexusBadge(label: 'SPX'),
-                    ],
-                  ),
-                  const SizedBox(height: NexusSpacing.xs),
-                  Row(
-                    children: [
-                      Text('5,088.80', style: NexusTypography.headlineSm),
-                      const SizedBox(width: NexusSpacing.sm),
-                      Text(
-                        '+0.82% (+41.40)',
-                        style: NexusTypography.bodyMd.copyWith(
-                          color: NexusColors.stockUp,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  _TimeButton(label: '1D'),
-                  const SizedBox(width: NexusSpacing.xs),
-                  _TimeButton(label: '1W', isActive: true),
-                  const SizedBox(width: NexusSpacing.xs),
-                  _TimeButton(label: '1M'),
-                  const SizedBox(width: NexusSpacing.xs),
-                  _TimeButton(label: 'YTD'),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: NexusSpacing.lg),
-          Container(
-            height: 280,
-            decoration: BoxDecoration(
-              color: NexusColors.surfaceContainerLow.withValues(alpha: 0.3),
-              borderRadius: NexusRadii.mdRadius,
-              border: Border.all(
-                color: NexusColors.outlineVariant.withValues(alpha: 0.1),
-              ),
-            ),
-            child: CustomPaint(
-              size: const Size.fromHeight(280),
-              painter: _StockChartPainter(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimeButton extends StatelessWidget {
-  const _TimeButton({required this.label, this.isActive = false});
-
-  final String label;
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: isActive ? NexusColors.primary : Colors.transparent,
-      borderRadius: NexusRadii.mdRadius,
-      child: InkWell(
-        onTap: () {},
-        borderRadius: NexusRadii.mdRadius,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: isActive
-                  ? NexusColors.primary
-                  : NexusColors.outlineVariant.withValues(alpha: 0.3),
-            ),
-            borderRadius: NexusRadii.mdRadius,
-          ),
-          child: Text(
-            label,
-            style: NexusTypography.labelMd.copyWith(
-              color: isActive
-                  ? NexusColors.onPrimary
-                  : NexusColors.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StockChartPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final gridPaint = Paint()
-      ..color = NexusColors.outlineVariant.withValues(alpha: 0.2)
-      ..strokeWidth = 0.5;
-
-    for (var i = 1; i < 5; i++) {
-      final y = size.height * i / 5;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    final linePaint = Paint()
-      ..color = NexusColors.stockUp
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final path = Path()
-      ..moveTo(0, size.height * 0.8)
-      ..quadraticBezierTo(
-        size.width * 0.1,
-        size.height * 0.75,
-        size.width * 0.2,
-        size.height * 0.6,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.4,
-        size.height * 0.55,
-        size.width * 0.6,
-        size.height * 0.3,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.8,
-        size.height * 0.4,
-        size.width,
-        size.height * 0.2,
-      );
-
-    canvas.drawPath(path, linePaint);
-
-    final fillPath = Path.from(path)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-
-    canvas.drawPath(
-      fillPath,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            NexusColors.stockUp.withValues(alpha: 0.1),
-            NexusColors.stockUp.withValues(alpha: 0),
-          ],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _WatchlistCard extends StatelessWidget {
@@ -407,6 +358,87 @@ class _WatchlistItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MarketOverviewCard extends StatelessWidget {
+  const _MarketOverviewCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return NexusCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Market Overview', style: NexusTypography.headlineSm),
+          const SizedBox(height: NexusSpacing.md),
+          _OverviewRow(
+            label: 'VIX',
+            value: '14.32',
+            change: '-0.45',
+            isUp: false,
+          ),
+          const SizedBox(height: NexusSpacing.sm),
+          _OverviewRow(
+            label: '10Y Yield',
+            value: '4.28%',
+            change: '+0.02',
+            isUp: true,
+          ),
+          const SizedBox(height: NexusSpacing.sm),
+          _OverviewRow(
+            label: 'DXY',
+            value: '104.12',
+            change: '+0.18',
+            isUp: true,
+          ),
+          const SizedBox(height: NexusSpacing.sm),
+          _OverviewRow(
+            label: 'BTC/USD',
+            value: '67,890',
+            change: '+1.2%',
+            isUp: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewRow extends StatelessWidget {
+  const _OverviewRow({
+    required this.label,
+    required this.value,
+    required this.change,
+    required this.isUp,
+  });
+
+  final String label;
+  final String value;
+  final String change;
+  final bool isUp;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isUp ? NexusColors.stockUp : NexusColors.stockDown;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: NexusTypography.bodyMd),
+        Row(
+          children: [
+            Text(
+              value,
+              style: NexusTypography.bodyMd.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: NexusSpacing.sm),
+            Text(change, style: NexusTypography.labelSm.copyWith(color: color)),
+          ],
+        ),
+      ],
     );
   }
 }
