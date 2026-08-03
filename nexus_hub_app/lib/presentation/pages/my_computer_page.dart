@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../data/models/key_stat_model.dart';
+import '../../data/repositories/key_stats_repository.dart';
 import '../../data/services/input_hook_service.dart';
 import '../../theme/colors.dart';
 import '../../theme/radii.dart';
@@ -11,7 +13,7 @@ import '../components/nexus_card.dart';
 import '../layout/page_scaffold.dart';
 
 /// Page that displays real-time keyboard and mouse state using the Windows
-/// input hook DLL.
+/// input hook DLL, along with persistent key press statistics.
 class MyComputerPage extends StatefulWidget {
   const MyComputerPage({super.key});
 
@@ -33,6 +35,18 @@ class _MyComputerPageState extends State<MyComputerPage> {
   int _mouseY = 0;
   int _scrollDelta = 0;
 
+  // Key press detection
+  final Set<int> _previousKeys = {};
+  bool _firstPoll = true;
+
+  // Tab state
+  int _selectedTab = 0;
+
+  // Stats state
+  DailyKeyStats? _dailyStats;
+  DateTime _selectedDate = DateTime.now();
+  List<String> _availableDates = [];
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +56,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
         _pollState();
       });
     }
+    _loadStats();
   }
 
   @override
@@ -59,6 +74,18 @@ class _MyComputerPageState extends State<MyComputerPage> {
         keys.add(code);
       }
     }
+
+    // Detect new key presses (skip first poll to avoid counting held keys)
+    if (!_firstPoll) {
+      for (final code in keys) {
+        if (!_previousKeys.contains(code)) {
+          KeyStatsRepository.recordKeyPress(code);
+        }
+      }
+    }
+    _firstPoll = false;
+    _previousKeys.clear();
+    _previousKeys.addAll(keys);
 
     // Poll mouse
     final x = _service.mouseX;
@@ -81,6 +108,27 @@ class _MyComputerPageState extends State<MyComputerPage> {
     });
   }
 
+  Future<void> _loadStats() async {
+    final dates = await KeyStatsRepository.getAvailableDates();
+    final stats = await KeyStatsRepository.getStatsForDate(_selectedDate);
+    if (mounted) {
+      setState(() {
+        _availableDates = dates;
+        _dailyStats = stats;
+      });
+    }
+  }
+
+  Future<void> _selectDate(DateTime date) async {
+    setState(() {
+      _selectedDate = date;
+    });
+    await _loadStats();
+  }
+
+  String _formatDate(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
   @override
   Widget build(BuildContext context) {
     return PageScaffold(
@@ -90,14 +138,16 @@ class _MyComputerPageState extends State<MyComputerPage> {
           Text('My Computer', style: NexusTypography.headlineXl),
           const SizedBox(height: NexusSpacing.xs),
           Text(
-            'Real-time keyboard and mouse input monitor',
+            _selectedTab == 0
+                ? 'Real-time keyboard and mouse input monitor'
+                : 'Key press statistics with date filtering',
             style: NexusTypography.bodyMd.copyWith(
               color: NexusColors.onSurfaceVariant,
             ),
           ),
         ],
       ),
-      child: _initialized ? _buildContent() : _buildUnavailable(),
+      child: _initialized ? _buildWithTabs() : _buildUnavailable(),
     );
   }
 
@@ -137,15 +187,91 @@ class _MyComputerPageState extends State<MyComputerPage> {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildWithTabs() {
     return Column(
       children: [
-        // Mouse info row
-        _buildMouseSection(),
+        // Tab bar
+        Container(
+          decoration: BoxDecoration(
+            color: NexusColors.surfaceContainerLow,
+            borderRadius: NexusRadii.mdRadius,
+          ),
+          child: Row(
+            children: [
+              _buildTab(0, Icons.monitor_heart_outlined, 'Live Monitor'),
+              SizedBox(
+                height: 24,
+                child: VerticalDivider(
+                  width: 1,
+                  color: NexusColors.outlineVariant.withValues(alpha: 0.3),
+                ),
+              ),
+              _buildTab(1, Icons.bar_chart_outlined, 'Key Statistics'),
+            ],
+          ),
+        ),
         const SizedBox(height: NexusSpacing.md),
-        // Keyboard section
-        _buildKeyboardSection(),
+        Expanded(
+          child: _selectedTab == 0 ? _buildContent() : _buildStatsContent(),
+        ),
       ],
+    );
+  }
+
+  Widget _buildTab(int index, IconData icon, String label) {
+    final isSelected = _selectedTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTab = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            vertical: NexusSpacing.sm,
+            horizontal: NexusSpacing.md,
+          ),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? NexusColors.primary.withValues(alpha: 0.1)
+                : Colors.transparent,
+            borderRadius: NexusRadii.mdRadius,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected
+                    ? NexusColors.primary
+                    : NexusColors.onSurfaceVariant,
+              ),
+              const SizedBox(width: NexusSpacing.sm),
+              Text(
+                label,
+                style: NexusTypography.labelMd.copyWith(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected
+                      ? NexusColors.primary
+                      : NexusColors.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==================== Live Monitor Tab ====================
+
+  Widget _buildContent() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildMouseSection(),
+          const SizedBox(height: NexusSpacing.md),
+          _buildKeyboardSection(),
+        ],
+      ),
     );
   }
 
@@ -516,6 +642,322 @@ class _MyComputerPageState extends State<MyComputerPage> {
           fontWeight: pressed ? FontWeight.w700 : FontWeight.w500,
           color: color,
         ),
+      ),
+    );
+  }
+
+  // ==================== Key Statistics Tab ====================
+
+  Widget _buildStatsContent() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildDateSelector(),
+          const SizedBox(height: NexusSpacing.md),
+          _buildStatsCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateSelector() {
+    return NexusCard(
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 20,
+                  color: NexusColors.primary,
+                ),
+                const SizedBox(width: NexusSpacing.sm),
+                Text('Date', style: NexusTypography.headlineSm),
+              ],
+            ),
+            const SizedBox(height: NexusSpacing.md),
+            // Date picker row
+            Row(
+              children: [
+                // Previous day
+                IconButton(
+                  onPressed: () {
+                    final prev = _selectedDate.subtract(
+                      const Duration(days: 1),
+                    );
+                    _selectDate(prev);
+                  },
+                  icon: const Icon(Icons.chevron_left),
+                  tooltip: 'Previous day',
+                ),
+                // Date display + picker
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        _selectDate(picked);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: NexusSpacing.sm,
+                        horizontal: NexusSpacing.md,
+                      ),
+                      decoration: BoxDecoration(
+                        color: NexusColors.surfaceContainerLow,
+                        borderRadius: NexusRadii.mdRadius,
+                        border: Border.all(
+                          color: NexusColors.outlineVariant.withValues(
+                            alpha: 0.15,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _formatDate(_selectedDate),
+                            style: NexusTypography.bodyMd.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: NexusSpacing.sm),
+                          Icon(
+                            Icons.arrow_drop_down,
+                            size: 20,
+                            color: NexusColors.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // Next day (only if not today)
+                IconButton(
+                  onPressed:
+                      _formatDate(_selectedDate) != _formatDate(DateTime.now())
+                      ? () {
+                          final next = _selectedDate.add(
+                            const Duration(days: 1),
+                          );
+                          _selectDate(next);
+                        }
+                      : null,
+                  icon: const Icon(Icons.chevron_right),
+                  tooltip: 'Next day',
+                ),
+                // Today
+                TextButton(
+                  onPressed: () => _selectDate(DateTime.now()),
+                  child: const Text('Today'),
+                ),
+              ],
+            ),
+            // Available dates chips
+            if (_availableDates.isNotEmpty) ...[
+              const SizedBox(height: NexusSpacing.sm),
+              SizedBox(
+                height: 36,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _availableDates.length,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(width: NexusSpacing.sm),
+                  itemBuilder: (context, index) {
+                    final date = _availableDates[index];
+                    final isSelected = date == _formatDate(_selectedDate);
+                    return GestureDetector(
+                      onTap: () {
+                        final parts = date.split('-');
+                        _selectDate(
+                          DateTime(
+                            int.parse(parts[0]),
+                            int.parse(parts[1]),
+                            int.parse(parts[2]),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: NexusSpacing.md,
+                          vertical: NexusSpacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? NexusColors.primary.withValues(alpha: 0.1)
+                              : NexusColors.surfaceContainerLow,
+                          borderRadius: NexusRadii.mdRadius,
+                          border: Border.all(
+                            color: isSelected
+                                ? NexusColors.primary.withValues(alpha: 0.3)
+                                : NexusColors.outlineVariant.withValues(
+                                    alpha: 0.1,
+                                  ),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            date,
+                            style: NexusTypography.labelMd.copyWith(
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: isSelected
+                                  ? NexusColors.primary
+                                  : NexusColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsCard() {
+    if (_dailyStats == null || _dailyStats!.stats.isEmpty) {
+      return NexusCard(
+        child: SizedBox(
+          height: 200,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.bar_chart_outlined,
+                  size: 48,
+                  color: NexusColors.onSurfaceVariant.withValues(alpha: 0.3),
+                ),
+                const SizedBox(height: NexusSpacing.md),
+                Text(
+                  'No key press data for this date',
+                  style: NexusTypography.bodyMd.copyWith(
+                    color: NexusColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final stats = _dailyStats!;
+    final sortedStats = stats.stats.values.toList()
+      ..sort((a, b) => b.pressCount.compareTo(a.pressCount));
+
+    return NexusCard(
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bar_chart, size: 20, color: NexusColors.primary),
+                const SizedBox(width: NexusSpacing.sm),
+                Text('Key Press Statistics', style: NexusTypography.headlineSm),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: NexusSpacing.md,
+                    vertical: NexusSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: NexusColors.primary.withValues(alpha: 0.1),
+                    borderRadius: NexusRadii.mdRadius,
+                  ),
+                  child: Text(
+                    'Total: ${stats.totalPresses}',
+                    style: NexusTypography.labelMd.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: NexusColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: NexusSpacing.lg),
+            // Key stat rows
+            ...sortedStats.map((stat) => _buildStatRow(stat)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatRow(KeyStatModel stat) {
+    final maxCount = _dailyStats!.stats.values.fold(
+      0,
+      (max, s) => s.pressCount > max ? s.pressCount : max,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
+      child: Row(
+        children: [
+          // Key name
+          SizedBox(
+            width: 80,
+            child: Text(
+              stat.keyName,
+              style: NexusTypography.labelMd.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          // Key code
+          SizedBox(
+            width: 60,
+            child: Text(
+              '0x${stat.keyCode.toRadixString(16).toUpperCase().padLeft(2, '0')}',
+              style: NexusTypography.labelSm.copyWith(
+                color: NexusColors.onSurfaceVariant,
+              ),
+            ),
+          ),
+          // Progress bar
+          Expanded(
+            child: ClipRRect(
+              borderRadius: NexusRadii.mdRadius,
+              child: LinearProgressIndicator(
+                value: maxCount > 0 ? stat.pressCount / maxCount : 0,
+                minHeight: 20,
+                backgroundColor: NexusColors.surfaceContainerLow,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  NexusColors.primary.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: NexusSpacing.sm),
+          // Count
+          SizedBox(
+            width: 50,
+            child: Text(
+              '${stat.pressCount}',
+              textAlign: TextAlign.right,
+              style: NexusTypography.labelMd.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

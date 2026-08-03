@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 /// Local key-value storage backed by Hive boxes.
@@ -22,6 +21,7 @@ class LocalDatabase {
     'collections',
     'bookmark_collections',
     'global_indices',
+    'key_stats',
   ];
 
   /// Use a temporary Hive directory for unit testing.

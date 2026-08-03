@@ -14,7 +14,7 @@ class PageScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: NexusColors.background,
-      child: SingleChildScrollView(
+      child: Padding(
         padding: const EdgeInsets.all(NexusSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -23,7 +23,7 @@ class PageScaffold extends StatelessWidget {
               header!,
               const SizedBox(height: NexusSpacing.md),
             ],
-            child,
+            Expanded(child: child),
           ],
         ),
       ),

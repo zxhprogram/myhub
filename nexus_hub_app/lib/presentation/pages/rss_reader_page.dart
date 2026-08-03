@@ -60,20 +60,22 @@ class RssReaderPage extends StatelessWidget {
           NexusButton(label: 'Add Feed', icon: Icons.add, onPressed: () {}),
         ],
       ),
-      child: Column(
-        children: [
-          const NexusInput(
-            hintText: 'Search articles...',
-            prefixIcon: Icon(Icons.search, size: 20),
-          ),
-          const SizedBox(height: NexusSpacing.md),
-          ...feeds.map(
-            (feed) => Padding(
-              padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
-              child: _FeedCard(feed: feed),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            const NexusInput(
+              hintText: 'Search articles...',
+              prefixIcon: Icon(Icons.search, size: 20),
             ),
-          ),
-        ],
+            const SizedBox(height: NexusSpacing.md),
+            ...feeds.map(
+              (feed) => Padding(
+                padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
+                child: _FeedCard(feed: feed),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

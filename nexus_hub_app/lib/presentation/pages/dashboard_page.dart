@@ -30,64 +30,66 @@ class DashboardPage extends StatelessWidget {
           ),
         ],
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 1000;
-          return Column(
-            children: [
-              Wrap(
-                spacing: NexusSpacing.md,
-                runSpacing: NexusSpacing.md,
-                children: [
-                  _MetricCard(
-                    label: 'Tasks Done',
-                    value: '12',
-                    trend: '+3 today',
-                    color: NexusColors.secondary,
-                  ),
-                  _MetricCard(
-                    label: 'Unread Articles',
-                    value: '8',
-                    trend: '2 new',
-                    color: NexusColors.tertiary,
-                  ),
-                  _MetricCard(
-                    label: 'Bookmarks',
-                    value: '142',
-                    trend: '+5 this week',
-                    color: NexusColors.primary,
-                  ),
-                  _MetricCard(
-                    label: 'Portfolio',
-                    value: '\$124,592',
-                    trend: '+2.4%',
-                    color: NexusColors.stockUp,
-                  ),
-                ],
-              ),
-              const SizedBox(height: NexusSpacing.md),
-              if (isWide)
-                const Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: SingleChildScrollView(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 1000;
+            return Column(
+              children: [
+                Wrap(
+                  spacing: NexusSpacing.md,
+                  runSpacing: NexusSpacing.md,
                   children: [
-                    Expanded(child: _RecentTasksCard()),
-                    SizedBox(width: NexusSpacing.md),
-                    Expanded(child: _FocusChartCard()),
-                  ],
-                )
-              else
-                const Column(
-                  children: [
-                    _RecentTasksCard(),
-                    SizedBox(height: NexusSpacing.md),
-                    _FocusChartCard(),
+                    _MetricCard(
+                      label: 'Tasks Done',
+                      value: '12',
+                      trend: '+3 today',
+                      color: NexusColors.secondary,
+                    ),
+                    _MetricCard(
+                      label: 'Unread Articles',
+                      value: '8',
+                      trend: '2 new',
+                      color: NexusColors.tertiary,
+                    ),
+                    _MetricCard(
+                      label: 'Bookmarks',
+                      value: '142',
+                      trend: '+5 this week',
+                      color: NexusColors.primary,
+                    ),
+                    _MetricCard(
+                      label: 'Portfolio',
+                      value: '\$124,592',
+                      trend: '+2.4%',
+                      color: NexusColors.stockUp,
+                    ),
                   ],
                 ),
-              const SizedBox(height: NexusSpacing.md),
-              const _QuickActionsCard(),
-            ],
-          );
-        },
+                const SizedBox(height: NexusSpacing.md),
+                if (isWide)
+                  const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _RecentTasksCard()),
+                      SizedBox(width: NexusSpacing.md),
+                      Expanded(child: _FocusChartCard()),
+                    ],
+                  )
+                else
+                  const Column(
+                    children: [
+                      _RecentTasksCard(),
+                      SizedBox(height: NexusSpacing.md),
+                      _FocusChartCard(),
+                    ],
+                  ),
+                const SizedBox(height: NexusSpacing.md),
+                const _QuickActionsCard(),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

@@ -140,91 +140,93 @@ class _StocksPageState extends State<StocksPage> {
           ),
         ],
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 1000;
-          return Column(
-            children: [
-              // Global indices carousel
-              if (_isLoadingIndices)
-                NexusCard(
-                  child: SizedBox(
-                    height: 200,
-                    child: Center(
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: NexusColors.primary.withValues(alpha: 0.6),
+      child: SingleChildScrollView(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 1000;
+            return Column(
+              children: [
+                // Global indices carousel
+                if (_isLoadingIndices)
+                  NexusCard(
+                    child: SizedBox(
+                      height: 200,
+                      child: Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: NexusColors.primary.withValues(alpha: 0.6),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                )
-              else if (_indexError != null)
-                NexusCard(
-                  child: SizedBox(
-                    height: 200,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.cloud_off,
-                            size: 32,
-                            color: NexusColors.onSurfaceVariant.withValues(
-                              alpha: 0.5,
+                  )
+                else if (_indexError != null)
+                  NexusCard(
+                    child: SizedBox(
+                      height: 200,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.cloud_off,
+                              size: 32,
+                              color: NexusColors.onSurfaceVariant.withValues(
+                                alpha: 0.5,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: NexusSpacing.sm),
-                          Text(
-                            _indexError!,
-                            style: NexusTypography.bodyMd.copyWith(
-                              color: NexusColors.onSurfaceVariant,
+                            const SizedBox(height: NexusSpacing.sm),
+                            Text(
+                              _indexError!,
+                              style: NexusTypography.bodyMd.copyWith(
+                                color: NexusColors.onSurfaceVariant,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: NexusSpacing.sm),
-                          TextButton.icon(
-                            onPressed: _loadIndices,
-                            icon: const Icon(Icons.refresh, size: 16),
-                            label: const Text('Retry'),
-                          ),
-                        ],
+                            const SizedBox(height: NexusSpacing.sm),
+                            TextButton.icon(
+                              onPressed: _loadIndices,
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: const Text('Retry'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                  )
+                else
+                  GlobalIndexCarousel(
+                    indices: _globalIndices,
+                    onRefresh: _refreshIndices,
                   ),
-                )
-              else
-                GlobalIndexCarousel(
-                  indices: _globalIndices,
-                  onRefresh: _refreshIndices,
-                ),
-              const SizedBox(height: NexusSpacing.md),
+                const SizedBox(height: NexusSpacing.md),
 
-              // Market cards
-              if (isWide)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Expanded(flex: 8, child: _WatchlistCard()),
-                    const SizedBox(width: NexusSpacing.md),
-                    const Expanded(flex: 4, child: _MarketOverviewCard()),
-                  ],
-                )
-              else
-                const Column(
-                  children: [
-                    _WatchlistCard(),
-                    SizedBox(height: NexusSpacing.md),
-                    _MarketOverviewCard(),
-                  ],
-                ),
-              const SizedBox(height: NexusSpacing.md),
-              const _HoldingsCard(),
-            ],
-          );
-        },
+                // Market cards
+                if (isWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Expanded(flex: 8, child: _WatchlistCard()),
+                      const SizedBox(width: NexusSpacing.md),
+                      const Expanded(flex: 4, child: _MarketOverviewCard()),
+                    ],
+                  )
+                else
+                  const Column(
+                    children: [
+                      _WatchlistCard(),
+                      SizedBox(height: NexusSpacing.md),
+                      _MarketOverviewCard(),
+                    ],
+                  ),
+                const SizedBox(height: NexusSpacing.md),
+                const _HoldingsCard(),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
