@@ -146,12 +146,28 @@ class InputHookService {
 class VirtualKey {
   VirtualKey._();
 
-  // Modifier keys
+  // Modifier keys (generic virtual key codes)
   static const int shift = 0x10;
   static const int control = 0x11;
   static const int menu = 0x12; // Alt
   static const int lWin = 0x5B;
   static const int rWin = 0x5C;
+
+  // Modifier keys (left/right specific virtual key codes)
+  static const int lShift = 0xA0;
+  static const int rShift = 0xA1;
+  static const int lControl = 0xA2;
+  static const int rControl = 0xA3;
+  static const int lMenu = 0xA4; // Left Alt
+  static const int rMenu = 0xA5; // Right Alt
+
+  // Modifier keys (common scan codes used by some low-level hooks)
+  static const int scanLControl = 0x1D;
+  static const int scanLShift = 0x2A;
+  static const int scanRShift = 0x36;
+  static const int scanLAlt = 0x38;
+  static const int scanRAlt = 0x38E0; // extended scan code prefix
+  static const int scanRControl = 0x1DE0; // extended scan code prefix
 
   // Standard keys
   static const int backspace = 0x08;
@@ -293,6 +309,28 @@ class VirtualKey {
         return 'Win';
       case 0x5C:
         return 'Win';
+      // Left/right specific modifier virtual key codes
+      case 0xA0:
+        return 'Shift';
+      case 0xA1:
+        return 'Shift';
+      case 0xA2:
+        return 'Ctrl';
+      case 0xA3:
+        return 'Ctrl';
+      case 0xA4:
+        return 'Alt';
+      case 0xA5:
+        return 'Alt';
+      // Common scan codes used by low-level hooks
+      case 0x1D:
+        return 'Ctrl';
+      case 0x2A:
+        return 'Shift';
+      case 0x36:
+        return 'Shift';
+      case 0x38:
+        return 'Alt';
       case 0x70:
         return 'F1';
       case 0x71:
