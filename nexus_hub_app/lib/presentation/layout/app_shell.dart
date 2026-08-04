@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/colors.dart';
-import 'side_navigation.dart';
+import 'desktop_environment.dart';
 import 'top_app_bar.dart';
 
-/// Adaptive shell: sidebar on desktop, bottom nav on mobile.
+/// Adaptive shell: macOS desktop environment on desktop, bottom nav on mobile.
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.currentPath, required this.child});
 
@@ -17,30 +17,19 @@ class AppShell extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
     final isDesktop = width >= 900;
 
+    if (isDesktop) {
+      return const DesktopEnvironment();
+    }
+
+    // Mobile layout: keep the existing bottom navigation bar
     return Scaffold(
-      body: isDesktop
-          ? Row(
-              children: [
-                SideNavigation(currentPath: currentPath),
-                Expanded(
-                  child: Column(
-                    children: [
-                      const TopAppBar(),
-                      Expanded(child: child),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              children: [
-                const TopAppBar(),
-                Expanded(child: child),
-              ],
-            ),
-      bottomNavigationBar: isDesktop
-          ? null
-          : _BottomNavBar(currentPath: currentPath),
+      body: Column(
+        children: [
+          const TopAppBar(),
+          Expanded(child: child),
+        ],
+      ),
+      bottomNavigationBar: _BottomNavBar(currentPath: currentPath),
     );
   }
 }
