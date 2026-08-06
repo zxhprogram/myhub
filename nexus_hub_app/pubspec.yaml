@@ -38,5 +38,16 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+# Pin shadcn_flutter to a vendored, patched copy in `../third_party/shadcn_flutter`.
+#
+# The vendored copy ships the fix for controlled-window dragging (window would
+# vanish from the desktop after the first drag) which is not yet in the
+# published 0.0.53 package. Do not remove this override without re-applying
+# the fix to the vendored copy (or confirming an upgraded shadcn_flutter
+# already contains it). See `test/window_drag_test.dart`.
+dependency_overrides:
+  shadcn_flutter:
+    path: ../third_party/shadcn_flutter
+
 flutter:
   uses-material-design: true
