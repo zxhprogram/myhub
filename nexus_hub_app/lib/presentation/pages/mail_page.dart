@@ -138,6 +138,11 @@ class _MailToolbar extends StatelessWidget {
             ),
           ],
           const Spacer(),
+          _ToolbarIconButton(
+            icon: Icons.refresh,
+            isLoading: state.isLoading.value,
+            onTap: () => state.refresh(),
+          ),
           _ToolbarIconButton(icon: Icons.notifications_outlined, onTap: () {}),
           _ToolbarIconButton(
             icon: Icons.settings_outlined,
@@ -183,10 +188,15 @@ class _MailToolbar extends StatelessWidget {
 }
 
 class _ToolbarIconButton extends StatelessWidget {
-  const _ToolbarIconButton({required this.icon, required this.onTap});
+  const _ToolbarIconButton({
+    required this.icon,
+    required this.onTap,
+    this.isLoading = false,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +210,16 @@ class _ToolbarIconButton extends StatelessWidget {
           width: 40,
           height: 40,
           alignment: Alignment.center,
-          child: Icon(icon, size: 20, color: NexusColors.onSurfaceVariant),
+          child: isLoading
+              ? SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: NexusColors.secondary,
+                  ),
+                )
+              : Icon(icon, size: 20, color: NexusColors.onSurfaceVariant),
         ),
       ),
     );
