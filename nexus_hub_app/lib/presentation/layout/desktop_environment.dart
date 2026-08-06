@@ -25,12 +25,96 @@ class _DesktopAppItem {
   final String route;
   final WidgetBuilder pageBuilder;
 
+  /// Top color of the macOS-style squircle gradient.
+  final Color gradientStart;
+
+  /// Bottom color of the macOS-style squircle gradient.
+  final Color gradientEnd;
+
   const _DesktopAppItem({
     required this.label,
     required this.icon,
     required this.route,
     required this.pageBuilder,
+    required this.gradientStart,
+    required this.gradientEnd,
   });
+}
+
+/// A macOS Big Sur style squircle — a heavily rounded square filled with a
+/// diagonal gradient that mimics the vibrant pastel app icons of recent macOS.
+class _MacOsSquircle extends StatelessWidget {
+  final Color gradientStart;
+  final Color gradientEnd;
+  final Widget? child;
+  final double size;
+
+  const _MacOsSquircle({
+    required this.gradientStart,
+    required this.gradientEnd,
+    this.child,
+    this.size = 48,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // macOS icons are rounded ~22.3% (approximately 4:1 of 60pt squircle).
+    final radius = size * 0.23;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [gradientStart, gradientEnd],
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _SquircleShine(size: size),
+            if (child != null)
+              Center(
+                child: IconTheme(
+                  data: const IconThemeData(color: Colors.white),
+                  child: child!,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Top glass highlight that gives the squircle the glossy macOS finish.
+class _SquircleShine extends StatelessWidget {
+  final double size;
+
+  const _SquircleShine({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = size * 0.23;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white.withValues(alpha: 0.4),
+            Colors.white.withValues(alpha: 0.0),
+          ],
+          stops: const [0.0, 0.45],
+        ),
+      ),
+    );
+  }
 }
 
 /// macOS-style desktop environment with a window manager.
@@ -53,60 +137,80 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       icon: Icons.dashboard_outlined,
       route: '/',
       pageBuilder: (_) => const DashboardPage(),
+      gradientStart: const Color(0xFF5AC8FA),
+      gradientEnd: const Color(0xFF007AFF),
     ),
     _DesktopAppItem(
       label: 'Bookmarks',
       icon: Icons.bookmark_outline,
       route: '/bookmarks',
       pageBuilder: (_) => const BookmarksPage(),
+      gradientStart: const Color(0xFFFF9F0A),
+      gradientEnd: const Color(0xFFFF3B30),
     ),
     _DesktopAppItem(
       label: 'Tasks',
       icon: Icons.check_circle_outline,
       route: '/tasks',
       pageBuilder: (_) => const TasksPage(),
+      gradientStart: const Color(0xFF34C759),
+      gradientEnd: const Color(0xFF30D158),
     ),
     _DesktopAppItem(
       label: 'Clipboard',
       icon: Icons.content_paste,
       route: '/clipboard',
       pageBuilder: (_) => const ClipboardHistoryPage(),
+      gradientStart: const Color(0xFFAF52DE),
+      gradientEnd: const Color(0xFFBF5AF2),
     ),
     _DesktopAppItem(
       label: 'RSS Reader',
       icon: Icons.rss_feed,
       route: '/rss',
       pageBuilder: (_) => const RssReaderPage(),
+      gradientStart: const Color(0xFFFF2D55),
+      gradientEnd: const Color(0xFFFF6B6B),
     ),
     _DesktopAppItem(
       label: 'Mail',
       icon: Icons.mail_outlined,
       route: '/mail',
       pageBuilder: (_) => const MailPage(),
+      gradientStart: const Color(0xFF64D2FF),
+      gradientEnd: const Color(0xFF0096E6),
     ),
     _DesktopAppItem(
       label: 'AI Chat',
       icon: Icons.chat_bubble_outline,
       route: '/ai-chat',
       pageBuilder: (_) => const AiChatPage(),
+      gradientStart: const Color(0xFF32D74B),
+      gradientEnd: const Color(0xFF0A84FF),
     ),
     _DesktopAppItem(
       label: 'Stocks',
       icon: Icons.show_chart,
       route: '/stocks',
       pageBuilder: (_) => const StocksPage(),
+      gradientStart: const Color(0xFF30D158),
+      gradientEnd: const Color(0xFF248A3D),
     ),
     _DesktopAppItem(
       label: 'My Computer',
       icon: Icons.computer,
       route: '/my-computer',
       pageBuilder: (_) => const MyComputerPage(),
+      gradientStart: const Color(0xFF9AA0A6),
+      gradientEnd: const Color(0xFF5F6368),
     ),
     _DesktopAppItem(
       label: 'DevTools',
       icon: Icons.construction,
       route: '/dev-tools',
       pageBuilder: (_) => const DevToolsPage(),
+      gradientStart: const Color(0xFFFF9500),
+      gradientEnd: const Color(0xFFFF3B30),
     ),
   ];
 
@@ -330,6 +434,8 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       children: _appItems.map((appItem) {
         return _DesktopIcon(
           label: appItem.label,
+          gradientStart: appItem.gradientStart,
+          gradientEnd: appItem.gradientEnd,
           icon: appItem.icon,
           isOpen: _openWindows.containsKey(appItem.route),
           onTap: () => _openAppWindow(appItem),
@@ -341,8 +447,11 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   Widget _buildDock(BuildContext context) {
     return Center(
       child: Container(
-        height: 72,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        // Height + extra headroom so the icon column (48 + 4 + 4) never
+        // collides with the border/decoration shrink that triggers a
+        // RenderFlex overflow assertion.
+        height: 80,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
@@ -355,6 +464,8 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
               if (i > 0) const SizedBox(width: 4),
               _DockIcon(
                 icon: _appItems[i].icon,
+                gradientStart: _appItems[i].gradientStart,
+                gradientEnd: _appItems[i].gradientEnd,
                 label: _appItems[i].label,
                 isActive: _openWindows.containsKey(_appItems[i].route),
                 onTap: () => _openAppWindow(_appItems[i]),
@@ -384,12 +495,16 @@ class _WindowEntry {
 class _DesktopIcon extends StatelessWidget {
   final String label;
   final IconData icon;
+  final Color gradientStart;
+  final Color gradientEnd;
   final bool isOpen;
   final VoidCallback onTap;
 
   const _DesktopIcon({
     required this.label,
     required this.icon,
+    required this.gradientStart,
+    required this.gradientEnd,
     required this.isOpen,
     required this.onTap,
   });
@@ -404,23 +519,31 @@ class _DesktopIcon extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: isOpen
-                    ? Colors.white.withValues(alpha: 0.3)
-                    : Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isOpen
-                      ? Colors.white.withValues(alpha: 0.5)
-                      : Colors.white.withValues(alpha: 0.1),
+            // macOS squircle app icon with a white glass shadow when open.
+            AnimatedScale(
+              scale: isOpen ? 1.05 : 1.0,
+              duration: const Duration(milliseconds: 150),
+              child: Container(
+                decoration: isOpen
+                    ? BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: gradientEnd.withValues(alpha: 0.5),
+                            blurRadius: 14,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      )
+                    : null,
+                child: _MacOsSquircle(
+                  gradientStart: gradientStart,
+                  gradientEnd: gradientEnd,
+                  child: Icon(icon, size: 26),
                 ),
               ),
-              child: Icon(icon, color: Colors.white, size: 24),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               label,
               style: const TextStyle(
@@ -428,6 +551,13 @@ class _DesktopIcon extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 height: 1.2,
+                shadows: [
+                  Shadow(
+                    color: Colors.black45,
+                    blurRadius: 4,
+                    offset: Offset(0, 1),
+                  ),
+                ],
               ),
               textAlign: TextAlign.center,
               maxLines: 2,
@@ -444,12 +574,16 @@ class _DesktopIcon extends StatelessWidget {
 class _DockIcon extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color gradientStart;
+  final Color gradientEnd;
   final bool isActive;
   final VoidCallback onTap;
 
   const _DockIcon({
     required this.icon,
     required this.label,
+    required this.gradientStart,
+    required this.gradientEnd,
     required this.isActive,
     required this.onTap,
   });
@@ -458,31 +592,47 @@ class _DockIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: isActive
-              ? Colors.white.withValues(alpha: 0.35)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            if (isActive)
-              Container(
-                width: 4,
-                height: 4,
-                margin: const EdgeInsets.only(top: 2),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedScale(
+            scale: isActive ? 1.12 : 1.0,
+            duration: const Duration(milliseconds: 120),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: gradientEnd.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
-          ],
-        ),
+              child: _MacOsSquircle(
+                gradientStart: gradientStart,
+                gradientEnd: gradientEnd,
+                size: 48,
+                child: Icon(icon, size: 22),
+              ),
+            ),
+          ),
+          // Running application indicator dot, like macOS.
+          if (isActive)
+            Container(
+              width: 4,
+              height: 4,
+              margin: const EdgeInsets.only(top: 4),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+            )
+          else
+            const SizedBox(height: 8),
+        ],
       ),
     );
   }
