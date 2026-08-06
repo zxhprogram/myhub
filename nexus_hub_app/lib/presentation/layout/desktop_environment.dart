@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shadcn;
+import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
+import '../components/wallpaper_picker_dialog.dart';
 import '../pages/ai_chat_page.dart';
 import '../pages/bookmarks_page.dart';
 import '../pages/clipboard_history_page.dart';
@@ -14,6 +16,7 @@ import '../pages/my_computer_page.dart';
 import '../pages/rss_reader_page.dart';
 import '../pages/stocks_page.dart';
 import '../pages/tasks_page.dart';
+import '../states/wallpaper_state.dart';
 
 /// Navigation item descriptor for the desktop environment.
 class _DesktopAppItem {
@@ -114,6 +117,13 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   final Map<String, _WindowEntry> _openWindows = {};
 
   int _windowCounter = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load the persisted wallpaper and fetch the network wallpaper list.
+    WallpaperState.instance.init();
+  }
 
   @override
   void dispose() {
@@ -229,28 +239,73 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   }
 
   Widget _buildDesktop(BuildContext context) {
-    return Stack(
-      children: [
-        // Desktop background
-        _buildBackground(),
-        // Desktop icons area
-        Positioned.fill(
-          child: Padding(
-            padding: const EdgeInsets.only(
-              left: NexusSpacing.lg,
-              top: NexusSpacing.lg,
-              bottom: 100,
-            ),
-            child: _buildDesktopIcons(context),
+    return Watch((_) {
+      final wallpaper = WallpaperState.instance.currentWallpaper.value;
+      return shadcn.ContextMenu(
+        items: [
+          shadcn.MenuButton(
+            leading: const Icon(Icons.wallpaper, size: 16),
+            onPressed: (context) => WallpaperPickerDialog.show(context),
+            child: const Text('更换壁纸'),
           ),
+          if (wallpaper != null) ...[
+            const shadcn.MenuDivider(),
+            shadcn.MenuButton(
+              leading: const Icon(Icons.restart_alt, size: 16),
+              onPressed: (context) => WallpaperState.instance.clearWallpaper(),
+              child: const Text('恢复默认壁纸'),
+            ),
+          ],
+        ],
+        child: Stack(
+          children: [
+            // Desktop background
+            _buildBackground(),
+            // Desktop icons area
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  left: NexusSpacing.lg,
+                  top: NexusSpacing.lg,
+                  bottom: 100,
+                ),
+                child: _buildDesktopIcons(context),
+              ),
+            ),
+            // Dock at bottom
+            Positioned(bottom: 8, left: 0, right: 0, child: _buildDock(context)),
+          ],
         ),
-        // Dock at bottom
-        Positioned(bottom: 8, left: 0, right: 0, child: _buildDock(context)),
-      ],
-    );
+      );
+    });
   }
 
   Widget _buildBackground() {
+    return Watch((_) {
+      final wallpaper = WallpaperState.instance.currentWallpaper.value;
+      if (wallpaper == null) {
+        return _buildGradientBackground();
+      }
+      return Image.network(
+        wallpaper.url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        // Keep the gradient visible while the image is still loading.
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) {
+            return child;
+          }
+          return _buildGradientBackground();
+        },
+        // Fall back to the gradient if the network image fails to load.
+        errorBuilder: (context, error, stackTrace) =>
+            _buildGradientBackground(),
+      );
+    });
+  }
+
+  Widget _buildGradientBackground() {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
