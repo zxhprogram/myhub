@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_reorderable_grid_view/entities/reorder_update_entity.dart';
+import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
+import 'package:intl/intl.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shadcn;
 import 'package:signals_flutter/signals_flutter.dart';
 
+import '../../data/models/desktop_item.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
+import '../components/desktop_folder.dart';
 import '../components/wallpaper_picker_dialog.dart';
 import '../pages/ai_chat_page.dart';
 import '../pages/bookmarks_page.dart';
@@ -16,10 +23,11 @@ import '../pages/my_computer_page.dart';
 import '../pages/rss_reader_page.dart';
 import '../pages/stocks_page.dart';
 import '../pages/tasks_page.dart';
+import '../states/desktop_state.dart';
 import '../states/wallpaper_state.dart';
 
 /// Navigation item descriptor for the desktop environment.
-class _DesktopAppItem {
+class DesktopAppItem {
   final String label;
   final IconData icon;
   final String route;
@@ -31,7 +39,7 @@ class _DesktopAppItem {
   /// Bottom color of the macOS-style squircle gradient.
   final Color gradientEnd;
 
-  const _DesktopAppItem({
+  const DesktopAppItem({
     required this.label,
     required this.icon,
     required this.route,
@@ -131,8 +139,8 @@ class DesktopEnvironment extends StatefulWidget {
 
 class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   /// All available applications shown as desktop icons.
-  static final List<_DesktopAppItem> _appItems = [
-    _DesktopAppItem(
+  static final List<DesktopAppItem> _appItems = [
+    DesktopAppItem(
       label: 'Dashboard',
       icon: Icons.dashboard_outlined,
       route: '/',
@@ -140,7 +148,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFF5AC8FA),
       gradientEnd: const Color(0xFF007AFF),
     ),
-    _DesktopAppItem(
+    DesktopAppItem(
       label: 'Bookmarks',
       icon: Icons.bookmark_outline,
       route: '/bookmarks',
@@ -148,7 +156,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFFFF9F0A),
       gradientEnd: const Color(0xFFFF3B30),
     ),
-    _DesktopAppItem(
+    DesktopAppItem(
       label: 'Tasks',
       icon: Icons.check_circle_outline,
       route: '/tasks',
@@ -156,7 +164,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFF34C759),
       gradientEnd: const Color(0xFF30D158),
     ),
-    _DesktopAppItem(
+    DesktopAppItem(
       label: 'Clipboard',
       icon: Icons.content_paste,
       route: '/clipboard',
@@ -164,7 +172,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFFAF52DE),
       gradientEnd: const Color(0xFFBF5AF2),
     ),
-    _DesktopAppItem(
+    DesktopAppItem(
       label: 'RSS Reader',
       icon: Icons.rss_feed,
       route: '/rss',
@@ -172,7 +180,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFFFF2D55),
       gradientEnd: const Color(0xFFFF6B6B),
     ),
-    _DesktopAppItem(
+    DesktopAppItem(
       label: 'Mail',
       icon: Icons.mail_outlined,
       route: '/mail',
@@ -180,7 +188,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFF64D2FF),
       gradientEnd: const Color(0xFF0096E6),
     ),
-    _DesktopAppItem(
+    DesktopAppItem(
       label: 'AI Chat',
       icon: Icons.chat_bubble_outline,
       route: '/ai-chat',
@@ -188,7 +196,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFF32D74B),
       gradientEnd: const Color(0xFF0A84FF),
     ),
-    _DesktopAppItem(
+    DesktopAppItem(
       label: 'Stocks',
       icon: Icons.show_chart,
       route: '/stocks',
@@ -196,7 +204,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFF30D158),
       gradientEnd: const Color(0xFF248A3D),
     ),
-    _DesktopAppItem(
+    DesktopAppItem(
       label: 'My Computer',
       icon: Icons.computer,
       route: '/my-computer',
@@ -204,7 +212,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFF9AA0A6),
       gradientEnd: const Color(0xFF5F6368),
     ),
-    _DesktopAppItem(
+    DesktopAppItem(
       label: 'DevTools',
       icon: Icons.construction,
       route: '/dev-tools',
@@ -225,8 +233,18 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   @override
   void initState() {
     super.initState();
-    // Load the persisted wallpaper and fetch the network wallpaper list.
+    // Load persisted wallpaper and desktop state.
     WallpaperState.instance.init();
+    DesktopState.instance.init(
+      defaults: _appItems
+          .map((a) => DesktopItem(
+                id: a.route,
+                type: DesktopItemType.app,
+                label: a.label,
+                appRoute: a.route,
+              ))
+          .toList(),
+    );
   }
 
   @override
@@ -245,7 +263,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     return null;
   }
 
-  void _openAppWindow(_DesktopAppItem appItem) {
+  void _openAppWindow(DesktopAppItem appItem) {
     // If window already open, focus it instead of creating a new one
     if (_openWindows.containsKey(appItem.route)) {
       final entry = _openWindows[appItem.route]!;
@@ -259,7 +277,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     final controller = shadcn.WindowController(
       bounds: Rect.fromLTWH(
         60 + (_windowCounter % 5) * 40,
-        40 + (_windowCounter % 5) * 40,
+        40 + 32 + (_windowCounter % 5) * 40, // +32 for menu bar height
         900,
         600,
       ),
@@ -323,6 +341,131 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     _navigatorHandle?.pushWindow(window);
   }
 
+  /// Handles reorder events from [ReorderableBuilder].
+  ///
+  /// If the drag target is a folder and the dragged item is an app, the item is
+  /// moved into the folder instead of reordering the desktop list.
+  void _onDesktopReorder(List<ReorderUpdateEntity> entities) {
+    if (entities.isEmpty) return;
+    final entity = entities.first;
+    final oldIndex = entity.oldIndex;
+    final newIndex = entity.newIndex;
+
+    final state = DesktopState.instance;
+    final items = state.items.value;
+
+    // Compute the effective target index (ReorderableBuilder's newIndex
+    // accounts for the removed item when newIndex > oldIndex).
+    final targetIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    if (targetIndex >= 0 && targetIndex < items.length) {
+      final targetItem = items[targetIndex];
+      if (targetItem.type == DesktopItemType.folder) {
+        final draggedItem = items[oldIndex];
+        if (draggedItem.type == DesktopItemType.app) {
+          state.moveItemToFolder(draggedItem.id, targetItem.id);
+          return;
+        }
+      }
+    }
+
+    state.reorder(oldIndex, newIndex);
+  }
+
+  /// Shows a dialog to create a new folder on the desktop.
+  Future<void> _showNewFolderDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('新建文件夹'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: '文件夹名称',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('创建'),
+          ),
+        ],
+      ),
+    );
+    if (name != null && name.isNotEmpty) {
+      DesktopState.instance.createFolder(name);
+    }
+  }
+
+  /// Shows a dialog to rename a folder.
+  Future<void> _renameFolderDialog(
+      BuildContext context, String folderId, String currentName) async {
+    final controller = TextEditingController(text: currentName);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重命名文件夹'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: '文件夹名称',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('确认'),
+          ),
+        ],
+      ),
+    );
+    if (name != null && name.isNotEmpty) {
+      DesktopState.instance.renameFolder(folderId, name);
+    }
+  }
+
+  /// Shows a confirmation dialog before deleting a folder.
+  Future<void> _confirmDeleteFolder(
+      BuildContext context, String folderId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除文件夹'),
+        content: const Text('确定要删除此文件夹吗？文件夹内的图标不会被删除。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      DesktopState.instance.deleteFolder(folderId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final materialTheme = Theme.of(context);
@@ -332,17 +475,23 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
         data: materialTheme,
         child: Material(
           type: MaterialType.transparency,
-          child: shadcn.WindowNavigator(
-            key: _navigatorKey,
-            initialWindows: const [],
-            child: _buildDesktop(context),
+          child: Stack(
+            children: [
+              shadcn.WindowNavigator(
+                key: _navigatorKey,
+                initialWindows: const [],
+                child: _buildDesktopContent(context),
+              ),
+              // Menu bar on top of everything, including windows (like macOS).
+              const Positioned(top: 0, left: 0, right: 0, child: _MenuBar()),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildDesktop(BuildContext context) {
+  Widget _buildDesktopContent(BuildContext context) {
     return Watch((_) {
       final wallpaper = WallpaperState.instance.currentWallpaper.value;
       return shadcn.ContextMenu(
@@ -360,6 +509,12 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
               child: const Text('恢复默认壁纸'),
             ),
           ],
+          const shadcn.MenuDivider(),
+          shadcn.MenuButton(
+            leading: const Icon(Icons.create_new_folder, size: 16),
+            onPressed: (context) => _showNewFolderDialog(context),
+            child: const Text('新建文件夹'),
+          ),
         ],
         child: Stack(
           children: [
@@ -370,7 +525,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
               child: Padding(
                 padding: const EdgeInsets.only(
                   left: NexusSpacing.lg,
-                  top: NexusSpacing.lg,
+                  top: 48, // Leave room for the menu bar
                   bottom: 100,
                 ),
                 child: _buildDesktopIcons(context),
@@ -427,21 +582,48 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   }
 
   Widget _buildDesktopIcons(BuildContext context) {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 24,
-      direction: Axis.vertical,
-      children: _appItems.map((appItem) {
-        return _DesktopIcon(
-          label: appItem.label,
-          gradientStart: appItem.gradientStart,
-          gradientEnd: appItem.gradientEnd,
-          icon: appItem.icon,
-          isOpen: _openWindows.containsKey(appItem.route),
-          onTap: () => _openAppWindow(appItem),
-        );
-      }).toList(),
-    );
+    return Watch((_) {
+      final desktopItems = DesktopState.instance.items.value;
+      return ReorderableBuilder(
+        onReorderPositions: _onDesktopReorder,
+        builder: (children) {
+          return Wrap(
+            spacing: 16,
+            runSpacing: 24,
+            direction: Axis.vertical,
+            children: children,
+          );
+        },
+        children: desktopItems.map((item) {
+          final isOpen = item.type == DesktopItemType.app &&
+              _openWindows.containsKey(item.appRoute);
+          return _DesktopIcon(
+            key: ValueKey(item.id),
+            item: item,
+            isOpen: isOpen,
+            onTap: () {
+              if (item.type == DesktopItemType.app) {
+                final appItem = _appItems.cast<DesktopAppItem?>().firstWhere(
+                      (a) => a!.route == item.appRoute,
+                      orElse: () => null,
+                    );
+                if (appItem != null) _openAppWindow(appItem);
+              }
+            },
+            onFolderDoubleTap: item.type == DesktopItemType.folder
+                ? () => DesktopFolderContent.show(context, item.id)
+                : null,
+            onRename: item.type == DesktopItemType.folder
+                ? () => _renameFolderDialog(
+                      context, item.id, item.folderName ?? '')
+                : null,
+            onDelete: item.type == DesktopItemType.folder
+                ? () => _confirmDeleteFolder(context, item.id)
+                : null,
+          );
+        }).toList(),
+      );
+    });
   }
 
   Widget _buildDock(BuildContext context) {
@@ -478,11 +660,125 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   }
 }
 
+/// macOS-style menu bar at the top of the desktop with a live clock.
+class _MenuBar extends StatelessWidget {
+  const _MenuBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 32,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.25),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Left: app name (like macOS Apple menu area)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.apple, size: 16, color: Colors.white.withValues(alpha: 0.9)),
+              const SizedBox(width: 8),
+              Text(
+                'Nexus Hub',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          // Right: live clock with seconds
+          const _ClockWidget(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Live clock that updates every second, displaying HH:mm:ss.
+class _ClockWidget extends StatefulWidget {
+  const _ClockWidget();
+
+  @override
+  State<_ClockWidget> createState() => _ClockWidgetState();
+}
+
+class _ClockWidgetState extends State<_ClockWidget> {
+  Timer? _timer;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    // Sync to the next whole second so the update is aligned.
+    final now = DateTime.now();
+    final nextSecond = DateTime(
+      now.year, now.month, now.day,
+      now.hour, now.minute, now.second + 1,
+    );
+    final delay = nextSecond.difference(now).inMilliseconds;
+    _timer = Timer(Duration(milliseconds: delay), _tick);
+  }
+
+  void _tick() {
+    if (!mounted) return;
+    setState(() {
+      _now = DateTime.now();
+    });
+    _timer = Timer(const Duration(seconds: 1), _tick);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final time = DateFormat('HH:mm:ss').format(_now);
+    final date = DateFormat('M/d (EEE)').format(_now);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          date,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.8),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          time,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.95),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Data class holding a window entry's state.
 class _WindowEntry {
   final shadcn.Window window;
   final shadcn.WindowController controller;
-  final _DesktopAppItem appItem;
+  final DesktopAppItem appItem;
 
   const _WindowEntry({
     required this.window,
@@ -493,24 +789,41 @@ class _WindowEntry {
 
 /// A single desktop icon with label.
 class _DesktopIcon extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color gradientStart;
-  final Color gradientEnd;
-  final bool isOpen;
-  final VoidCallback onTap;
-
   const _DesktopIcon({
-    required this.label,
-    required this.icon,
-    required this.gradientStart,
-    required this.gradientEnd,
+    super.key,
+    required this.item,
     required this.isOpen,
     required this.onTap,
+    this.onFolderDoubleTap,
+    this.onRename,
+    this.onDelete,
   });
+
+  final DesktopItem item;
+  final bool isOpen;
+  final VoidCallback onTap;
+  final VoidCallback? onFolderDoubleTap;
+  final VoidCallback? onRename;
+  final VoidCallback? onDelete;
+
+  /// Resolves the matching [DesktopAppItem] from the static app list by route.
+  DesktopAppItem? get _appItem {
+    if (item.type != DesktopItemType.app || item.appRoute == null) return null;
+    return _resolveAppItem(item.appRoute!);
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (item.type == DesktopItemType.folder) {
+      return _buildFolderIcon(context);
+    }
+    return _buildAppIcon(context);
+  }
+
+  Widget _buildAppIcon(BuildContext context) {
+    final appItem = _appItem;
+    if (appItem == null) return const SizedBox.shrink();
+
     return SizedBox(
       width: 72,
       child: GestureDetector(
@@ -519,7 +832,6 @@ class _DesktopIcon extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // macOS squircle app icon with a white glass shadow when open.
             AnimatedScale(
               scale: isOpen ? 1.05 : 1.0,
               duration: const Duration(milliseconds: 150),
@@ -529,7 +841,7 @@ class _DesktopIcon extends StatelessWidget {
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: gradientEnd.withValues(alpha: 0.5),
+                            color: appItem.gradientEnd.withValues(alpha: 0.5),
                             blurRadius: 14,
                             offset: const Offset(0, 2),
                           ),
@@ -537,15 +849,15 @@ class _DesktopIcon extends StatelessWidget {
                       )
                     : null,
                 child: _MacOsSquircle(
-                  gradientStart: gradientStart,
-                  gradientEnd: gradientEnd,
-                  child: Icon(icon, size: 26),
+                  gradientStart: appItem.gradientStart,
+                  gradientEnd: appItem.gradientEnd,
+                  child: Icon(appItem.icon, size: 26),
                 ),
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              label,
+              appItem.label,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 11,
@@ -567,6 +879,107 @@ class _DesktopIcon extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildFolderIcon(BuildContext context) {
+    final folderName = item.label ?? item.folderName ?? '文件夹';
+    return DragTarget<DesktopItem>(
+      onWillAcceptWithDetails: (details) => details.data.type == DesktopItemType.app,
+      onAcceptWithDetails: (details) {
+        DesktopState.instance.moveItemToFolder(details.data.id, item.id);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        return SizedBox(
+          width: 72,
+          child: GestureDetector(
+            onTap: onFolderDoubleTap,
+            onDoubleTap: onFolderDoubleTap,
+            onSecondaryTap: () => _showFolderContextMenu(context),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedScale(
+                  scale: isHovering ? 1.08 : 1.0,
+                  duration: const Duration(milliseconds: 150),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(48 * 0.23),
+                      color: isHovering
+                          ? Colors.white.withValues(alpha: 0.3)
+                          : Colors.white.withValues(alpha: 0.15),
+                      border: Border.all(
+                        color: isHovering
+                            ? Colors.white.withValues(alpha: 0.6)
+                            : Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(48 * 0.23),
+                      child: DesktopFolderPreview(folderId: item.id),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  folderName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    height: 1.2,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black45,
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showFolderContextMenu(BuildContext context) {
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(0, 0, 0, 0),
+      items: [
+        const PopupMenuItem(value: 'open', child: Text('打开')),
+        const PopupMenuItem(value: 'rename', child: Text('重命名')),
+        const PopupMenuItem(value: 'delete', child: Text('删除')),
+      ],
+    ).then((value) {
+      switch (value) {
+        case 'open':
+          onFolderDoubleTap?.call();
+        case 'rename':
+          onRename?.call();
+        case 'delete':
+          onDelete?.call();
+      }
+    });
+  }
+}
+
+/// Resolves a [DesktopAppItem] by route from the static app items list.
+DesktopAppItem? _resolveAppItem(String route) {
+  try {
+    return _DesktopEnvironmentState._appItems.firstWhere(
+      (a) => a.route == route,
+    );
+  } catch (_) {
+    return null;
   }
 }
 
