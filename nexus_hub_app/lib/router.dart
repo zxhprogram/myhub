@@ -9,6 +9,7 @@ import 'presentation/pages/dashboard_page.dart';
 import 'presentation/pages/dev_tools_page.dart';
 import 'presentation/pages/mail_page.dart';
 import 'presentation/pages/my_computer_page.dart';
+import 'presentation/pages/pomodoro_page.dart';
 import 'presentation/pages/rss_reader_page.dart';
 import 'presentation/pages/stocks_page.dart';
 import 'presentation/pages/tasks_page.dart';
@@ -64,6 +65,10 @@ class AppRouter {
           GoRoute(
             path: '/mail',
             builder: (context, state) => const MailPage(),
+          ),
+          GoRoute(
+            path: '/pomodoro',
+            builder: (context, state) => const PomodoroPage(),
           ),
         ],
       ),

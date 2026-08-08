@@ -14,8 +14,11 @@ class SideNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.sizeOf(context).width >= 900;
     return Container(
-      width: NexusSpacing.sidebarWidth,
+      width: isDesktop
+          ? NexusSpacing.sidebarWidth
+          : NexusSpacing.sidebarWidth - 64,
       color: NexusColors.surfaceContainerLow,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,6 +74,12 @@ class SideNavigation extends StatelessWidget {
                         path: '/mail',
                         currentPath: currentPath,
                       ),
+                      _NavItem(
+                        label: 'Pomodoro',
+                        icon: Icons.timer_outlined,
+                        path: '/pomodoro',
+                        currentPath: currentPath,
+                      ),
                     ],
                   ),
                   _NavGroup(
@@ -103,6 +112,12 @@ class SideNavigation extends StatelessWidget {
                         label: 'DevTools',
                         icon: Icons.construction,
                         path: '/dev-tools',
+                        currentPath: currentPath,
+                      ),
+                      _NavItem(
+                        label: 'Terminal',
+                        icon: Icons.terminal,
+                        path: '/terminal',
                         currentPath: currentPath,
                       ),
                     ],

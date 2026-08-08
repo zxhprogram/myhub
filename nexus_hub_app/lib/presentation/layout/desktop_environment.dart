@@ -20,11 +20,13 @@ import '../pages/dashboard_page.dart';
 import '../pages/dev_tools_page.dart';
 import '../pages/mail_page.dart';
 import '../pages/my_computer_page.dart';
+import '../pages/pomodoro_page.dart';
 import '../pages/rss_reader_page.dart';
 import '../pages/stocks_page.dart';
 import '../pages/tasks_page.dart';
 import '../pages/terminal_page.dart';
 import '../states/desktop_state.dart';
+import '../states/pomodoro_state.dart';
 import '../states/wallpaper_state.dart';
 
 /// Navigation item descriptor for the desktop environment.
@@ -229,6 +231,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFF2E2E2E),
       gradientEnd: const Color(0xFF000000),
     ),
+    DesktopAppItem(
+      label: 'Pomodoro',
+      icon: Icons.timer_outlined,
+      route: '/pomodoro',
+      pageBuilder: (_) => const PomodoroPage(),
+      gradientStart: const Color(0xFFFF5F6D),
+      gradientEnd: const Color(0xFFFFC371),
+    ),
   ];
 
   /// Key to access the [WindowNavigatorHandle] for adding/removing windows.
@@ -244,6 +254,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     super.initState();
     // Load persisted wallpaper and desktop state.
     WallpaperState.instance.init();
+    PomodoroState.instance.init();
     DesktopState.instance.init(
       defaults: _appItems
           .map((a) => DesktopItem(
