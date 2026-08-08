@@ -139,7 +139,9 @@ class ClipboardRepository {
 
   Future<List<ClipboardItemModel>> _loadCachedItems({String? query}) async {
     final box = await LocalDatabase.box('clipboard');
-    final rows = box.values.cast<Map<String, dynamic>>().where((row) {
+    final rows = box.values
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .where((row) {
       if (query == null) return true;
       final content = (row['content'] as String?) ?? '';
       return content.toLowerCase().contains(query.toLowerCase());

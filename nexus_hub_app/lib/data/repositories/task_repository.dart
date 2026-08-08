@@ -102,7 +102,9 @@ class TaskRepository {
 
   Future<List<TaskModel>> _loadCachedTasks({String? status}) async {
     final box = await LocalDatabase.box('tasks');
-    final rows = box.values.cast<Map<String, dynamic>>().where((row) {
+    final rows = box.values
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .where((row) {
       if (status == null) return true;
       return row['status'] == status;
     }).toList();

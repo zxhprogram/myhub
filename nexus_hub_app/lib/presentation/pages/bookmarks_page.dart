@@ -21,7 +21,12 @@ import '../states/bookmarks_state.dart';
 import '../states/collections_state.dart';
 
 class BookmarksPage extends StatefulWidget {
-  const BookmarksPage({super.key});
+  /// Injectable persistent states. Tests use them to drive load/error paths
+  /// deterministically; production keeps the default self-contained states.
+  const BookmarksPage({super.key, this.state, this.collectionsState});
+
+  final BookmarksState? state;
+  final CollectionsState? collectionsState;
 
   @override
   State<BookmarksPage> createState() => _BookmarksPageState();
@@ -30,12 +35,10 @@ class BookmarksPage extends StatefulWidget {
 enum BookmarkView { grid, list, icons }
 
 class _BookmarksPageState extends State<BookmarksPage> {
-  final _state = BookmarksState();
-  final _collectionsState = CollectionsState();
+  late final BookmarksState _state;
+  late final CollectionsState _collectionsState;
   final _filter = signal<String>('All');
   final _view = signal<BookmarkView>(BookmarkView.grid);
-  late final void Function() _disposeBookmarksErrorEffect;
-  late final void Function() _disposeCollectionsErrorEffect;
 
   static const _categories = [
     'All',
@@ -49,31 +52,10 @@ class _BookmarksPageState extends State<BookmarksPage> {
   @override
   void initState() {
     super.initState();
+    _state = widget.state ?? BookmarksState();
+    _collectionsState = widget.collectionsState ?? CollectionsState();
     _state.load();
     _collectionsState.load();
-    _disposeBookmarksErrorEffect = effect(() {
-      final message = _state.error.value;
-      if (message != null && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-      }
-    });
-    _disposeCollectionsErrorEffect = effect(() {
-      final message = _collectionsState.error.value;
-      if (message != null && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _disposeBookmarksErrorEffect();
-    _disposeCollectionsErrorEffect();
-    super.dispose();
   }
 
   List<BookmarkModel> _visibleBookmarks(List<BookmarkModel> all) {

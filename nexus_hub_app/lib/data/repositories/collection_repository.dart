@@ -187,7 +187,9 @@ class CollectionRepository {
 
   Future<List<CollectionModel>> _loadCachedCollections({String? sort}) async {
     final box = await LocalDatabase.box('collections');
-    final rows = box.values.cast<Map<String, dynamic>>().toList();
+    final rows = box.values
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
     _sortCollections(rows, sort);
     return rows.map(CollectionModel.fromJson).toList();
   }

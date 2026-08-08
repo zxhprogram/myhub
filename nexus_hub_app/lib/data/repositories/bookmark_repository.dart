@@ -157,11 +157,14 @@ class BookmarkRepository {
 
   Future<List<BookmarkModel>> _loadCachedBookmarks({String? query}) async {
     final box = await LocalDatabase.box('bookmarks');
-    final rows = box.values.cast<Map<String, dynamic>>().where((row) {
-      if (query == null) return true;
-      final title = (row['title'] as String?) ?? '';
-      return title.toLowerCase().contains(query.toLowerCase());
-    }).toList();
+    final rows = box.values
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .where((row) {
+          if (query == null) return true;
+          final title = (row['title'] as String?) ?? '';
+          return title.toLowerCase().contains(query.toLowerCase());
+        })
+        .toList();
     rows.sort((a, b) {
       final aOrder = (a['sortOrder'] as int?) ?? 0;
       final bOrder = (b['sortOrder'] as int?) ?? 0;
