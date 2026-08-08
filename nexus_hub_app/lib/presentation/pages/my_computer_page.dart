@@ -654,6 +654,8 @@ class _MyComputerPageState extends State<MyComputerPage> {
         children: [
           _buildDateSelector(),
           const SizedBox(height: NexusSpacing.md),
+          _buildKeyboardHeatmap(),
+          const SizedBox(height: NexusSpacing.md),
           _buildStatsCard(),
         ],
       ),
@@ -829,6 +831,167 @@ class _MyComputerPageState extends State<MyComputerPage> {
     );
   }
 
+  Widget _buildKeyboardHeatmap() {
+    final stats = _dailyStats;
+    var maxCount = 0;
+    if (stats != null) {
+      for (final row in _keyboardRows) {
+        for (final key in row) {
+          if (key.codes.isEmpty) continue;
+          final count = key.codes
+              .map((c) => stats.stats[c]?.pressCount ?? 0)
+              .fold(0, (a, b) => a + b);
+          if (count > maxCount) maxCount = count;
+        }
+      }
+    }
+
+    return NexusCard(
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.keyboard_outlined,
+                  size: 20,
+                  color: NexusColors.secondary,
+                ),
+                const SizedBox(width: NexusSpacing.sm),
+                Text('Keyboard Heatmap', style: NexusTypography.headlineSm),
+                const Spacer(),
+                _buildHeatLegend(),
+              ],
+            ),
+            const SizedBox(height: NexusSpacing.md),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final unit = constraints.maxWidth / 15.0;
+                return Column(
+                  children: [
+                    for (final row in _keyboardRows)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            for (final key in row)
+                              SizedBox(
+                                width: key.width * unit,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                    vertical: 2,
+                                  ),
+                                  child: _buildKeyCap(key, stats, maxCount),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeatLegend() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Less',
+          style: NexusTypography.labelSm.copyWith(
+            fontSize: 9,
+            letterSpacing: 0,
+          ),
+        ),
+        const SizedBox(width: 4),
+        for (var i = 0; i < 5; i++)
+          Container(
+            width: 12,
+            height: 12,
+            margin: const EdgeInsets.only(right: 2),
+            decoration: BoxDecoration(
+              color: Color.lerp(
+                NexusColors.secondary.withValues(alpha: 0.2),
+                NexusColors.secondary,
+                i / 4,
+              ),
+              borderRadius: NexusRadii.smRadius,
+            ),
+          ),
+        const SizedBox(width: 2),
+        Text(
+          'More',
+          style: NexusTypography.labelSm.copyWith(
+            fontSize: 9,
+            letterSpacing: 0,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildKeyCap(_KeyDef key, DailyKeyStats? stats, int maxCount) {
+    if (key.codes.isEmpty) return const SizedBox.shrink();
+    final count = stats == null
+        ? 0
+        : key.codes
+              .map((c) => stats.stats[c]?.pressCount ?? 0)
+              .fold(0, (a, b) => a + b);
+    final t = maxCount > 0 ? (count / maxCount).clamp(0.0, 1.0) : 0.0;
+
+    final Color bg;
+    final Color fg;
+    if (count == 0) {
+      bg = NexusColors.surfaceContainerLow;
+      fg = NexusColors.onSurfaceVariant;
+    } else {
+      bg = Color.lerp(
+        NexusColors.secondary.withValues(alpha: 0.25),
+        NexusColors.secondary,
+        t,
+      )!;
+      fg = t > 0.45 ? NexusColors.onSecondary : NexusColors.onSurface;
+    }
+
+    return Tooltip(
+      message: count > 0 ? '${key.label} · $count' : key.label,
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: NexusRadii.smRadius,
+          border: Border.all(
+            color: NexusColors.outlineVariant.withValues(alpha: 0.2),
+          ),
+        ),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Text(
+          key.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: NexusTypography.labelSm.copyWith(
+            color: fg,
+            fontWeight: FontWeight.w600,
+            fontSize: key.label.length > 4
+                ? 8
+                : (key.label.length > 1 ? 9 : 11),
+            letterSpacing: 0,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatsCard() {
     if (_dailyStats == null || _dailyStats!.stats.isEmpty) {
       return NexusCard(
@@ -894,53 +1057,79 @@ class _MyComputerPageState extends State<MyComputerPage> {
             ),
             const SizedBox(height: NexusSpacing.lg),
             // Key stat rows
-            ...sortedStats.map((stat) => _buildStatRow(stat)),
+            ...sortedStats.asMap().entries.map(
+              (e) => _buildStatRow(e.value, e.key + 1),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatRow(KeyStatModel stat) {
+  Widget _buildStatRow(KeyStatModel stat, int rank) {
     final maxCount = _dailyStats!.stats.values.fold(
       0,
       (max, s) => s.pressCount > max ? s.pressCount : max,
     );
+    final ratio = maxCount > 0 ? stat.pressCount / maxCount : 0.0;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
       child: Row(
         children: [
-          // Key name
+          // Rank
           SizedBox(
-            width: 80,
+            width: 32,
             child: Text(
-              stat.keyName,
-              style: NexusTypography.labelMd.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          // Key code
-          SizedBox(
-            width: 60,
-            child: Text(
-              '0x${stat.keyCode.toRadixString(16).toUpperCase().padLeft(2, '0')}',
+              '$rank',
               style: NexusTypography.labelSm.copyWith(
                 color: NexusColors.onSurfaceVariant,
               ),
             ),
           ),
+          // Key cap
+          Container(
+            width: 64,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: NexusColors.surfaceContainerHigh,
+              borderRadius: NexusRadii.smRadius,
+              border: Border.all(
+                color: NexusColors.outlineVariant.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Tooltip(
+              message:
+                  '0x${stat.keyCode.toRadixString(16).toUpperCase().padLeft(2, '0')}',
+              child: Text(
+                stat.keyName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: NexusTypography.labelSm.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: NexusColors.onSurface,
+                  fontSize: stat.keyName.length > 4 ? 9 : 11,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: NexusSpacing.sm),
           // Progress bar
           Expanded(
             child: ClipRRect(
-              borderRadius: NexusRadii.mdRadius,
+              borderRadius: NexusRadii.smRadius,
               child: LinearProgressIndicator(
-                value: maxCount > 0 ? stat.pressCount / maxCount : 0,
-                minHeight: 20,
+                value: ratio,
+                minHeight: 18,
                 backgroundColor: NexusColors.surfaceContainerLow,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  NexusColors.primary.withValues(alpha: 0.7),
+                  Color.lerp(
+                    NexusColors.secondary.withValues(alpha: 0.4),
+                    NexusColors.secondary,
+                    ratio,
+                  )!,
                 ),
               ),
             ),
@@ -948,12 +1137,15 @@ class _MyComputerPageState extends State<MyComputerPage> {
           const SizedBox(width: NexusSpacing.sm),
           // Count
           SizedBox(
-            width: 50,
+            width: 56,
             child: Text(
               '${stat.pressCount}',
               textAlign: TextAlign.right,
               style: NexusTypography.labelMd.copyWith(
                 fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: NexusColors.onSurface,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ),
@@ -962,3 +1154,116 @@ class _MyComputerPageState extends State<MyComputerPage> {
     );
   }
 }
+
+/// Definition of a single key on the visual keyboard layout.
+class _KeyDef {
+  const _KeyDef(this.label, this.codes, {this.width = 1.0});
+
+  final String label;
+
+  /// All virtual key codes aggregated into this key cell.
+  final List<int> codes;
+
+  /// Width in key units (1.0 = standard key).
+  final double width;
+}
+
+/// Visual keyboard layout; each row sums to 15 key units so the layout fills
+/// the available card width uniformly.
+const _keyboardRows = <List<_KeyDef>>[
+  // Function key row
+  [
+    _KeyDef('Esc', [0x1B]),
+    _KeyDef('', [], width: 0.5),
+    _KeyDef('F1', [0x70]),
+    _KeyDef('F2', [0x71]),
+    _KeyDef('F3', [0x72]),
+    _KeyDef('F4', [0x73]),
+    _KeyDef('', [], width: 0.5),
+    _KeyDef('F5', [0x74]),
+    _KeyDef('F6', [0x75]),
+    _KeyDef('F7', [0x76]),
+    _KeyDef('F8', [0x77]),
+    _KeyDef('', [], width: 0.5),
+    _KeyDef('F9', [0x78]),
+    _KeyDef('F10', [0x79]),
+    _KeyDef('F11', [0x7A]),
+    _KeyDef('F12', [0x7B]),
+  ],
+  // Number row
+  [
+    _KeyDef('`', [0xC0]),
+    _KeyDef('1', [0x31]),
+    _KeyDef('2', [0x32]),
+    _KeyDef('3', [0x33]),
+    _KeyDef('4', [0x34]),
+    _KeyDef('5', [0x35]),
+    _KeyDef('6', [0x36]),
+    _KeyDef('7', [0x37]),
+    _KeyDef('8', [0x38]),
+    _KeyDef('9', [0x39]),
+    _KeyDef('0', [0x30]),
+    _KeyDef('-', [0xBD]),
+    _KeyDef('=', [0xBB]),
+    _KeyDef('⌫', [0x08], width: 2.0),
+  ],
+  // QWERTY row
+  [
+    _KeyDef('Tab', [0x09], width: 1.5),
+    _KeyDef('Q', [0x51]),
+    _KeyDef('W', [0x57]),
+    _KeyDef('E', [0x45]),
+    _KeyDef('R', [0x52]),
+    _KeyDef('T', [0x54]),
+    _KeyDef('Y', [0x59]),
+    _KeyDef('U', [0x55]),
+    _KeyDef('I', [0x49]),
+    _KeyDef('O', [0x4F]),
+    _KeyDef('P', [0x50]),
+    _KeyDef('[', [0xDB]),
+    _KeyDef(']', [0xDD]),
+    _KeyDef('\\', [0xDC], width: 1.5),
+  ],
+  // ASDF row
+  [
+    _KeyDef('Caps', [0x14], width: 1.75),
+    _KeyDef('A', [0x41]),
+    _KeyDef('S', [0x53]),
+    _KeyDef('D', [0x44]),
+    _KeyDef('F', [0x46]),
+    _KeyDef('G', [0x47]),
+    _KeyDef('H', [0x48]),
+    _KeyDef('J', [0x4A]),
+    _KeyDef('K', [0x4B]),
+    _KeyDef('L', [0x4C]),
+    _KeyDef(';', [0xBA]),
+    _KeyDef("'", [0xDE]),
+    _KeyDef('Enter', [0x0D], width: 2.25),
+  ],
+  // ZXCV row
+  [
+    _KeyDef('Shift', [0xA0, 0x10, 0x2A], width: 2.25),
+    _KeyDef('Z', [0x5A]),
+    _KeyDef('X', [0x58]),
+    _KeyDef('C', [0x43]),
+    _KeyDef('V', [0x56]),
+    _KeyDef('B', [0x42]),
+    _KeyDef('N', [0x4E]),
+    _KeyDef('M', [0x4D]),
+    _KeyDef(',', [0xBC]),
+    _KeyDef('.', [0xBE]),
+    _KeyDef('/', [0xBF]),
+    _KeyDef('Shift', [0xA1, 0x36], width: 2.75),
+  ],
+  // Space row
+  [
+    _KeyDef('Ctrl', [0xA2, 0x11, 0x1D], width: 1.25),
+    _KeyDef('Win', [0x5B], width: 1.25),
+    _KeyDef('Alt', [0xA4, 0x12, 0x38], width: 1.25),
+    _KeyDef('Space', [0x20], width: 6.25),
+    _KeyDef('Alt', [0xA5], width: 1.25),
+    _KeyDef('Win', [0x5C], width: 1.25),
+    _KeyDef('Menu', [0x5D], width: 1.25),
+    _KeyDef('Ctrl', [0xA3], width: 1.25),
+  ],
+];
