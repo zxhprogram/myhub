@@ -23,6 +23,7 @@ import '../pages/my_computer_page.dart';
 import '../pages/rss_reader_page.dart';
 import '../pages/stocks_page.dart';
 import '../pages/tasks_page.dart';
+import '../pages/terminal_page.dart';
 import '../states/desktop_state.dart';
 import '../states/wallpaper_state.dart';
 
@@ -219,6 +220,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const DevToolsPage(),
       gradientStart: const Color(0xFFFF9500),
       gradientEnd: const Color(0xFFFF3B30),
+    ),
+    DesktopAppItem(
+      label: 'Terminal',
+      icon: Icons.terminal,
+      route: '/terminal',
+      pageBuilder: (_) => const TerminalPage(),
+      gradientStart: const Color(0xFF2E2E2E),
+      gradientEnd: const Color(0xFF000000),
     ),
   ];
 

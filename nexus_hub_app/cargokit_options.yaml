@@ -1,0 +1,7 @@
+# Cargokit settings for flutter_alacritty (Rust FFI plugin).
+#
+# When Rustup is installed, Cargokit builds the Rust engine from source by
+# default — slow on first build. Set to true to always download signed
+# precompiled binaries instead (no Rust needed for consumers).
+# See flutter_alacritty/cargokit_options.yaml.example.
+use_precompiled_binaries: true

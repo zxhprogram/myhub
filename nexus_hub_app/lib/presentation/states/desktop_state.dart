@@ -23,6 +23,11 @@ class DesktopState {
   bool _initialized = false;
 
   /// Loads persisted state, or seeds [defaults] on first launch.
+  ///
+  /// When persisted state exists, it is authoritative for order/folders, but
+  /// any app shortcuts present in [defaults] that are missing from the
+  /// persisted list are appended — so newly-added desktop apps (e.g. Terminal)
+  /// appear for existing users without discarding their layout.
   Future<void> init({List<DesktopItem>? defaults}) async {
     if (_initialized) {
       return;
@@ -31,7 +36,26 @@ class DesktopState {
 
     final loaded = await _loadPersisted();
     if (loaded != null) {
-      items.value = loaded;
+      final persisted = List<DesktopItem>.from(loaded);
+      if (defaults != null) {
+        final knownRoutes =
+            persisted.where((i) => i.appRoute != null).map((i) => i.appRoute!).toSet();
+        for (final d in defaults) {
+          final appRoute = d.appRoute;
+          if (appRoute != null && !knownRoutes.contains(appRoute)) {
+            persisted.add(d);
+            knownRoutes.add(appRoute);
+          }
+        }
+        if (persisted.length != loaded.length) {
+          items.value = persisted;
+          _persist();
+        } else {
+          items.value = persisted;
+        }
+      } else {
+        items.value = persisted;
+      }
     } else if (defaults != null) {
       items.value = List<DesktopItem>.from(defaults);
     }
