@@ -15,6 +15,7 @@ import '../components/desktop_folder.dart';
 import '../components/wallpaper_picker_dialog.dart';
 import '../pages/ai_chat_page.dart';
 import '../pages/bookmarks_page.dart';
+import '../pages/camera_page.dart';
 import '../pages/clipboard_history_page.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/dev_tools_page.dart';
@@ -238,6 +239,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const PomodoroPage(),
       gradientStart: const Color(0xFFFF5F6D),
       gradientEnd: const Color(0xFFFFC371),
+    ),
+    DesktopAppItem(
+      label: 'Camera',
+      icon: Icons.photo_camera_outlined,
+      route: '/camera',
+      pageBuilder: (_) => const CameraCapturePage(),
+      gradientStart: const Color(0xFF5AC8FA),
+      gradientEnd: const Color(0xFF0A84FF),
     ),
   ];
 

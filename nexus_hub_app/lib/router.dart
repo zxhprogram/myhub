@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'presentation/layout/app_shell.dart';
 import 'presentation/pages/ai_chat_page.dart';
 import 'presentation/pages/bookmarks_page.dart';
+import 'presentation/pages/camera_page.dart';
 import 'presentation/pages/clipboard_history_page.dart';
 import 'presentation/pages/dashboard_page.dart';
 import 'presentation/pages/dev_tools_page.dart';
@@ -69,6 +70,10 @@ class AppRouter {
           GoRoute(
             path: '/pomodoro',
             builder: (context, state) => const PomodoroPage(),
+          ),
+          GoRoute(
+            path: '/camera',
+            builder: (context, state) => const CameraCapturePage(),
           ),
         ],
       ),

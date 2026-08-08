@@ -103,6 +103,12 @@ class SideNavigation extends StatelessWidget {
                         path: '/my-computer',
                         currentPath: currentPath,
                       ),
+                      _NavItem(
+                        label: 'Camera',
+                        icon: Icons.photo_camera_outlined,
+                        path: '/camera',
+                        currentPath: currentPath,
+                      ),
                     ],
                   ),
                   _NavGroup(
