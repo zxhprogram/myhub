@@ -12,9 +12,14 @@ class PageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: NexusColors.background,
-      child: Padding(
+    // Wrap the page in a Scaffold so ScaffoldMessenger.showSnackBar works
+    // everywhere, including inside desktop windows that provide no Scaffold
+    // of their own. The inner container's background colour is moved onto the
+    // Scaffold so the look is unchanged.
+    return Scaffold(
+      backgroundColor: NexusColors.background,
+      resizeToAvoidBottomInset: false,
+      body: Padding(
         padding: const EdgeInsets.all(NexusSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
