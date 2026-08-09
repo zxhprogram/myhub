@@ -6,10 +6,15 @@ import 'package:flutter_alacritty/flutter_alacritty.dart' show RustLib;
 
 import 'app.dart';
 import 'data/services/clipboard_monitor_service.dart';
+import 'data/services/network_monitor_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ClipboardMonitorService.instance.start();
+  // Start per-minute network traffic recording app-wide so history is captured
+  // regardless of which page is open. No-ops when network_monitor.dll is
+  // absent (e.g. non-Windows).
+  NetworkMonitorService.instance.start();
 
   // Boot the Alacritty Rust engine (used by the Terminal desktop app).
   // It is desktop-only (loads a native .so/.dll) — skip for web.

@@ -1,16 +1,23 @@
 import 'dart:async';
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/models/key_stat_model.dart';
+import '../../data/models/network_traffic_model.dart';
 import '../../data/repositories/key_stats_repository.dart';
+import '../../data/repositories/network_traffic_repository.dart';
 import '../../data/services/input_hook_service.dart';
+import '../../data/services/network_monitor_service.dart';
 import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import '../components/nexus_card.dart';
 import '../layout/page_scaffold.dart';
+
+/// Aggregation window used by the network statistics tab.
+enum _TrafficRange { today, week, month, all }
 
 /// Page that displays real-time keyboard and mouse state using the Windows
 /// input hook DLL, along with persistent key press statistics.
@@ -27,7 +34,6 @@ class _MyComputerPageState extends State<MyComputerPage> {
   Timer? _pollTimer;
 
   // Tracked state for display
-  final Set<int> _pressedKeys = {};
   bool _mouseLeft = false;
   bool _mouseRight = false;
   bool _mouseMiddle = false;
@@ -47,6 +53,20 @@ class _MyComputerPageState extends State<MyComputerPage> {
   DateTime _selectedDate = DateTime.now();
   List<String> _availableDates = [];
 
+  // Network live state
+  Timer? _netTimer;
+  DateTime _lastStatsLoad = DateTime.now();
+  final List<double> _liveSamples = [];
+
+  // Network statistics state
+  _TrafficRange _selectedRange = _TrafficRange.today;
+  DateTime _trafficDay = DateTime.now();
+  NetworkTrafficSummary? _trafficSummary;
+  List<DailyTraffic> _dailyTotals = [];
+  List<HourlyTraffic> _hourlyTotals = [];
+  int _todayRecv = 0;
+  int _todaySent = 0;
+
   @override
   void initState() {
     super.initState();
@@ -56,12 +76,20 @@ class _MyComputerPageState extends State<MyComputerPage> {
         _pollState();
       });
     }
+    // Network monitor is started app-wide in main(); calling again is a no-op
+    // but keeps the service alive when the page is opened in isolation.
+    NetworkMonitorService.instance.start();
+    _netTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _pollNetwork();
+    });
     _loadStats();
+    _loadNetworkStats();
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _netTimer?.cancel();
     _service.dispose();
     super.dispose();
   }
@@ -97,8 +125,6 @@ class _MyComputerPageState extends State<MyComputerPage> {
     _service.resetScrollDelta();
 
     setState(() {
-      _pressedKeys.clear();
-      _pressedKeys.addAll(keys);
       _mouseX = x;
       _mouseY = y;
       _mouseLeft = left;
@@ -129,6 +155,92 @@ class _MyComputerPageState extends State<MyComputerPage> {
   String _formatDate(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
+  // ==================== Network traffic state ====================
+
+  /// Refresh live network samples every second and reload persisted stats
+  /// roughly once a minute so recorded totals stay current.
+  void _pollNetwork() {
+    final service = NetworkMonitorService.instance;
+    if (!service.isRunning) return;
+
+    if (DateTime.now().difference(_lastStatsLoad) >= const Duration(seconds: 60)) {
+      _lastStatsLoad = DateTime.now();
+      _loadNetworkStats();
+    }
+
+    if (_selectedTab != 0) return;
+    _liveSamples.add((service.recvSpeed + service.sentSpeed).toDouble());
+    if (_liveSamples.length > 60) _liveSamples.removeAt(0);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadNetworkStats() async {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    final summary = await NetworkTrafficRepository.getSummary();
+
+    DateTime? rangeStart;
+    switch (_selectedRange) {
+      case _TrafficRange.today:
+        rangeStart = todayStart;
+        break;
+      case _TrafficRange.week:
+        rangeStart = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(const Duration(days: 6));
+        break;
+      case _TrafficRange.month:
+        rangeStart = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(const Duration(days: 29));
+        break;
+      case _TrafficRange.all:
+        rangeStart = null;
+        break;
+    }
+
+    final daily = await NetworkTrafficRepository.getDailyTotals(
+      start: rangeStart,
+      end: null,
+    );
+    final hourly = await NetworkTrafficRepository.getHourlyTotals(_trafficDay);
+
+    var todayRecv = 0;
+    var todaySent = 0;
+    for (final d in daily) {
+      if (d.date.year == todayStart.year &&
+          d.date.month == todayStart.month &&
+          d.date.day == todayStart.day) {
+        todayRecv += d.recvBytes;
+        todaySent += d.sentBytes;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _trafficSummary = summary;
+      _dailyTotals = daily;
+      _hourlyTotals = hourly;
+      _todayRecv = todayRecv;
+      _todaySent = todaySent;
+    });
+  }
+
+  void _selectTrafficRange(_TrafficRange range) {
+    setState(() => _selectedRange = range);
+    _loadNetworkStats();
+  }
+
+  Future<void> _selectTrafficDay(DateTime day) async {
+    setState(() => _trafficDay = day);
+    await _loadNetworkStats();
+  }
+
   @override
   Widget build(BuildContext context) {
     return PageScaffold(
@@ -139,8 +251,10 @@ class _MyComputerPageState extends State<MyComputerPage> {
           const SizedBox(height: NexusSpacing.xs),
           Text(
             _selectedTab == 0
-                ? 'Real-time keyboard and mouse input monitor'
-                : 'Key press statistics with date filtering',
+                ? 'Real-time keyboard, mouse and network monitor'
+                : _selectedTab == 1
+                ? 'Key press statistics with date filtering'
+                : 'Network traffic statistics with time filtering',
             style: NexusTypography.bodyMd.copyWith(
               color: NexusColors.onSurfaceVariant,
             ),
@@ -188,6 +302,11 @@ class _MyComputerPageState extends State<MyComputerPage> {
   }
 
   Widget _buildWithTabs() {
+    const tabs = <(int, IconData, String)>[
+      (0, Icons.monitor_heart_outlined, 'Live Monitor'),
+      (1, Icons.bar_chart_outlined, 'Key Statistics'),
+      (2, Icons.network_check, 'Network Statistics'),
+    ];
     return Column(
       children: [
         // Tab bar
@@ -198,21 +317,27 @@ class _MyComputerPageState extends State<MyComputerPage> {
           ),
           child: Row(
             children: [
-              _buildTab(0, Icons.monitor_heart_outlined, 'Live Monitor'),
-              SizedBox(
-                height: 24,
-                child: VerticalDivider(
-                  width: 1,
-                  color: NexusColors.outlineVariant.withValues(alpha: 0.3),
-                ),
-              ),
-              _buildTab(1, Icons.bar_chart_outlined, 'Key Statistics'),
+              for (var i = 0; i < tabs.length; i++) ...[
+                if (i > 0)
+                  SizedBox(
+                    height: 24,
+                    child: VerticalDivider(
+                      width: 1,
+                      color: NexusColors.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
+                _buildTab(tabs[i].$1, tabs[i].$2, tabs[i].$3),
+              ],
             ],
           ),
         ),
         const SizedBox(height: NexusSpacing.md),
         Expanded(
-          child: _selectedTab == 0 ? _buildContent() : _buildStatsContent(),
+          child: switch (_selectedTab) {
+            0 => _buildContent(),
+            1 => _buildStatsContent(),
+            _ => _buildNetworkStatsContent(),
+          },
         ),
       ],
     );
@@ -269,7 +394,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
         children: [
           _buildMouseSection(),
           const SizedBox(height: NexusSpacing.md),
-          _buildKeyboardSection(),
+          _buildNetworkSection(),
         ],
       ),
     );
@@ -418,49 +543,8 @@ class _MyComputerPageState extends State<MyComputerPage> {
     );
   }
 
-  Widget _buildKeyboardSection() {
-    // Define modifier keys to show separately
-    final modifiers = [
-      VirtualKey.shift,
-      VirtualKey.control,
-      VirtualKey.menu,
-      VirtualKey.lWin,
-    ];
-    final pressedModifiers = modifiers.where((k) => _pressedKeys.contains(k));
-
-    // Currently pressed keys (excluding modifiers already shown)
-    final otherKeys = _pressedKeys.where((k) => !modifiers.contains(k)).toList()
-      ..sort();
-
-    // Common keys to always show in the grid
-    final commonKeys = [
-      VirtualKey.escape,
-      VirtualKey.f1,
-      VirtualKey.f2,
-      VirtualKey.f3,
-      VirtualKey.f4,
-      VirtualKey.f5,
-      VirtualKey.f6,
-      VirtualKey.f7,
-      VirtualKey.f8,
-      VirtualKey.f9,
-      VirtualKey.f10,
-      VirtualKey.f11,
-      VirtualKey.f12,
-    ];
-    final row1 = [
-      VirtualKey.key0,
-      VirtualKey.key1,
-      VirtualKey.key2,
-      VirtualKey.key3,
-      VirtualKey.key4,
-      VirtualKey.key5,
-      VirtualKey.key6,
-      VirtualKey.key7,
-      VirtualKey.key8,
-      VirtualKey.key9,
-    ];
-
+  Widget _buildNetworkSection() {
+    final service = NetworkMonitorService.instance;
     return NexusCard(
       child: Padding(
         padding: const EdgeInsets.all(NexusSpacing.lg),
@@ -469,95 +553,115 @@ class _MyComputerPageState extends State<MyComputerPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.keyboard, size: 20, color: NexusColors.primary),
+                Icon(Icons.network_check, size: 20, color: NexusColors.secondary),
                 const SizedBox(width: NexusSpacing.sm),
-                Text('Keyboard', style: NexusTypography.headlineSm),
+                Text('Network Traffic', style: NexusTypography.headlineSm),
                 const Spacer(),
-                if (pressedModifiers.isNotEmpty)
-                  Text(
-                    pressedModifiers.map((k) => VirtualKey.name(k)).join(' + '),
-                    style: NexusTypography.labelMd.copyWith(
-                      color: NexusColors.secondary,
-                      fontWeight: FontWeight.w600,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: NexusSpacing.sm,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: service.isRunning
+                        ? NexusColors.stockUp.withValues(alpha: 0.12)
+                        : NexusColors.stockDown.withValues(alpha: 0.12),
+                    borderRadius: NexusRadii.fullRadius,
+                  ),
+                  child: Text(
+                    service.isRunning ? 'Live' : 'Offline',
+                    style: NexusTypography.labelSm.copyWith(
+                      color: service.isRunning
+                          ? NexusColors.stockUp
+                          : NexusColors.stockDown,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
+                ),
               ],
             ),
             const SizedBox(height: NexusSpacing.lg),
-            // Modifier keys
-            Wrap(
-              spacing: NexusSpacing.sm,
-              runSpacing: NexusSpacing.sm,
-              children: [
-                for (final code in modifiers)
-                  _buildKeyChip(code, _pressedKeys.contains(code)),
-              ],
-            ),
-            const SizedBox(height: NexusSpacing.md),
-            const Divider(height: 1, color: NexusColors.outlineVariant),
-            const SizedBox(height: NexusSpacing.md),
-            // Function keys
-            Text(
-              'Function Keys',
-              style: NexusTypography.labelSm.copyWith(
-                color: NexusColors.onSurfaceVariant,
+            if (!service.isRunning)
+              SizedBox(
+                height: 140,
+                child: Center(
+                  child: Text(
+                    'network_monitor.dll not available',
+                    style: NexusTypography.bodyMd.copyWith(
+                      color: NexusColors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              )
+            else ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricCard(
+                      icon: Icons.file_download_outlined,
+                      label: 'Download Speed',
+                      value: formatBytes(service.recvSpeed, perSecond: true),
+                    ),
+                  ),
+                  const SizedBox(width: NexusSpacing.md),
+                  Expanded(
+                    child: _buildMetricCard(
+                      icon: Icons.file_upload_outlined,
+                      label: 'Upload Speed',
+                      value: formatBytes(service.sentSpeed, perSecond: true),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: NexusSpacing.sm),
-            Wrap(
-              spacing: NexusSpacing.sm,
-              runSpacing: NexusSpacing.sm,
-              children: [
-                for (final code in commonKeys)
-                  _buildKeyChip(code, _pressedKeys.contains(code)),
-              ],
-            ),
-            const SizedBox(height: NexusSpacing.md),
-            // Number row
-            Text(
-              'Number Row',
-              style: NexusTypography.labelSm.copyWith(
-                color: NexusColors.onSurfaceVariant,
+              const SizedBox(height: NexusSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricCard(
+                      icon: Icons.storage_outlined,
+                      label: 'Session Downloaded',
+                      value: formatBytes(service.totalRecv),
+                    ),
+                  ),
+                  const SizedBox(width: NexusSpacing.md),
+                  Expanded(
+                    child: _buildMetricCard(
+                      icon: Icons.cloud_upload_outlined,
+                      label: 'Session Uploaded',
+                      value: formatBytes(service.totalSent),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: NexusSpacing.sm),
-            Wrap(
-              spacing: NexusSpacing.sm,
-              runSpacing: NexusSpacing.sm,
-              children: [
-                for (final code in row1)
-                  _buildKeyChip(code, _pressedKeys.contains(code)),
-              ],
-            ),
-            const SizedBox(height: NexusSpacing.md),
-            // Letter rows
-            Text(
-              'Letters',
-              style: NexusTypography.labelSm.copyWith(
-                color: NexusColors.onSurfaceVariant,
+              const SizedBox(height: NexusSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricCard(
+                      icon: Icons.today_outlined,
+                      label: "Today's Download",
+                      value: formatBytes(_todayRecv),
+                    ),
+                  ),
+                  const SizedBox(width: NexusSpacing.md),
+                  Expanded(
+                    child: _buildMetricCard(
+                      icon: Icons.today_outlined,
+                      label: "Today's Upload",
+                      value: formatBytes(_todaySent),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: NexusSpacing.sm),
-            ..._buildLetterRows(),
-            const SizedBox(height: NexusSpacing.md),
-            // Other pressed keys
-            if (otherKeys.isNotEmpty) ...[
-              const Divider(height: 1, color: NexusColors.outlineVariant),
               const SizedBox(height: NexusSpacing.md),
               Text(
-                'Other Pressed Keys',
-                style: NexusTypography.labelSm.copyWith(
+                'Traffic Speed (last 60 seconds)',
+                style: NexusTypography.labelMd.copyWith(
                   color: NexusColors.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: NexusSpacing.sm),
-              Wrap(
-                spacing: NexusSpacing.sm,
-                runSpacing: NexusSpacing.sm,
-                children: [
-                  for (final code in otherKeys) _buildKeyChip(code, true),
-                ],
-              ),
+              SizedBox(height: 120, child: _buildLiveMiniChart()),
             ],
           ],
         ),
@@ -565,86 +669,718 @@ class _MyComputerPageState extends State<MyComputerPage> {
     );
   }
 
-  List<Widget> _buildLetterRows() {
-    final rows = [
-      [
-        VirtualKey.q,
-        VirtualKey.w,
-        VirtualKey.e,
-        VirtualKey.r,
-        VirtualKey.t,
-        VirtualKey.y,
-        VirtualKey.u,
-        VirtualKey.i,
-        VirtualKey.o,
-        VirtualKey.p,
-      ],
-      [
-        VirtualKey.a,
-        VirtualKey.s,
-        VirtualKey.d,
-        VirtualKey.f,
-        VirtualKey.g,
-        VirtualKey.h,
-        VirtualKey.j,
-        VirtualKey.k,
-        VirtualKey.l,
-      ],
-      [
-        VirtualKey.z,
-        VirtualKey.x,
-        VirtualKey.c,
-        VirtualKey.v,
-        VirtualKey.b,
-        VirtualKey.n,
-        VirtualKey.m,
-      ],
-    ];
-    return rows.map((row) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
-        child: Wrap(
-          spacing: NexusSpacing.sm,
-          runSpacing: NexusSpacing.sm,
-          children: row.map((code) {
-            return _buildKeyChip(code, _pressedKeys.contains(code));
-          }).toList(),
+  Widget _buildLiveMiniChart() {
+    final samples = _liveSamples;
+    if (samples.length < 2) {
+      return Center(
+        child: Text(
+          'Collecting live traffic samples…',
+          style: NexusTypography.labelMd.copyWith(
+            color: NexusColors.onSurfaceVariant,
+          ),
         ),
       );
-    }).toList();
+    }
+    var maxV = 1.0;
+    for (final s in samples) {
+      if (s > maxV) maxV = s;
+    }
+    return LineChart(
+      LineChartData(
+        minX: 0,
+        maxX: (samples.length - 1).toDouble(),
+        minY: 0,
+        maxY: maxV * 1.15,
+        lineBarsData: [
+          LineChartBarData(
+            spots: [
+              for (var i = 0; i < samples.length; i++)
+                FlSpot(i.toDouble(), samples[i]),
+            ],
+            color: NexusColors.secondary,
+            isCurved: true,
+            barWidth: 2,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: NexusColors.secondary.withValues(alpha: 0.15),
+            ),
+          ),
+        ],
+        titlesData: const FlTitlesData(
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+      ),
+    );
   }
 
-  Widget _buildKeyChip(int code, bool pressed) {
-    final name = VirtualKey.name(code);
-    final color = pressed ? NexusColors.primary : NexusColors.onSurfaceVariant;
-    final bg = pressed
-        ? NexusColors.primary.withValues(alpha: 0.12)
-        : NexusColors.surfaceContainerLow;
+  // ==================== Network Statistics Tab ====================
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: NexusSpacing.sm,
-        horizontal: NexusSpacing.md,
+  Widget _buildNetworkStatsContent() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildNetworkSummaryCard(),
+          const SizedBox(height: NexusSpacing.md),
+          _buildRangeSelector(),
+          const SizedBox(height: NexusSpacing.md),
+          _buildDailyTrafficCard(),
+          const SizedBox(height: NexusSpacing.md),
+          _buildHourlyDetailCard(),
+          const SizedBox(height: NexusSpacing.md),
+          _buildDailyDetailCard(),
+        ],
       ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: NexusRadii.mdRadius,
-        border: Border.all(
-          color: pressed
-              ? color.withValues(alpha: 0.4)
-              : NexusColors.outlineVariant.withValues(alpha: 0.1),
-          width: pressed ? 1.5 : 1,
-        ),
-      ),
-      child: Text(
-        name.length > 5 ? name.substring(0, 5) : name,
-        style: NexusTypography.labelMd.copyWith(
-          fontWeight: pressed ? FontWeight.w700 : FontWeight.w500,
-          color: color,
+    );
+  }
+
+  Widget _buildNetworkSummaryCard() {
+    final s = _trafficSummary;
+    return NexusCard(
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.network_check, size: 20, color: NexusColors.primary),
+                const SizedBox(width: NexusSpacing.sm),
+                Text('Traffic Summary', style: NexusTypography.headlineSm),
+              ],
+            ),
+            const SizedBox(height: NexusSpacing.md),
+            Wrap(
+              spacing: NexusSpacing.md,
+              runSpacing: NexusSpacing.md,
+              children: [
+                _buildTrafficMetric(
+                  'Total Downloaded',
+                  formatBytes(s?.totalRecv ?? 0),
+                  Icons.file_download_outlined,
+                  NexusColors.secondary,
+                ),
+                _buildTrafficMetric(
+                  'Total Uploaded',
+                  formatBytes(s?.totalSent ?? 0),
+                  Icons.file_upload_outlined,
+                  NexusColors.primary,
+                ),
+                _buildTrafficMetric(
+                  'Total Combined',
+                  formatBytes(s?.totalBytes ?? 0),
+                  Icons.swap_vert,
+                  NexusColors.tertiary,
+                ),
+                _buildTrafficMetric(
+                  'Records',
+                  '${s?.recordCount ?? 0} minutes',
+                  Icons.schedule,
+                  NexusColors.stockUp,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
+
+  Widget _buildTrafficMetric(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return SizedBox(
+      width: 220,
+      child: Container(
+        padding: const EdgeInsets.all(NexusSpacing.md),
+        decoration: BoxDecoration(
+          color: NexusColors.surfaceContainerLow,
+          borderRadius: NexusRadii.mdRadius,
+          border: Border.all(
+            color: NexusColors.outlineVariant.withValues(alpha: 0.15),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: NexusSpacing.xs),
+                Text(
+                  label,
+                  style: NexusTypography.labelSm.copyWith(
+                    color: NexusColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: NexusSpacing.xs),
+            Text(
+              value,
+              style: NexusTypography.headlineSm.copyWith(
+                fontWeight: FontWeight.w700,
+                color: NexusColors.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRangeSelector() {
+    const ranges = <(_TrafficRange, String)>[
+      (_TrafficRange.today, 'Today'),
+      (_TrafficRange.week, '7 Days'),
+      (_TrafficRange.month, '30 Days'),
+      (_TrafficRange.all, 'All Time'),
+    ];
+    return NexusCard(
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.md),
+        child: Wrap(
+          spacing: NexusSpacing.sm,
+          runSpacing: NexusSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.date_range,
+                  size: 18,
+                  color: NexusColors.onSurfaceVariant,
+                ),
+                const SizedBox(width: NexusSpacing.sm),
+                Text('Period', style: NexusTypography.labelMd),
+              ],
+            ),
+            for (final (range, label) in ranges) _buildRangeChip(range, label),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRangeChip(_TrafficRange range, String label) {
+    final isSelected = _selectedRange == range;
+    return GestureDetector(
+      onTap: () => _selectTrafficRange(range),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: NexusSpacing.md,
+          vertical: NexusSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? NexusColors.primary.withValues(alpha: 0.1)
+              : NexusColors.surfaceContainerLow,
+          borderRadius: NexusRadii.mdRadius,
+          border: Border.all(
+            color: isSelected
+                ? NexusColors.primary.withValues(alpha: 0.3)
+                : NexusColors.outlineVariant.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Text(
+          label,
+          style: NexusTypography.labelMd.copyWith(
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            color: isSelected
+                ? NexusColors.primary
+                : NexusColors.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyTrafficCard() {
+    final data = _dailyTotals;
+    return NexusCard(
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bar_chart, size: 20, color: NexusColors.secondary),
+                const SizedBox(width: NexusSpacing.sm),
+                Text('Daily Traffic', style: NexusTypography.headlineSm),
+                const Spacer(),
+                _buildTrafficLegend(),
+              ],
+            ),
+            const SizedBox(height: NexusSpacing.lg),
+            if (data.isEmpty)
+              _buildChartEmpty('No traffic recorded in this period')
+            else
+              SizedBox(height: 240, child: _buildDailyBarChart(data)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyBarChart(List<DailyTraffic> data) {
+    var maxBytes = 0;
+    for (final d in data) {
+      if (d.totalBytes > maxBytes) maxBytes = d.totalBytes;
+    }
+    final maxY = (maxBytes <= 0 ? 1 : maxBytes * 1.2).toDouble();
+    final labelStep = (data.length / 8).ceil().clamp(1, data.length);
+
+    return BarChart(
+      BarChartData(
+        maxY: maxY,
+        minY: 0,
+        alignment: BarChartAlignment.spaceAround,
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final d = data[group.x];
+              final label = rodIndex == 0 ? 'Download' : 'Upload';
+              return BarTooltipItem(
+                '${_formatShortDate(d.date)}\n$label '
+                '${formatBytes(rod.toY.toInt())}',
+                const TextStyle(color: Colors.white, fontSize: 11),
+              );
+            },
+          ),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: maxY / 4,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: NexusColors.outlineVariant.withValues(alpha: 0.3),
+            strokeWidth: 1,
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 48,
+              getTitlesWidget: (value, meta) => Text(
+                formatBytes(value.toInt()),
+                style: NexusTypography.labelSm.copyWith(
+                  fontSize: 9,
+                  color: NexusColors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              getTitlesWidget: (value, meta) {
+                final i = value.toInt();
+                if (i < 0 || i >= data.length || i % labelStep != 0) {
+                  return const SizedBox.shrink();
+                }
+                final d = data[i].date;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${d.month}/${d.day}',
+                    style: NexusTypography.labelSm.copyWith(
+                      fontSize: 9,
+                      color: NexusColors.onSurfaceVariant,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        barGroups: [
+          for (var i = 0; i < data.length; i++)
+            BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: data[i].recvBytes.toDouble(),
+                  color: NexusColors.secondary,
+                  width: 8,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(3),
+                  ),
+                ),
+                BarChartRodData(
+                  toY: data[i].sentBytes.toDouble(),
+                  color: NexusColors.primary,
+                  width: 8,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(3),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHourlyDetailCard() {
+    final data = _hourlyTotals;
+    return NexusCard(
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.schedule, size: 20, color: NexusColors.tertiary),
+                const SizedBox(width: NexusSpacing.sm),
+                Text('Hourly Detail', style: NexusTypography.headlineSm),
+                const Spacer(),
+                _buildTrafficLegend(),
+              ],
+            ),
+            const SizedBox(height: NexusSpacing.md),
+            _buildTrafficDaySelector(),
+            const SizedBox(height: NexusSpacing.md),
+            if (data.every((h) => h.totalBytes == 0))
+              _buildChartEmpty(
+                'No traffic recorded on ${_formatDate(_trafficDay)}',
+              )
+            else
+              SizedBox(height: 200, child: _buildHourlyLineChart(data)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrafficDaySelector() {
+    final isToday = _formatDate(_trafficDay) == _formatDate(DateTime.now());
+    return Row(
+      children: [
+        IconButton(
+          onPressed: () =>
+              _selectTrafficDay(_trafficDay.subtract(const Duration(days: 1))),
+          icon: const Icon(Icons.chevron_left),
+          tooltip: 'Previous day',
+        ),
+        Expanded(
+          child: GestureDetector(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _trafficDay,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now(),
+              );
+              if (picked != null) _selectTrafficDay(picked);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                vertical: NexusSpacing.sm,
+                horizontal: NexusSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: NexusColors.surfaceContainerLow,
+                borderRadius: NexusRadii.mdRadius,
+                border: Border.all(
+                  color: NexusColors.outlineVariant.withValues(alpha: 0.15),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _formatDate(_trafficDay),
+                    style: NexusTypography.bodyMd.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: NexusSpacing.sm),
+                  const Icon(
+                    Icons.arrow_drop_down,
+                    size: 20,
+                    color: NexusColors.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: isToday
+              ? null
+              : () => _selectTrafficDay(_trafficDay.add(const Duration(days: 1))),
+          icon: const Icon(Icons.chevron_right),
+          tooltip: 'Next day',
+        ),
+        TextButton(
+          onPressed: () => _selectTrafficDay(DateTime.now()),
+          child: const Text('Today'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHourlyLineChart(List<HourlyTraffic> data) {
+    var maxBytes = 0;
+    for (final h in data) {
+      if (h.totalBytes > maxBytes) maxBytes = h.totalBytes;
+    }
+    final maxY = (maxBytes <= 0 ? 1 : maxBytes * 1.2).toDouble();
+
+    return LineChart(
+      LineChartData(
+        minX: 0,
+        maxX: 23,
+        minY: 0,
+        maxY: maxY,
+        lineBarsData: [
+          LineChartBarData(
+            spots: [
+              for (var h = 0; h < 24; h++)
+                FlSpot(h.toDouble(), data[h].recvBytes.toDouble()),
+            ],
+            color: NexusColors.secondary,
+            isCurved: true,
+            barWidth: 2,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: NexusColors.secondary.withValues(alpha: 0.15),
+            ),
+          ),
+          LineChartBarData(
+            spots: [
+              for (var h = 0; h < 24; h++)
+                FlSpot(h.toDouble(), data[h].sentBytes.toDouble()),
+            ],
+            color: NexusColors.primary,
+            isCurved: true,
+            barWidth: 2,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: NexusColors.primary.withValues(alpha: 0.15),
+            ),
+          ),
+        ],
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: maxY / 4,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: NexusColors.outlineVariant.withValues(alpha: 0.3),
+            strokeWidth: 1,
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 48,
+              getTitlesWidget: (value, meta) => Text(
+                formatBytes(value.toInt()),
+                style: NexusTypography.labelSm.copyWith(
+                  fontSize: 9,
+                  color: NexusColors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 24,
+              interval: 3,
+              getTitlesWidget: (value, meta) => Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '${value.toInt()}h',
+                  style: NexusTypography.labelSm.copyWith(
+                    fontSize: 9,
+                    color: NexusColors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyDetailCard() {
+    final data = _dailyTotals.reversed.toList();
+    if (data.isEmpty) return const SizedBox.shrink();
+    var maxBytes = 0;
+    for (final d in data) {
+      if (d.totalBytes > maxBytes) maxBytes = d.totalBytes;
+    }
+    return NexusCard(
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.list_alt, size: 20, color: NexusColors.secondary),
+                const SizedBox(width: NexusSpacing.sm),
+                Text('Daily Breakdown', style: NexusTypography.headlineSm),
+              ],
+            ),
+            const SizedBox(height: NexusSpacing.md),
+            ...data.map((d) => _buildDailyRow(d, maxBytes)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyRow(DailyTraffic d, int maxBytes) {
+    final ratio = maxBytes > 0 ? d.totalBytes / maxBytes : 0.0;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 96,
+            child: Text(
+              '${d.date.month}/${d.date.day}',
+              style: NexusTypography.labelMd.copyWith(
+                fontWeight: FontWeight.w600,
+                color: NexusColors.onSurface,
+              ),
+            ),
+          ),
+          const SizedBox(width: NexusSpacing.sm),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: NexusRadii.smRadius,
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 14,
+                backgroundColor: NexusColors.surfaceContainerLow,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Color.lerp(
+                    NexusColors.secondary.withValues(alpha: 0.4),
+                    NexusColors.secondary,
+                    ratio,
+                  )!,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: NexusSpacing.sm),
+          SizedBox(
+            width: 150,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '↓ ${formatBytes(d.recvBytes)}',
+                  style: NexusTypography.labelSm.copyWith(
+                    color: NexusColors.secondary,
+                    fontSize: 10,
+                  ),
+                ),
+                Text(
+                  '↑ ${formatBytes(d.sentBytes)}',
+                  style: NexusTypography.labelSm.copyWith(
+                    color: NexusColors.onSurfaceVariant,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrafficLegend() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildLegendDot(NexusColors.secondary, 'Download'),
+        const SizedBox(width: NexusSpacing.md),
+        _buildLegendDot(NexusColors.primary, 'Upload'),
+      ],
+    );
+  }
+
+  Widget _buildLegendDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: NexusRadii.smRadius,
+          ),
+        ),
+        const SizedBox(width: NexusSpacing.xs),
+        Text(label, style: NexusTypography.labelSm),
+      ],
+    );
+  }
+
+  Widget _buildChartEmpty(String message) {
+    return SizedBox(
+      height: 180,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.network_check,
+              size: 40,
+              color: NexusColors.onSurfaceVariant.withValues(alpha: 0.25),
+            ),
+            const SizedBox(height: NexusSpacing.sm),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: NexusTypography.bodyMd.copyWith(
+                color: NexusColors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatShortDate(DateTime date) => '${date.month}/${date.day}';
 
   // ==================== Key Statistics Tab ====================
 

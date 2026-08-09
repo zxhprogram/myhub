@@ -107,6 +107,11 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/input_hook.dll"
   DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
+# Copy the network_monitor.dll to the output directory.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/network_monitor.dll"
+  DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
+
 # Install the AOT library on non-Debug builds only.
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
