@@ -15,6 +15,7 @@ import '../components/desktop_folder.dart';
 import '../components/wallpaper_picker_dialog.dart';
 import '../pages/ai_chat_page.dart';
 import '../pages/bookmarks_page.dart';
+import '../pages/calendar_page.dart';
 import '../pages/camera_page.dart';
 import '../pages/clipboard_history_page.dart';
 import '../pages/dashboard_page.dart';
@@ -248,6 +249,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       gradientStart: const Color(0xFF5AC8FA),
       gradientEnd: const Color(0xFF0A84FF),
     ),
+    DesktopAppItem(
+      label: 'Calendar',
+      icon: Icons.calendar_month_outlined,
+      route: '/calendar',
+      pageBuilder: (_) => const CalendarPage(),
+      gradientStart: const Color(0xFFFF453A),
+      gradientEnd: const Color(0xFFC60E0E),
+    ),
   ];
 
   /// Key to access the [WindowNavigatorHandle] for adding/removing windows.
@@ -266,12 +275,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     PomodoroState.instance.init();
     DesktopState.instance.init(
       defaults: _appItems
-          .map((a) => DesktopItem(
-                id: a.route,
-                type: DesktopItemType.app,
-                label: a.label,
-                appRoute: a.route,
-              ))
+          .map(
+            (a) => DesktopItem(
+              id: a.route,
+              type: DesktopItemType.app,
+              label: a.label,
+              appRoute: a.route,
+            ),
+          )
           .toList(),
     );
   }
@@ -435,7 +446,10 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
   /// Shows a dialog to rename a folder.
   Future<void> _renameFolderDialog(
-      BuildContext context, String folderId, String currentName) async {
+    BuildContext context,
+    String folderId,
+    String currentName,
+  ) async {
     final controller = TextEditingController(text: currentName);
     final name = await showDialog<String>(
       context: context,
@@ -469,7 +483,9 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
   /// Shows a confirmation dialog before deleting a folder.
   Future<void> _confirmDeleteFolder(
-      BuildContext context, String folderId) async {
+    BuildContext context,
+    String folderId,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -482,9 +498,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('删除'),
           ),
         ],
@@ -561,7 +575,12 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
               ),
             ),
             // Dock at bottom
-            Positioned(bottom: 8, left: 0, right: 0, child: _buildDock(context)),
+            Positioned(
+              bottom: 8,
+              left: 0,
+              right: 0,
+              child: _buildDock(context),
+            ),
           ],
         ),
       );
@@ -624,7 +643,8 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
           );
         },
         children: desktopItems.map((item) {
-          final isOpen = item.type == DesktopItemType.app &&
+          final isOpen =
+              item.type == DesktopItemType.app &&
               _openWindows.containsKey(item.appRoute);
           return _DesktopIcon(
             key: ValueKey(item.id),
@@ -633,9 +653,9 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
             onTap: () {
               if (item.type == DesktopItemType.app) {
                 final appItem = _appItems.cast<DesktopAppItem?>().firstWhere(
-                      (a) => a!.route == item.appRoute,
-                      orElse: () => null,
-                    );
+                  (a) => a!.route == item.appRoute,
+                  orElse: () => null,
+                );
                 if (appItem != null) _openAppWindow(appItem);
               }
             },
@@ -644,7 +664,10 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
                 : null,
             onRename: item.type == DesktopItemType.folder
                 ? () => _renameFolderDialog(
-                      context, item.id, item.folderName ?? '')
+                    context,
+                    item.id,
+                    item.folderName ?? '',
+                  )
                 : null,
             onDelete: item.type == DesktopItemType.folder
                 ? () => _confirmDeleteFolder(context, item.id)
@@ -711,7 +734,11 @@ class _MenuBar extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.apple, size: 16, color: Colors.white.withValues(alpha: 0.9)),
+              Icon(
+                Icons.apple,
+                size: 16,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
               const SizedBox(width: 8),
               Text(
                 'Nexus Hub',
@@ -752,8 +779,12 @@ class _ClockWidgetState extends State<_ClockWidget> {
     // Sync to the next whole second so the update is aligned.
     final now = DateTime.now();
     final nextSecond = DateTime(
-      now.year, now.month, now.day,
-      now.hour, now.minute, now.second + 1,
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute,
+      now.second + 1,
     );
     final delay = nextSecond.difference(now).inMilliseconds;
     _timer = Timer(Duration(milliseconds: delay), _tick);
@@ -913,7 +944,8 @@ class _DesktopIcon extends StatelessWidget {
   Widget _buildFolderIcon(BuildContext context) {
     final folderName = item.label ?? item.folderName ?? '文件夹';
     return DragTarget<DesktopItem>(
-      onWillAcceptWithDetails: (details) => details.data.type == DesktopItemType.app,
+      onWillAcceptWithDetails: (details) =>
+          details.data.type == DesktopItemType.app,
       onAcceptWithDetails: (details) {
         DesktopState.instance.moveItemToFolder(details.data.id, item.id);
       },

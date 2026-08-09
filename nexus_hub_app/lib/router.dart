@@ -63,10 +63,7 @@ class AppRouter {
             path: '/dev-tools',
             builder: (context, state) => const DevToolsPage(),
           ),
-          GoRoute(
-            path: '/mail',
-            builder: (context, state) => const MailPage(),
-          ),
+          GoRoute(path: '/mail', builder: (context, state) => const MailPage()),
           GoRoute(
             path: '/pomodoro',
             builder: (context, state) => const PomodoroPage(),
