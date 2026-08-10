@@ -115,6 +115,12 @@ class SideNavigation extends StatelessWidget {
                     title: 'Developer',
                     items: [
                       _NavItem(
+                        label: 'GitHub Trending',
+                        icon: Icons.trending_up,
+                        path: '/github-trending',
+                        currentPath: currentPath,
+                      ),
+                      _NavItem(
                         label: 'DevTools',
                         icon: Icons.construction,
                         path: '/dev-tools',

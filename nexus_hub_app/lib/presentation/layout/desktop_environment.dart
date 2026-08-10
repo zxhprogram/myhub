@@ -28,6 +28,7 @@ import '../pages/rss_reader_page.dart';
 import '../pages/stocks_page.dart';
 import '../pages/tasks_page.dart';
 import '../pages/terminal_page.dart';
+import '../pages/trending_page.dart';
 import '../states/desktop_state.dart';
 import '../states/pomodoro_state.dart';
 import '../states/wallpaper_state.dart';
@@ -225,6 +226,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const DevToolsPage(),
       gradientStart: const Color(0xFFFF9500),
       gradientEnd: const Color(0xFFFF3B30),
+    ),
+    DesktopAppItem(
+      label: 'GitHub Trending',
+      icon: Icons.trending_up,
+      route: '/github-trending',
+      pageBuilder: (_) => const TrendingPage(),
+      gradientStart: const Color(0xFF4078C0),
+      gradientEnd: const Color(0xFF24292E),
     ),
     DesktopAppItem(
       label: 'Terminal',

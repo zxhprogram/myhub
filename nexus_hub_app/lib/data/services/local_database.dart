@@ -23,6 +23,7 @@ class LocalDatabase {
     'global_indices',
     'key_stats',
     'network_traffic',
+    'trending_repos',
   ];
 
   /// Use a temporary Hive directory for unit testing.

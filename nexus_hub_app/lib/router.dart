@@ -14,6 +14,7 @@ import 'presentation/pages/pomodoro_page.dart';
 import 'presentation/pages/rss_reader_page.dart';
 import 'presentation/pages/stocks_page.dart';
 import 'presentation/pages/tasks_page.dart';
+import 'presentation/pages/trending_page.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -54,6 +55,10 @@ class AppRouter {
           GoRoute(
             path: '/stocks',
             builder: (context, state) => const StocksPage(),
+          ),
+          GoRoute(
+            path: '/github-trending',
+            builder: (context, state) => const TrendingPage(),
           ),
           GoRoute(
             path: '/my-computer',
