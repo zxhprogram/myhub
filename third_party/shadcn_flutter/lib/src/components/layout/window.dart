@@ -1166,6 +1166,21 @@ class _WindowWidgetState extends State<WindowWidget> with WindowHandle {
                 );
               },
               child: windowClient);
+          // Minimize animation - scale to 0 with fade when minimized
+          windowClient = AnimatedValueBuilder(
+              initialValue: 1.0,
+              value: state.minimized ? 0.0 : 1.0,
+              duration: kDefaultDuration,
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value,
+                  child: Transform.scale(
+                    scale: value,
+                    child: child,
+                  ),
+                );
+              },
+              child: windowClient);
           windowClient = AnimatedScale(
             scale: (_viewport?.minify ?? false) ? 0.65 : 1.0,
             duration: kDefaultDuration,
@@ -1174,7 +1189,7 @@ class _WindowWidgetState extends State<WindowWidget> with WindowHandle {
             child: windowClient,
           );
           windowClient = IgnorePointer(
-            ignoring: _viewport?.ignorePointer ?? false,
+            ignoring: (_viewport?.ignorePointer ?? false) || state.minimized,
             child: windowClient,
           );
           Widget windowContainer = Listener(

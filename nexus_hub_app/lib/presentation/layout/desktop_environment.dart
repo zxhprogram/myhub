@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_reorderable_grid_view/entities/reorder_update_entity.dart';
@@ -304,12 +305,19 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   }
 
   void _openAppWindow(DesktopAppItem appItem) {
-    // If window already open, focus it instead of creating a new one
+    // If window already open, focus or toggle minimize
     if (_openWindows.containsKey(appItem.route)) {
       final entry = _openWindows[appItem.route]!;
-      _navigatorHandle?.focusWindow(entry.window);
       if (entry.controller.minimized) {
+        // Restore minimized window
         entry.controller.minimized = false;
+        _navigatorHandle?.focusWindow(entry.window);
+      } else if (entry.window.handle.focused) {
+        // Minimize if already focused (macOS behavior)
+        entry.controller.minimized = true;
+      } else {
+        // Focus if not focused
+        _navigatorHandle?.focusWindow(entry.window);
       }
       return;
     }
@@ -680,32 +688,35 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
   Widget _buildDock(BuildContext context) {
     return Center(
-      child: Container(
-        // Height + extra headroom so the icon column (48 + 4 + 4) never
-        // collides with the border/decoration shrink that triggers a
-        // RenderFlex overflow assertion.
-        height: 80,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (int i = 0; i < _appItems.length; i++) ...[
-              if (i > 0) const SizedBox(width: 4),
-              _DockIcon(
-                icon: _appItems[i].icon,
-                gradientStart: _appItems[i].gradientStart,
-                gradientEnd: _appItems[i].gradientEnd,
-                label: _appItems[i].label,
-                isActive: _openWindows.containsKey(_appItems[i].route),
-                onTap: () => _openAppWindow(_appItems[i]),
-              ),
-            ],
-          ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+          child: Container(
+            height: 80,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (int i = 0; i < _appItems.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 2),
+                  _DockIcon(
+                    icon: _appItems[i].icon,
+                    gradientStart: _appItems[i].gradientStart,
+                    gradientEnd: _appItems[i].gradientEnd,
+                    label: _appItems[i].label,
+                    isActive: _openWindows.containsKey(_appItems[i].route),
+                    onTap: () => _openAppWindow(_appItems[i]),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1044,8 +1055,9 @@ DesktopAppItem? _resolveAppItem(String route) {
   }
 }
 
-/// A dock icon at the bottom of the desktop.
-class _DockIcon extends StatelessWidget {
+/// A dock icon at the bottom of the desktop, with macOS-style hover
+/// magnification, app label preview, and window preview for active apps.
+class _DockIcon extends StatefulWidget {
   final IconData icon;
   final String label;
   final Color gradientStart;
@@ -1063,51 +1075,269 @@ class _DockIcon extends StatelessWidget {
   });
 
   @override
+  State<_DockIcon> createState() => _DockIconState();
+}
+
+class _DockIconState extends State<_DockIcon> {
+  bool _isHovering = false;
+  bool _showPreview = false;
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    final iconSize = _isHovering ? 56.0 : 48.0;
+    final iconRadius = iconSize * 0.23;
+
+    return SizedBox(
+      width: _isHovering ? 68 : 52,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          AnimatedScale(
-            scale: isActive ? 1.12 : 1.0,
-            duration: const Duration(milliseconds: 120),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: gradientEnd.withValues(alpha: 0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 1),
+          // Main layout: icon + active indicator (fits within dock height)
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Dock icon with magnification
+              GestureDetector(
+                onTap: widget.onTap,
+                onSecondaryTap: _showContextMenu,
+                child: MouseRegion(
+                  onEnter: (_) => setState(() {
+                    _isHovering = true;
+                    if (widget.isActive) {
+                      _showPreview = true;
+                    }
+                  }),
+                  onExit: (_) => setState(() {
+                    _isHovering = false;
+                    _showPreview = false;
+                  }),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    curve: Curves.easeOut,
+                    width: iconSize,
+                    height: iconSize,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(iconRadius),
+                      boxShadow: [
+                        BoxShadow(
+                          color: widget.gradientEnd.withValues(
+                            alpha: _isHovering ? 0.5 : 0.3,
+                          ),
+                          blurRadius: _isHovering ? 12 : 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: _MacOsSquircle(
+                      gradientStart: widget.gradientStart,
+                      gradientEnd: widget.gradientEnd,
+                      size: iconSize,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        child: Icon(
+                          widget.icon,
+                          size: _isHovering ? 26 : 22,
+                        ),
+                      ),
+                    ),
                   ),
-                ],
+                ),
               ),
-              child: _MacOsSquircle(
-                gradientStart: gradientStart,
-                gradientEnd: gradientEnd,
-                size: 48,
-                child: Icon(icon, size: 22),
+              // Active indicator dot (macOS style)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: widget.isActive ? 4 : 0,
+                height: 4,
+                margin: const EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(
+                    alpha: widget.isActive
+                        ? (_isHovering ? 0.9 : 0.6)
+                        : 0.0,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+
+          // App label - positioned above the icon (overflow outside dock)
+          if (_isHovering)
+            Positioned(
+              bottom: iconSize + 12, // icon height + dot area + gap
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    widget.label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
             ),
-          ),
-          // Running application indicator dot, like macOS.
-          if (isActive)
-            Container(
-              width: 4,
-              height: 4,
-              margin: const EdgeInsets.only(top: 4),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-            )
-          else
-            const SizedBox(height: 8),
+
+          // Window preview - positioned above label
+          if (_showPreview && widget.isActive)
+            Positioned(
+              bottom: iconSize + 12 + 22 + 4,
+              // icon + dot area + label height + gap
+              left: 0,
+              right: 0,
+              child: Center(child: _buildWindowPreview()),
+            ),
         ],
       ),
     );
+  }
+
+  /// Builds a small macOS-style window preview card that appears above the
+  /// dock icon when hovering over an active (open) application.
+  Widget _buildWindowPreview() {
+    return Container(
+      width: 130,
+      height: 90,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xFF2C2C2E),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: Column(
+          children: [
+            // macOS traffic light title bar
+            Container(
+              height: 20,
+              color: const Color(0xFF3A3A3C),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  // Red
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFFFF5F57),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Yellow
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFFFEBC2E),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Green
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFF28C840),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      widget.label,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 8,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Preview content area
+            Expanded(
+              child: Center(
+                child: Opacity(
+                  opacity: 0.2,
+                  child: Icon(widget.icon, size: 28),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Shows a macOS-style context menu on right-click.
+  void _showContextMenu() {
+    final context = this.context;
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) return;
+
+    final offset = renderBox.localToGlobal(Offset.zero);
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        offset.dy,
+        offset.dx + renderBox.size.width,
+        offset.dy + renderBox.size.height,
+      ),
+      items: [
+        if (widget.isActive) ...[
+          const PopupMenuItem(
+            value: 'hide',
+            child: Text('隐藏'),
+          ),
+          const PopupMenuItem(
+            value: 'quit',
+            child: Text('退出'),
+          ),
+        ] else ...[
+          const PopupMenuItem(
+            value: 'open',
+            child: Text('打开'),
+          ),
+        ],
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'options',
+          child: Text('选项'),
+        ),
+      ],
+    ).then((value) {
+      if (value == null) return;
+      switch (value) {
+        case 'open':
+          widget.onTap();
+        case 'hide':
+          widget.onTap();
+        case 'quit':
+          widget.onTap();
+      }
+    });
   }
 }
