@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -25,6 +24,7 @@ class PomodoroPage extends StatefulWidget {
 class _PomodoroPageState extends State<PomodoroPage> {
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return PageScaffold(
       header: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -38,7 +38,7 @@ class _PomodoroPageState extends State<PomodoroPage> {
               Text(
                 'Focus sessions with scheduled breaks',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -72,10 +72,11 @@ class _ModeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(NexusSpacing.xs),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerHigh,
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: NexusRadii.fullRadius,
       ),
       child: Row(
@@ -99,6 +100,7 @@ class _ModeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final state = PomodoroState.instance;
     state.mode.watch(context);
     final selected = state.mode.value == mode;
@@ -114,13 +116,13 @@ class _ModeChip extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: selected
-              ? NexusColors.surfaceContainerLowest
+              ? colorScheme.surfaceContainerLowest
               : Colors.transparent,
           borderRadius: NexusRadii.fullRadius,
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: NexusColors.onSurface.withValues(alpha: 0.08),
+                    color: colorScheme.onSurface.withValues(alpha: 0.08),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -131,8 +133,8 @@ class _ModeChip extends StatelessWidget {
           _label(mode),
           style: NexusTypography.labelMd.copyWith(
             color: selected
-                ? NexusColors.primary
-                : NexusColors.onSurfaceVariant,
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -153,6 +155,7 @@ class _TimerRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final state = PomodoroState.instance;
     state.mode.watch(context);
     state.remainingSeconds.watch(context);
@@ -174,7 +177,7 @@ class _TimerRing extends StatelessWidget {
             painter: _RingPainter(
               progress: value,
               color: color,
-              trackColor: NexusColors.onSurface.withValues(alpha: 0.08),
+              trackColor: colorScheme.onSurface.withValues(alpha: 0.08),
             ),
             child: Center(
               child: Column(
@@ -193,7 +196,7 @@ class _TimerRing extends StatelessWidget {
                   Text(
                     _modeLabel(state.mode.value),
                     style: NexusTypography.labelMd.copyWith(
-                      color: NexusColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -270,6 +273,7 @@ class _TimerControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final state = PomodoroState.instance;
     state.isRunning.watch(context);
     final running = state.isRunning.value;
@@ -307,6 +311,7 @@ class _ControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Tooltip(
       message: tooltip ?? '',
       child: InkWell(
@@ -316,10 +321,10 @@ class _ControlButton extends StatelessWidget {
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: NexusColors.surfaceContainerHigh,
+            color: colorScheme.surfaceContainerHigh,
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: NexusColors.onSurface, size: 22),
+          child: Icon(icon, color: colorScheme.onSurface, size: 22),
         ),
       ),
     );
@@ -339,6 +344,7 @@ class _PrimaryControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: NexusRadii.fullRadius,
@@ -348,10 +354,10 @@ class _PrimaryControlButton extends StatelessWidget {
           vertical: NexusSpacing.md,
         ),
         decoration: BoxDecoration(
-          color: NexusColors.secondary,
+          color: colorScheme.secondary,
           boxShadow: [
             BoxShadow(
-              color: NexusColors.secondary.withValues(alpha: 0.35),
+              color: colorScheme.secondary.withValues(alpha: 0.35),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -361,12 +367,12 @@ class _PrimaryControlButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.white, size: 22),
+            Icon(icon, color: colorScheme.onSecondary, size: 22),
             const SizedBox(width: NexusSpacing.sm),
             Text(
               label,
               style: NexusTypography.labelMd.copyWith(
-                color: Colors.white,
+                color: colorScheme.onSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -383,6 +389,7 @@ class _DailyGoal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final completed = PomodoroState.instance.completedFocus.watch(context);
     const target = 4;
     final reached = completed >= target;
@@ -392,7 +399,7 @@ class _DailyGoal extends StatelessWidget {
         vertical: NexusSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLow,
+        color: colorScheme.surfaceContainerLow,
         borderRadius: NexusRadii.lgRadius,
       ),
       child: Row(
@@ -403,7 +410,7 @@ class _DailyGoal extends StatelessWidget {
             size: 18,
             color: reached
                 ? const Color(0xFFFF9500)
-                : NexusColors.onSurfaceVariant,
+                : colorScheme.onSurfaceVariant,
           ),
           const SizedBox(width: NexusSpacing.sm),
           Text(
@@ -427,6 +434,7 @@ class _CompletedFocusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Watch((_) {
       final completed = PomodoroState.instance.completedFocus.value;
       return Container(
@@ -435,7 +443,7 @@ class _CompletedFocusBadge extends StatelessWidget {
           vertical: NexusSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: NexusColors.surfaceContainerHigh,
+          color: colorScheme.surfaceContainerHigh,
           borderRadius: NexusRadii.fullRadius,
         ),
         child: Row(

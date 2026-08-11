@@ -3,7 +3,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/trending_repo_model.dart';
 import '../../data/services/trending_service.dart';
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -64,6 +63,7 @@ class _TrendingPageState extends State<TrendingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return PageScaffold(
       header: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -77,7 +77,7 @@ class _TrendingPageState extends State<TrendingPage> {
               Text(
                 'Discover popular open-source repositories',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -90,12 +90,13 @@ class _TrendingPageState extends State<TrendingPage> {
   }
 
   Widget _buildSinceSelector() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         const Icon(
           Icons.calendar_today_outlined,
           size: 14,
-          color: NexusColors.onSurfaceVariant,
+          color: colorScheme.onSurfaceVariant,
         ),
         const SizedBox(width: NexusSpacing.xs),
         for (final (since, label) in [
@@ -115,6 +116,7 @@ class _TrendingPageState extends State<TrendingPage> {
   }
 
   Widget _buildLoading() {
+    final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       child: SizedBox(
         height: 320,
@@ -124,7 +126,7 @@ class _TrendingPageState extends State<TrendingPage> {
             height: 24,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: NexusColors.primary.withValues(alpha: 0.6),
+              color: colorScheme.primary.withValues(alpha: 0.6),
             ),
           ),
         ),
@@ -156,6 +158,7 @@ class TrendingRepoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       onTap: () => _openRepo(context),
       padding: const EdgeInsets.all(NexusSpacing.md),
@@ -169,7 +172,7 @@ class TrendingRepoCard extends StatelessWidget {
                 Text(
                   repo.fullName,
                   style: NexusTypography.labelMd.copyWith(
-                    color: NexusColors.secondary,
+                    color: colorScheme.secondary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -199,6 +202,7 @@ class TrendingRepoCard extends StatelessWidget {
   }
 
   Widget _buildMetadataRow(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     // Transparent placeholder keeps the row height consistent between
     // leading-icon and no-leading-icon languages.
     final languageColor =
@@ -307,10 +311,11 @@ class _IconStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: NexusColors.onSurfaceVariant),
+        Icon(icon, size: 14, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
         Text(text, style: NexusTypography.labelSm),
       ],
@@ -325,9 +330,10 @@ class _ContributorPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       alignment: Alignment.center,
-      color: NexusColors.surfaceContainerHigh,
+      color: colorScheme.surfaceContainerHigh,
       child: Text(
         text.isEmpty ? '?' : text.characters.first.toUpperCase(),
         style: NexusTypography.labelSm.copyWith(
@@ -354,15 +360,16 @@ class _SelectableChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: isSelected ? NexusColors.primary : Colors.transparent,
+      color: isSelected ? colorScheme.primary : Colors.transparent,
       borderRadius: NexusRadii.fullRadius,
       child: InkWell(
         onTap: onTap,
         borderRadius: NexusRadii.fullRadius,
         hoverColor: isSelected
             ? null
-            : NexusColors.surfaceContainerHigh.withValues(alpha: 0.5),
+            : colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: NexusSpacing.sm,
@@ -373,15 +380,15 @@ class _SelectableChip extends StatelessWidget {
             border: Border.all(
               color: isSelected
                   ? Colors.transparent
-                  : NexusColors.outlineVariant.withValues(alpha: 0.6),
+                  : colorScheme.outlineVariant.withValues(alpha: 0.6),
             ),
           ),
           child: Text(
             label,
             style: NexusTypography.labelSm.copyWith(
               color: isSelected
-                  ? NexusColors.onPrimary
-                  : NexusColors.onSurfaceVariant,
+                  ? colorScheme.onPrimary
+                  : colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),

@@ -8,7 +8,6 @@ import 'package:signals_flutter/signals_flutter.dart';
 import '../../data/models/bookmark_model.dart';
 import '../../data/models/collection_model.dart';
 import '../../data/repositories/bookmark_repository.dart';
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -16,6 +15,7 @@ import '../components/nexus_badge.dart';
 import '../components/nexus_button.dart';
 import '../components/nexus_category_select.dart';
 import '../components/nexus_chip_input.dart';
+import '../components/nexus_empty_state.dart';
 import '../components/nexus_input.dart';
 import '../states/bookmarks_state.dart';
 import '../states/collections_state.dart';
@@ -72,8 +72,9 @@ class _BookmarksPageState extends State<BookmarksPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: NexusColors.background,
+      color: colorScheme.background,
       padding: const EdgeInsets.all(NexusSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,7 +112,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                               child: Text(
                                 'Error: ${_state.error.value}',
                                 style: NexusTypography.bodyMd.copyWith(
-                                  color: NexusColors.error,
+                                  color: colorScheme.error,
                                 ),
                               ),
                             );
@@ -120,7 +121,12 @@ class _BookmarksPageState extends State<BookmarksPage> {
                             _state.bookmarks.value,
                           );
                           if (visible.isEmpty) {
-                            return const _EmptyState();
+                            return const NexusEmptyState(
+                              icon: Icons.bookmark_border,
+                              title: 'No bookmarks found',
+                              subtitle:
+                                  'Try adjusting your filters or add a new bookmark.',
+                            );
                           }
                           return switch (_view.value) {
                             BookmarkView.grid => _BookmarkGrid(
@@ -214,8 +220,10 @@ class _BookmarksPageState extends State<BookmarksPage> {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: NexusColors.surfaceContainerLowest,
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+        backgroundColor: colorScheme.surfaceContainerLowest,
         shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
         title: Text('Delete Bookmark?', style: NexusTypography.headlineSm),
         content: Text(
@@ -229,10 +237,11 @@ class _BookmarksPageState extends State<BookmarksPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Delete', style: TextStyle(color: NexusColors.error)),
+            child: Text('Delete', style: TextStyle(color: colorScheme.error)),
           ),
         ],
-      ),
+        );
+      },
     );
     if (confirmed == true && bookmark.id != null) {
       await _state.delete(bookmark.id!);
@@ -279,6 +288,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -296,13 +306,13 @@ class _Header extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: NexusColors.surfaceContainer,
+                    color: colorScheme.surfaceContainer,
                     borderRadius: NexusRadii.fullRadius,
                   ),
                   child: Text(
                     '$count',
                     style: NexusTypography.labelSm.copyWith(
-                      color: NexusColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -312,7 +322,7 @@ class _Header extends StatelessWidget {
             Text(
               'Manage and organize your saved links.',
               style: NexusTypography.bodyMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -341,11 +351,12 @@ class _ViewToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLowest,
-        border: Border.all(color: NexusColors.outlineVariant),
+        color: colorScheme.surfaceContainerLowest,
+        border: Border.all(color: colorScheme.outlineVariant),
         borderRadius: NexusRadii.lgRadius,
       ),
       child: Row(
@@ -354,16 +365,19 @@ class _ViewToggle extends StatelessWidget {
           _toggleButton(
             icon: Icons.grid_view,
             active: view == BookmarkView.grid,
+            colorScheme: colorScheme,
             onTap: () => onChanged(BookmarkView.grid),
           ),
           _toggleButton(
             icon: Icons.view_list,
             active: view == BookmarkView.list,
+            colorScheme: colorScheme,
             onTap: () => onChanged(BookmarkView.list),
           ),
           _toggleButton(
             icon: Icons.apps,
             active: view == BookmarkView.icons,
+            colorScheme: colorScheme,
             onTap: () => onChanged(BookmarkView.icons),
           ),
         ],
@@ -374,10 +388,13 @@ class _ViewToggle extends StatelessWidget {
   Widget _toggleButton({
     required IconData icon,
     required bool active,
+    required ColorScheme colorScheme,
     required VoidCallback onTap,
   }) {
     return Material(
-      color: active ? NexusColors.surfaceVariant : Colors.transparent,
+      color: active
+          ? colorScheme.surfaceContainerHighest
+          : Colors.transparent,
       borderRadius: NexusRadii.mdRadius,
       child: InkWell(
         onTap: onTap,
@@ -388,8 +405,8 @@ class _ViewToggle extends StatelessWidget {
             icon,
             size: 18,
             color: active
-                ? NexusColors.onSurface
-                : NexusColors.onSurfaceVariant,
+                ? colorScheme.onSurface
+                : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -410,6 +427,7 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       height: 36,
       child: ListView.separated(
@@ -422,8 +440,8 @@ class _FilterBar extends StatelessWidget {
           final active = category == selected;
           return Material(
             color: active
-                ? NexusColors.primary
-                : NexusColors.surfaceContainerLowest,
+                ? colorScheme.primary
+                : colorScheme.surfaceContainerLowest,
             borderRadius: NexusRadii.fullRadius,
             child: InkWell(
               onTap: () => onSelect(category),
@@ -437,16 +455,16 @@ class _FilterBar extends StatelessWidget {
                   borderRadius: NexusRadii.fullRadius,
                   border: Border.all(
                     color: active
-                        ? NexusColors.primary
-                        : NexusColors.outlineVariant,
+                        ? colorScheme.primary
+                        : colorScheme.outlineVariant,
                   ),
                 ),
                 child: Text(
                   category,
                   style: NexusTypography.labelMd.copyWith(
                     color: active
-                        ? NexusColors.onPrimary
-                        : NexusColors.onSurfaceVariant,
+                        ? colorScheme.onPrimary
+                        : colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -496,6 +514,7 @@ class _BookmarkGridState extends State<_BookmarkGrid> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -574,30 +593,31 @@ class _BookmarkGridCardState extends State<_BookmarkGridCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: NexusColors.surfaceContainerLowest,
+          color: colorScheme.surfaceContainerLowest,
           borderRadius: NexusRadii.xxlRadius,
           border: Border.all(
             color: _hovered
-                ? NexusColors.outline
-                : NexusColors.outlineVariant.withValues(alpha: 0.5),
+                ? colorScheme.outline
+                : colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
           boxShadow: _hovered
               ? [
                   BoxShadow(
-                    color: NexusColors.onSurface.withValues(alpha: 0.08),
+                    color: colorScheme.onSurface.withValues(alpha: 0.08),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: NexusColors.onSurface.withValues(alpha: 0.04),
+                    color: colorScheme.onSurface.withValues(alpha: 0.04),
                     blurRadius: 4,
                     offset: const Offset(0, 1),
                   ),
@@ -612,13 +632,13 @@ class _BookmarkGridCardState extends State<_BookmarkGridCard> {
                 children: [
                   Container(
                     decoration: BoxDecoration(
-                      color: NexusColors.surfaceVariant,
+                      color: colorScheme.surfaceContainerHighest,
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(NexusRadii.xxl),
                       ),
                       border: Border(
                         bottom: BorderSide(
-                          color: NexusColors.outlineVariant.withValues(
+                          color: colorScheme.outlineVariant.withValues(
                             alpha: 0.5,
                           ),
                         ),
@@ -679,10 +699,10 @@ class _BookmarkGridCardState extends State<_BookmarkGridCard> {
                         width: 20,
                         height: 20,
                         decoration: BoxDecoration(
-                          color: NexusColors.surfaceContainer,
+                          color: colorScheme.surfaceContainer,
                           borderRadius: NexusRadii.smRadius,
                           border: Border.all(
-                            color: NexusColors.outlineVariant.withValues(
+                            color: colorScheme.outlineVariant.withValues(
                               alpha: 0.3,
                             ),
                           ),
@@ -692,7 +712,7 @@ class _BookmarkGridCardState extends State<_BookmarkGridCard> {
                           _firstLetter.toUpperCase(),
                           style: NexusTypography.labelSm.copyWith(
                             fontSize: 10,
-                            color: NexusColors.onSurface,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -724,8 +744,8 @@ class _BookmarkGridCardState extends State<_BookmarkGridCard> {
                           _favorite ? Icons.favorite : Icons.favorite_border,
                           size: 18,
                           color: _favorite
-                              ? NexusColors.secondary
-                              : NexusColors.onSurfaceVariant,
+                              ? colorScheme.secondary
+                              : colorScheme.onSurfaceVariant,
                         ),
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
@@ -778,6 +798,7 @@ class _ImagePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -785,13 +806,13 @@ class _ImagePlaceholder extends StatelessWidget {
           Icon(
             Icons.language,
             size: 40,
-            color: NexusColors.onSurfaceVariant.withValues(alpha: 0.4),
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
           ),
           const SizedBox(height: 4),
           Text(
             'No preview',
             style: NexusTypography.labelSm.copyWith(
-              color: NexusColors.onSurfaceVariant.withValues(alpha: 0.4),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),
           ),
         ],
@@ -813,8 +834,9 @@ class _HoverAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: NexusColors.surfaceContainerLowest.withValues(alpha: 0.9),
+      color: colorScheme.surfaceContainerLowest.withValues(alpha: 0.9),
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onTap,
@@ -826,7 +848,7 @@ class _HoverAction extends StatelessWidget {
           child: Icon(
             icon,
             size: 16,
-            color: danger ? NexusColors.error : NexusColors.onSurface,
+            color: danger ? colorScheme.error : colorScheme.onSurface,
           ),
         ),
       ),
@@ -853,6 +875,7 @@ class _BookmarkList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ReorderableListView.builder(
       itemCount: bookmarks.length,
       onReorder: onReorder,
@@ -886,14 +909,15 @@ class _BookmarkListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final domain = Uri.tryParse(bookmark.url)?.host ?? bookmark.url;
     return Container(
       padding: const EdgeInsets.all(NexusSpacing.md),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLowest,
+        color: colorScheme.surfaceContainerLowest,
         borderRadius: NexusRadii.lgRadius,
         border: Border.all(
-          color: NexusColors.outlineVariant.withValues(alpha: 0.5),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Row(
@@ -902,11 +926,11 @@ class _BookmarkListRow extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: NexusColors.surfaceContainer,
+              color: colorScheme.surfaceContainer,
               borderRadius: NexusRadii.mdRadius,
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.language, size: 20),
+            child: Icon(Icons.language, size: 20, color: colorScheme.onSurface),
           ),
           const SizedBox(width: NexusSpacing.md),
           Expanded(
@@ -946,7 +970,7 @@ class _BookmarkListRow extends StatelessWidget {
           ),
           IconButton(
             onPressed: () => onDelete(bookmark),
-            icon: Icon(Icons.delete, size: 18, color: NexusColors.error),
+            icon: Icon(Icons.delete, size: 18, color: colorScheme.error),
           ),
         ],
       ),
@@ -1000,6 +1024,7 @@ class _BookmarkIconGridState extends State<_BookmarkIconGrid> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -1052,13 +1077,14 @@ class _BookmarkIconItemState extends State<_BookmarkIconItem> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Material(
         color: _hovered
-            ? NexusColors.surfaceContainerHighest
-            : NexusColors.surfaceContainerLowest,
+            ? colorScheme.surfaceContainerHighest
+            : colorScheme.surfaceContainerLowest,
         borderRadius: NexusRadii.xlRadius,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -1068,8 +1094,8 @@ class _BookmarkIconItemState extends State<_BookmarkIconItem> {
             decoration: BoxDecoration(
               border: Border.all(
                 color: _hovered
-                    ? NexusColors.outline
-                    : NexusColors.outlineVariant.withValues(alpha: 0.4),
+                    ? colorScheme.outline
+                    : colorScheme.outlineVariant.withValues(alpha: 0.4),
               ),
               borderRadius: NexusRadii.xlRadius,
             ),
@@ -1096,7 +1122,7 @@ class _BookmarkIconItemState extends State<_BookmarkIconItem> {
                   child: Text(
                     _domainOf(widget.bookmark.url),
                     style: NexusTypography.labelSm.copyWith(
-                      color: NexusColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1125,6 +1151,7 @@ class _FaviconAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final faviconUrl = bookmark.image.isNotEmpty
         ? _faviconFromImage(bookmark.image)
         : '';
@@ -1160,6 +1187,7 @@ class _FallbackAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final letter = bookmark.title.isEmpty
         ? '?'
         : bookmark.title[0].toUpperCase();
@@ -1167,48 +1195,15 @@ class _FallbackAvatar extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: NexusColors.primaryContainer,
+        color: colorScheme.primaryContainer,
         borderRadius: NexusRadii.mdRadius,
       ),
       alignment: Alignment.center,
       child: Text(
         letter,
         style: NexusTypography.headlineSm.copyWith(
-          color: NexusColors.onPrimaryContainer,
+          color: colorScheme.onPrimaryContainer,
           fontSize: size * 0.45,
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(NexusSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.bookmark_border,
-              size: 64,
-              color: NexusColors.onSurfaceVariant.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: NexusSpacing.md),
-            Text('No bookmarks found', style: NexusTypography.headlineSm),
-            const SizedBox(height: NexusSpacing.xs),
-            Text(
-              'Try adjusting your filters or add a new bookmark.',
-              style: NexusTypography.bodyMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
         ),
       ),
     );
@@ -1226,6 +1221,7 @@ class _SecondaryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1255,6 +1251,7 @@ class _LibrarySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1287,6 +1284,7 @@ class _CollectionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1300,7 +1298,7 @@ class _CollectionsSection extends StatelessWidget {
                 icon: Icon(
                   Icons.add,
                   size: 16,
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
                 onPressed: () => _showManageCollectionsDialog(context),
                 padding: EdgeInsets.zero,
@@ -1369,6 +1367,7 @@ class _TagsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1390,13 +1389,13 @@ class _TagsSection extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: NexusColors.surfaceContainer,
+                      color: colorScheme.surfaceContainer,
                       borderRadius: NexusRadii.mdRadius,
                     ),
                     child: Text(
                       tag,
                       style: NexusTypography.labelSm.copyWith(
-                        color: NexusColors.onSurface,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -1426,8 +1425,11 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? NexusColors.surfaceVariant : Colors.transparent,
+      color: selected
+          ? colorScheme.surfaceContainerHighest
+          : Colors.transparent,
       borderRadius: NexusRadii.lgRadius,
       child: InkWell(
         onTap: onTap,
@@ -1440,8 +1442,8 @@ class _SidebarItem extends StatelessWidget {
                 icon,
                 size: 18,
                 color: selected
-                    ? NexusColors.onSurface
-                    : NexusColors.onSurfaceVariant,
+                    ? colorScheme.onSurface
+                    : colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1450,8 +1452,8 @@ class _SidebarItem extends StatelessWidget {
                   style: NexusTypography.bodyMd.copyWith(
                     fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
                     color: selected
-                        ? NexusColors.onSurface
-                        : NexusColors.onSurfaceVariant,
+                        ? colorScheme.onSurface
+                        : colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -1488,8 +1490,9 @@ class _ManageCollectionsDialogState extends State<_ManageCollectionsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return AlertDialog(
-      backgroundColor: NexusColors.surfaceContainerLowest,
+      backgroundColor: colorScheme.surfaceContainerLowest,
       shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Text('Manage Collections', style: NexusTypography.headlineSm),
       content: SizedBox(
@@ -1562,7 +1565,7 @@ class _ManageCollectionsDialogState extends State<_ManageCollectionsDialog> {
                           child: Text(
                             'No collections yet',
                             style: NexusTypography.bodyMd.copyWith(
-                              color: NexusColors.onSurfaceVariant,
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         );
@@ -1610,7 +1613,7 @@ class _ManageCollectionsDialogState extends State<_ManageCollectionsDialog> {
                                         icon: Icon(
                                           Icons.edit,
                                           size: 18,
-                                          color: NexusColors.onSurfaceVariant,
+                                          color: colorScheme.onSurfaceVariant,
                                         ),
                                         onPressed: () => _startEdit(collection),
                                       ),
@@ -1618,7 +1621,7 @@ class _ManageCollectionsDialogState extends State<_ManageCollectionsDialog> {
                                         icon: Icon(
                                           Icons.delete,
                                           size: 18,
-                                          color: NexusColors.error,
+                                          color: colorScheme.error,
                                         ),
                                         onPressed: () =>
                                             _confirmDelete(context, collection),
@@ -1638,7 +1641,7 @@ class _ManageCollectionsDialogState extends State<_ManageCollectionsDialog> {
                 return const SizedBox.shrink();
               }
               return Container(
-                color: NexusColors.background.withValues(alpha: 0.7),
+                color: colorScheme.background.withValues(alpha: 0.7),
                 child: const Center(child: CircularProgressIndicator()),
               );
             }),
@@ -1681,8 +1684,10 @@ class _ManageCollectionsDialogState extends State<_ManageCollectionsDialog> {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: NexusColors.surfaceContainerLowest,
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+        backgroundColor: colorScheme.surfaceContainerLowest,
         shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
         title: Text('Delete Collection?', style: NexusTypography.headlineSm),
         content: Text(
@@ -1696,10 +1701,11 @@ class _ManageCollectionsDialogState extends State<_ManageCollectionsDialog> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Delete', style: TextStyle(color: NexusColors.error)),
+            child: Text('Delete', style: TextStyle(color: colorScheme.error)),
           ),
         ],
-      ),
+        );
+      },
     );
     if (confirmed == true && collection.id != null) {
       await widget.collectionsState.delete(collection.id!);
@@ -1720,10 +1726,11 @@ class _SortChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
       color: active
-          ? NexusColors.primaryContainer
-          : NexusColors.surfaceContainer,
+          ? colorScheme.primaryContainer
+          : colorScheme.surfaceContainer,
       borderRadius: NexusRadii.fullRadius,
       child: InkWell(
         onTap: onTap,
@@ -1734,8 +1741,8 @@ class _SortChip extends StatelessWidget {
             label,
             style: NexusTypography.labelSm.copyWith(
               color: active
-                  ? NexusColors.onPrimaryContainer
-                  : NexusColors.onSurfaceVariant,
+                  ? colorScheme.onPrimaryContainer
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -1771,8 +1778,9 @@ class _AddToCollectionDialogState extends State<_AddToCollectionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return AlertDialog(
-      backgroundColor: NexusColors.surfaceContainerLowest,
+      backgroundColor: colorScheme.surfaceContainerLowest,
       shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Text('Add to Collection', style: NexusTypography.headlineSm),
       content: SizedBox(
@@ -1784,7 +1792,7 @@ class _AddToCollectionDialogState extends State<_AddToCollectionDialog> {
               child: Text(
                 'No collections yet',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             );
@@ -1801,7 +1809,7 @@ class _AddToCollectionDialogState extends State<_AddToCollectionDialog> {
                 title: Text(collection.name, style: NexusTypography.bodyMd),
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
-                activeColor: NexusColors.primary,
+                activeColor: colorScheme.primary,
               );
             },
           );
@@ -1951,8 +1959,9 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return AlertDialog(
-      backgroundColor: NexusColors.surfaceContainerLowest,
+      backgroundColor: colorScheme.surfaceContainerLowest,
       shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Text(
         widget.bookmark == null ? 'Add Bookmark' : 'Edit Bookmark',
@@ -2027,7 +2036,7 @@ class _AddBookmarkDialogState extends State<_AddBookmarkDialog> {
                     return Text(
                       'Not in any collection',
                       style: NexusTypography.bodyMd.copyWith(
-                        color: NexusColors.onSurfaceVariant,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     );
                   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -49,6 +48,7 @@ class _AiChatPageState extends State<AiChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return PageScaffold(
       header: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,7 +58,7 @@ class _AiChatPageState extends State<AiChatPage> {
           Text(
             'Ask anything, summarize text, or generate code',
             style: NexusTypography.bodyMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -140,6 +140,7 @@ class _ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isUser = message.role == _Role.user;
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -148,7 +149,7 @@ class _ChatBubble extends StatelessWidget {
         padding: const EdgeInsets.all(NexusSpacing.md),
         constraints: const BoxConstraints(maxWidth: 640),
         decoration: BoxDecoration(
-          color: isUser ? NexusColors.primary : NexusColors.surfaceContainer,
+          color: isUser ? colorScheme.primary : colorScheme.surfaceContainer,
           borderRadius: NexusRadii.lgRadius,
         ),
         child: Row(
@@ -164,7 +165,7 @@ class _ChatBubble extends StatelessWidget {
               child: Text(
                 message.text,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: isUser ? NexusColors.onPrimary : NexusColors.onSurface,
+                  color: isUser ? colorScheme.onPrimary : colorScheme.onSurface,
                 ),
               ),
             ),

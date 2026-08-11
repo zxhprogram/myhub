@@ -7,52 +7,73 @@ import 'typography.dart';
 
 /// Builds the Material 3 theme for Nexus Hub.
 class NexusAppTheme {
-  static ThemeData light() {
+  static ThemeData _buildTheme({required Brightness brightness}) {
+    final isDark = brightness == Brightness.dark;
+
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: NexusColors.primary,
-      brightness: Brightness.light,
-      surface: NexusColors.surface,
-      onSurface: NexusColors.onSurface,
-      surfaceContainerLowest: NexusColors.surfaceContainerLowest,
-      surfaceContainerLow: NexusColors.surfaceContainerLow,
-      surfaceContainer: NexusColors.surfaceContainer,
-      surfaceContainerHigh: NexusColors.surfaceContainerHigh,
-      surfaceContainerHighest: NexusColors.surfaceContainerHighest,
-      primary: NexusColors.primary,
-      onPrimary: NexusColors.onPrimary,
-      secondary: NexusColors.secondary,
-      onSecondary: NexusColors.onSecondary,
-      tertiary: NexusColors.tertiary,
-      onTertiary: NexusColors.onTertiary,
-      error: NexusColors.error,
-      onError: NexusColors.onError,
-      outline: NexusColors.outline,
-      outlineVariant: NexusColors.outlineVariant,
+      seedColor: NexusColors.secondary,
+      brightness: brightness,
+      surface: isDark ? NexusColors.surfaceDark : NexusColors.surfaceLight,
+      onSurface: isDark ? NexusColors.onSurfaceDark : NexusColors.onSurfaceLight,
+      surfaceContainerLowest: isDark
+          ? NexusColors.surfaceContainerLowestDark
+          : NexusColors.surfaceContainerLowestLight,
+      surfaceContainerLow: isDark
+          ? NexusColors.surfaceContainerLowDark
+          : NexusColors.surfaceContainerLowLight,
+      surfaceContainer: isDark
+          ? NexusColors.surfaceContainerDark
+          : NexusColors.surfaceContainerLight,
+      surfaceContainerHigh: isDark
+          ? NexusColors.surfaceContainerHighDark
+          : NexusColors.surfaceContainerHighLight,
+      surfaceContainerHighest: isDark
+          ? NexusColors.surfaceContainerHighestDark
+          : NexusColors.surfaceContainerHighestLight,
+      primary: isDark ? NexusColors.primaryDark : NexusColors.primaryLight,
+      onPrimary: isDark ? NexusColors.onPrimaryDark : NexusColors.onPrimaryLight,
+      secondary:
+          isDark ? NexusColors.secondaryDark : NexusColors.secondaryLight,
+      onSecondary:
+          isDark ? NexusColors.onSecondaryDark : NexusColors.onSecondaryLight,
+      tertiary: isDark ? NexusColors.tertiaryDark : NexusColors.tertiaryLight,
+      onTertiary:
+          isDark ? NexusColors.onTertiaryDark : NexusColors.onTertiaryLight,
+      error: isDark ? NexusColors.errorDark : NexusColors.errorLight,
+      onError: isDark ? NexusColors.onErrorDark : NexusColors.onErrorLight,
+      outline: isDark ? NexusColors.outlineDark : NexusColors.outlineLight,
+      outlineVariant:
+          isDark ? NexusColors.outlineVariantDark : NexusColors.outlineVariantLight,
     );
 
     return ThemeData(
       useMaterial3: true,
+      brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: NexusColors.background,
+      scaffoldBackgroundColor:
+          isDark ? NexusColors.backgroundDark : NexusColors.backgroundLight,
       fontFamily: 'Microsoft YaHei',
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: NexusColors.background,
-        titleTextStyle: NexusTypography.headlineSm,
+        backgroundColor:
+            isDark ? NexusColors.backgroundDark : NexusColors.backgroundLight,
+        titleTextStyle: NexusTypography.headlineSm.copyWith(
+          color: colorScheme.onSurface,
+        ),
       ),
       cardTheme: CardThemeData(
-        color: NexusColors.surfaceContainerLowest,
+        color: colorScheme.surfaceContainerLowest,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: NexusRadii.mdRadius),
       ),
-      dividerTheme: const DividerThemeData(
-        color: NexusColors.outlineVariant,
+      dividerTheme: DividerThemeData(
+        color: colorScheme.outlineVariant,
         thickness: 1,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: NexusColors.surfaceContainerLow,
+        fillColor: colorScheme.surfaceContainerLow,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: NexusSpacing.md,
           vertical: NexusSpacing.sm,
@@ -63,23 +84,44 @@ class NexusAppTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: NexusRadii.mdRadius,
-          borderSide: const BorderSide(color: Colors.transparent),
+          borderSide: BorderSide(
+            color: isDark
+                ? Colors.transparent
+                : colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: NexusRadii.mdRadius,
-          borderSide: const BorderSide(color: NexusColors.outline),
+          borderSide: BorderSide(color: colorScheme.secondary),
         ),
       ),
-      iconTheme: const IconThemeData(color: NexusColors.onSurfaceVariant),
+      iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
       textTheme: TextTheme(
-        headlineLarge: NexusTypography.headlineXl,
-        headlineMedium: NexusTypography.headlineLg,
-        headlineSmall: NexusTypography.headlineSm,
-        bodyLarge: NexusTypography.bodyLg,
-        bodyMedium: NexusTypography.bodyMd,
-        labelMedium: NexusTypography.labelMd,
-        labelSmall: NexusTypography.labelSm,
+        headlineLarge: NexusTypography.headlineXl.copyWith(
+          color: colorScheme.onSurface,
+        ),
+        headlineMedium: NexusTypography.headlineLg.copyWith(
+          color: colorScheme.onSurface,
+        ),
+        headlineSmall: NexusTypography.headlineSm.copyWith(
+          color: colorScheme.onSurface,
+        ),
+        bodyLarge: NexusTypography.bodyLg.copyWith(
+          color: colorScheme.onSurface,
+        ),
+        bodyMedium: NexusTypography.bodyMd.copyWith(
+          color: colorScheme.onSurface,
+        ),
+        labelMedium: NexusTypography.labelMd.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+        labelSmall: NexusTypography.labelSm.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
+
+  static ThemeData light() => _buildTheme(brightness: Brightness.light);
+  static ThemeData dark() => _buildTheme(brightness: Brightness.dark);
 }

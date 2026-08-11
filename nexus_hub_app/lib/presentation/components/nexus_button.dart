@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -25,22 +24,22 @@ class NexusButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     final foregroundColor = switch (variant) {
-      NexusButtonVariant.filled => NexusColors.onPrimary,
-      NexusButtonVariant.tonal => NexusColors.onSecondaryContainer,
-      NexusButtonVariant.outlined ||
-      NexusButtonVariant.text => NexusColors.primary,
+      NexusButtonVariant.filled => colorScheme.onPrimary,
+      NexusButtonVariant.tonal => colorScheme.onSecondaryContainer,
+      NexusButtonVariant.outlined || NexusButtonVariant.text => colorScheme.onSurface,
     };
 
     final backgroundColor = switch (variant) {
-      NexusButtonVariant.filled => NexusColors.primary,
-      NexusButtonVariant.tonal => NexusColors.secondaryContainer,
-      NexusButtonVariant.outlined ||
-      NexusButtonVariant.text => Colors.transparent,
+      NexusButtonVariant.filled => colorScheme.primary,
+      NexusButtonVariant.tonal => colorScheme.secondaryContainer,
+      NexusButtonVariant.outlined || NexusButtonVariant.text => Colors.transparent,
     };
 
     final border = variant == NexusButtonVariant.outlined
-        ? Border.all(color: NexusColors.outlineVariant)
+        ? Border.all(color: colorScheme.outlineVariant)
         : null;
 
     return Material(
@@ -49,6 +48,9 @@ class NexusButton extends StatelessWidget {
       child: InkWell(
         onTap: isLoading ? null : onPressed,
         borderRadius: NexusRadii.mdRadius,
+        hoverColor: variant == NexusButtonVariant.filled
+            ? colorScheme.primary.withValues(alpha: 0.85)
+            : colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: NexusSpacing.md,

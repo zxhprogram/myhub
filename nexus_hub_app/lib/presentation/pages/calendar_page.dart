@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -54,6 +53,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return PageScaffold(
       header: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -67,7 +67,7 @@ class _CalendarPageState extends State<CalendarPage> {
               Text(
                 '月历视图 · 含农历、干支与节日',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -135,6 +135,7 @@ class _MonthNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -162,7 +163,7 @@ class _MonthNav extends StatelessWidget {
               vertical: NexusSpacing.sm,
             ),
             decoration: BoxDecoration(
-              color: NexusColors.surfaceContainerHigh,
+              color: colorScheme.surfaceContainerHigh,
               borderRadius: NexusRadii.fullRadius,
             ),
             child: Text(
@@ -186,17 +187,18 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       customBorder: const CircleBorder(),
       child: Container(
         width: 36,
         height: 36,
-        decoration: const BoxDecoration(
-          color: NexusColors.surfaceContainerHigh,
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHigh,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 20, color: NexusColors.onSurface),
+        child: Icon(icon, size: 20, color: colorScheme.onSurface),
       ),
     );
   }
@@ -219,13 +221,14 @@ class _MonthGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final cells = _buildCells();
     return Container(
       padding: const EdgeInsets.all(NexusSpacing.md),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLowest,
+        color: colorScheme.surfaceContainerLowest,
         borderRadius: NexusRadii.lgRadius,
-        border: Border.all(color: NexusColors.outlineVariant),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         children: [
@@ -240,7 +243,7 @@ class _MonthGrid extends StatelessWidget {
                         w,
                         style: NexusTypography.labelMd.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: NexusColors.onSurfaceVariant,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -341,6 +344,7 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
     final isToday =
         day.year == now.year && day.month == now.month && day.day == now.day;
@@ -355,22 +359,22 @@ class _DayCell extends StatelessWidget {
     final Color subColor;
     if (lunarFest != null) {
       subLabel = lunarFest;
-      subColor = NexusColors.secondary;
+      subColor = colorScheme.secondary;
     } else if (solarFest != null && !isToday) {
       subLabel = solarFest;
-      subColor = NexusColors.secondary;
+      subColor = colorScheme.secondary;
     } else if (lunar != null) {
       subLabel = lunar.shortLabel;
-      subColor = NexusColors.onSurfaceVariant;
+      subColor = colorScheme.onSurfaceVariant;
     } else {
       subLabel = '';
-      subColor = NexusColors.onSurfaceVariant;
+      subColor = colorScheme.onSurfaceVariant;
     }
 
     final bg = isSelected
-        ? NexusColors.secondary
+        ? colorScheme.secondary
         : isToday
-        ? NexusColors.surfaceContainerHighest
+        ? colorScheme.surfaceContainerHighest
         : Colors.transparent;
 
     return InkWell(
@@ -381,7 +385,7 @@ class _DayCell extends StatelessWidget {
           color: bg,
           borderRadius: NexusRadii.mdRadius,
           border: isToday && !isSelected
-              ? Border.all(color: NexusColors.secondary, width: 1.5)
+              ? Border.all(color: colorScheme.secondary, width: 1.5)
               : null,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -393,10 +397,10 @@ class _DayCell extends StatelessWidget {
               style: NexusTypography.bodyMd.copyWith(
                 fontWeight: FontWeight.w600,
                 color: isSelected
-                    ? NexusColors.onSecondary
+                    ? colorScheme.onSecondary
                     : inCurrentMonth
-                    ? NexusColors.onSurface
-                    : NexusColors.outline,
+                    ? colorScheme.onSurface
+                    : colorScheme.outline,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -409,7 +413,7 @@ class _DayCell extends StatelessWidget {
                 fontSize: 10,
                 letterSpacing: 0,
                 color: isSelected
-                    ? NexusColors.onSecondary.withValues(alpha: 0.9)
+                    ? colorScheme.onSecondary.withValues(alpha: 0.9)
                     : subColor,
                 fontWeight: lunarFest != null || solarFest != null
                     ? FontWeight.w600
@@ -431,6 +435,7 @@ class _DetailPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final selected = day ?? DateTime.now();
     final lunar = solarToLunar(selected);
     final weekday = _weekdaysFull[selected.weekday - 1];
@@ -438,9 +443,9 @@ class _DetailPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(NexusSpacing.lg),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLowest,
+        color: colorScheme.surfaceContainerLowest,
         borderRadius: NexusRadii.lgRadius,
-        border: Border.all(color: NexusColors.outlineVariant),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,7 +473,7 @@ class _DetailPanel extends StatelessWidget {
                 child: Text(
                   '${selected.month}月 · $weekday',
                   style: NexusTypography.bodyMd.copyWith(
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -478,12 +483,12 @@ class _DetailPanel extends StatelessWidget {
           Text(
             '${selected.year}年${selected.month}月${selected.day}日',
             style: NexusTypography.bodyMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
           const SizedBox(height: NexusSpacing.lg),
-          const Divider(height: 1, color: NexusColors.outlineVariant),
+          Divider(height: 1, color: colorScheme.outlineVariant),
           const SizedBox(height: NexusSpacing.lg),
           if (lunar != null) ...[
             _InfoRow(label: '农历', value: lunar.display),
@@ -497,7 +502,7 @@ class _DetailPanel extends StatelessWidget {
             Text(
               '农历数据超出支持范围（1900-2099）',
               style: NexusTypography.bodyMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
         ],
@@ -524,6 +529,7 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -545,6 +551,7 @@ class _FestivalBadges extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final festivals = <String>[];
     final lf = lunarFestival(lunar);
     if (lf != null) festivals.add(lf);
@@ -555,7 +562,7 @@ class _FestivalBadges extends StatelessWidget {
       return Text(
         '今日无传统节日',
         style: NexusTypography.labelMd.copyWith(
-          color: NexusColors.onSurfaceVariant,
+          color: colorScheme.onSurfaceVariant,
         ),
       );
     }
@@ -571,13 +578,13 @@ class _FestivalBadges extends StatelessWidget {
               vertical: 4,
             ),
             decoration: BoxDecoration(
-              color: NexusColors.secondaryFixedDim,
+              color: colorScheme.secondary.withValues(alpha: 0.4),
               borderRadius: NexusRadii.fullRadius,
             ),
             child: Text(
               f,
               style: NexusTypography.labelSm.copyWith(
-                color: NexusColors.onSecondaryFixed,
+                color: colorScheme.onSecondaryContainer,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0,
               ),

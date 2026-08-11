@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -15,6 +14,7 @@ class RssReaderPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final feeds = [
       _FeedItem(
         title: 'Flutter 3.41 stable release',
@@ -52,7 +52,7 @@ class RssReaderPage extends StatelessWidget {
               Text(
                 'Stay updated with your favorite sources',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -104,6 +104,7 @@ class _FeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,8 +115,8 @@ class _FeedCard extends StatelessWidget {
             margin: const EdgeInsets.only(top: 6),
             decoration: BoxDecoration(
               color: feed.isRead
-                  ? NexusColors.outlineVariant
-                  : NexusColors.secondary,
+                  ? colorScheme.outlineVariant
+                  : colorScheme.secondary,
               borderRadius: NexusRadii.fullRadius,
             ),
           ),

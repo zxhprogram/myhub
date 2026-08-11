@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -14,16 +13,18 @@ class SideNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isDesktop = MediaQuery.sizeOf(context).width >= 900;
+
     return Container(
       width: isDesktop
           ? NexusSpacing.sidebarWidth
           : NexusSpacing.sidebarWidth - 64,
-      color: NexusColors.surfaceContainerLow,
+      color: colorScheme.surfaceContainerLow,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
+          _buildHeader(context),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
@@ -138,13 +139,15 @@ class SideNavigation extends StatelessWidget {
               ),
             ),
           ),
-          _buildFooter(),
+          _buildFooter(context),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.all(NexusSpacing.md),
       child: Row(
@@ -152,14 +155,14 @@ class SideNavigation extends StatelessWidget {
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(
-              color: NexusColors.primary,
+            decoration: BoxDecoration(
+              color: colorScheme.primary,
               borderRadius: NexusRadii.mdRadius,
             ),
             alignment: Alignment.center,
-            child: const Icon(
+            child: Icon(
               Icons.hub,
-              color: NexusColors.onPrimary,
+              color: colorScheme.onPrimary,
               size: 20,
             ),
           ),
@@ -167,6 +170,7 @@ class SideNavigation extends StatelessWidget {
           Text(
             'Nexus Hub',
             style: NexusTypography.headlineSm.copyWith(
+              color: colorScheme.onSurface,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -175,7 +179,9 @@ class SideNavigation extends StatelessWidget {
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooter(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.all(NexusSpacing.md),
       child: Row(
@@ -189,23 +195,28 @@ class SideNavigation extends StatelessWidget {
                 Text(
                   'Current User',
                   style: NexusTypography.labelMd.copyWith(
-                    color: NexusColors.onSurface,
+                    color: colorScheme.onSurface,
                   ),
                 ),
-                Text('user@nexus.dev', style: NexusTypography.labelSm),
+                Text(
+                  'user@nexus.dev',
+                  style: NexusTypography.labelSm.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
           InkWell(
             onTap: () {},
             borderRadius: NexusRadii.mdRadius,
-            hoverColor: NexusColors.surfaceContainerHigh.withValues(alpha: 0.5),
-            child: const Padding(
-              padding: EdgeInsets.all(NexusSpacing.sm),
+            hoverColor: colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
+            child: Padding(
+              padding: const EdgeInsets.all(NexusSpacing.sm),
               child: Icon(
                 Icons.settings_outlined,
                 size: 20,
-                color: NexusColors.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -223,6 +234,8 @@ class _NavGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: NexusSpacing.md),
       child: Column(
@@ -233,7 +246,12 @@ class _NavGroup extends StatelessWidget {
               left: NexusSpacing.sm,
               bottom: NexusSpacing.xs,
             ),
-            child: Text(title.toUpperCase(), style: NexusTypography.labelSm),
+            child: Text(
+              title.toUpperCase(),
+              style: NexusTypography.labelSm.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
           ...items,
         ],
@@ -262,11 +280,13 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
         color: isActive
-            ? NexusColors.surfaceContainerHighest
+            ? colorScheme.surfaceContainerHighest
             : Colors.transparent,
         borderRadius: NexusRadii.mdRadius,
         child: InkWell(
@@ -274,7 +294,7 @@ class _NavItem extends StatelessWidget {
           borderRadius: NexusRadii.mdRadius,
           hoverColor: isActive
               ? null
-              : NexusColors.surfaceContainerHigh.withValues(alpha: 0.5),
+              : colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
           child: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: NexusSpacing.sm,
@@ -286,16 +306,16 @@ class _NavItem extends StatelessWidget {
                   icon,
                   size: 20,
                   color: isActive
-                      ? NexusColors.onSurface
-                      : NexusColors.onSurfaceVariant,
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: NexusSpacing.sm),
                 Text(
                   label,
                   style: NexusTypography.bodyMd.copyWith(
                     color: isActive
-                        ? NexusColors.onSurface
-                        : NexusColors.onSurfaceVariant,
+                        ? colorScheme.onSurface
+                        : colorScheme.onSurfaceVariant,
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),

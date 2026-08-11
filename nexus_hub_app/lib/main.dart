@@ -7,9 +7,11 @@ import 'package:flutter_alacritty/flutter_alacritty.dart' show RustLib;
 import 'app.dart';
 import 'data/services/clipboard_monitor_service.dart';
 import 'data/services/network_monitor_service.dart';
+import 'presentation/states/theme_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ThemeState.instance.init();
   ClipboardMonitorService.instance.start();
   // Start per-minute network traffic recording app-wide so history is captured
   // regardless of which page is open. No-ops when network_monitor.dll is

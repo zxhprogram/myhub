@@ -108,6 +108,7 @@ class _TerminalPageState extends State<TerminalPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     // Dark terminal backdrop matching a typical alacritty palette.
     return ColoredBox(
       color: const Color(0xFF1A1A1E),

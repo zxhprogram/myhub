@@ -67,6 +67,8 @@ class _MyComputerPageState extends State<MyComputerPage> {
   int _todayRecv = 0;
   int _todaySent = 0;
 
+  ColorScheme get colorScheme => Theme.of(context).colorScheme;
+
   @override
   void initState() {
     super.initState();
@@ -243,6 +245,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return PageScaffold(
       header: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,7 +259,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 ? 'Key press statistics with date filtering'
                 : 'Network traffic statistics with time filtering',
             style: NexusTypography.bodyMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -276,13 +279,13 @@ class _MyComputerPageState extends State<MyComputerPage> {
               Icon(
                 Icons.warning_amber_rounded,
                 size: 48,
-                color: NexusColors.onSurfaceVariant.withValues(alpha: 0.4),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
               ),
               const SizedBox(height: NexusSpacing.md),
               Text(
                 'Input Hook DLL not available',
                 style: NexusTypography.headlineSm.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: NexusSpacing.sm),
@@ -291,7 +294,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 'Please run the application on Windows with the DLL present.',
                 textAlign: TextAlign.center,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: NexusColors.onSurfaceVariant.withValues(alpha: 0.6),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -312,7 +315,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
         // Tab bar
         Container(
           decoration: BoxDecoration(
-            color: NexusColors.surfaceContainerLow,
+            color: colorScheme.surfaceContainerLow,
             borderRadius: NexusRadii.mdRadius,
           ),
           child: Row(
@@ -323,7 +326,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                     height: 24,
                     child: VerticalDivider(
                       width: 1,
-                      color: NexusColors.outlineVariant.withValues(alpha: 0.3),
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
                     ),
                   ),
                 _buildTab(tabs[i].$1, tabs[i].$2, tabs[i].$3),
@@ -355,7 +358,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           ),
           decoration: BoxDecoration(
             color: isSelected
-                ? NexusColors.primary.withValues(alpha: 0.1)
+                ? colorScheme.primary.withValues(alpha: 0.1)
                 : Colors.transparent,
             borderRadius: NexusRadii.mdRadius,
           ),
@@ -366,8 +369,8 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 icon,
                 size: 18,
                 color: isSelected
-                    ? NexusColors.primary
-                    : NexusColors.onSurfaceVariant,
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: NexusSpacing.sm),
               Text(
@@ -375,8 +378,8 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 style: NexusTypography.labelMd.copyWith(
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   color: isSelected
-                      ? NexusColors.primary
-                      : NexusColors.onSurfaceVariant,
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -409,7 +412,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.mouse, size: 20, color: NexusColors.primary),
+                Icon(Icons.mouse, size: 20, color: colorScheme.primary),
                 const SizedBox(width: NexusSpacing.sm),
                 Text('Mouse', style: NexusTypography.headlineSm),
               ],
@@ -441,7 +444,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
             Text(
               'Buttons',
               style: NexusTypography.labelMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: NexusSpacing.sm),
@@ -468,15 +471,15 @@ class _MyComputerPageState extends State<MyComputerPage> {
     return Container(
       padding: const EdgeInsets.all(NexusSpacing.md),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLow,
+        color: colorScheme.surfaceContainerLow,
         borderRadius: NexusRadii.mdRadius,
         border: Border.all(
-          color: NexusColors.outlineVariant.withValues(alpha: 0.15),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.15),
         ),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: NexusColors.onSurfaceVariant),
+          Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: NexusSpacing.sm),
           Expanded(
             child: Column(
@@ -485,7 +488,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 Text(
                   label,
                   style: NexusTypography.labelSm.copyWith(
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
                 Text(
@@ -503,7 +506,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
   }
 
   Widget _buildButtonIndicator(String label, bool pressed) {
-    final color = pressed ? NexusColors.stockUp : NexusColors.onSurfaceVariant;
+    final color = pressed ? NexusColors.stockUp : colorScheme.onSurfaceVariant;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -513,12 +516,12 @@ class _MyComputerPageState extends State<MyComputerPage> {
         decoration: BoxDecoration(
           color: pressed
               ? color.withValues(alpha: 0.1)
-              : NexusColors.surfaceContainerLow,
+              : colorScheme.surfaceContainerLow,
           borderRadius: NexusRadii.mdRadius,
           border: Border.all(
             color: pressed
                 ? color.withValues(alpha: 0.3)
-                : NexusColors.outlineVariant.withValues(alpha: 0.15),
+                : colorScheme.outlineVariant.withValues(alpha: 0.15),
           ),
         ),
         child: Row(
@@ -534,7 +537,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
               label,
               style: NexusTypography.labelMd.copyWith(
                 fontWeight: FontWeight.w600,
-                color: pressed ? color : NexusColors.onSurfaceVariant,
+                color: pressed ? color : colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -553,7 +556,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.network_check, size: 20, color: NexusColors.secondary),
+                Icon(Icons.network_check, size: 20, color: colorScheme.secondary),
                 const SizedBox(width: NexusSpacing.sm),
                 Text('Network Traffic', style: NexusTypography.headlineSm),
                 const Spacer(),
@@ -588,7 +591,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                   child: Text(
                     'network_monitor.dll not available',
                     style: NexusTypography.bodyMd.copyWith(
-                      color: NexusColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -657,7 +660,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
               Text(
                 'Traffic Speed (last 60 seconds)',
                 style: NexusTypography.labelMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: NexusSpacing.sm),
@@ -676,7 +679,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
         child: Text(
           'Collecting live traffic samples…',
           style: NexusTypography.labelMd.copyWith(
-            color: NexusColors.onSurfaceVariant,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
       );
@@ -697,13 +700,13 @@ class _MyComputerPageState extends State<MyComputerPage> {
               for (var i = 0; i < samples.length; i++)
                 FlSpot(i.toDouble(), samples[i]),
             ],
-            color: NexusColors.secondary,
+            color: colorScheme.secondary,
             isCurved: true,
             barWidth: 2,
             dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: NexusColors.secondary.withValues(alpha: 0.15),
+              color: colorScheme.secondary.withValues(alpha: 0.15),
             ),
           ),
         ],
@@ -749,7 +752,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.network_check, size: 20, color: NexusColors.primary),
+                Icon(Icons.network_check, size: 20, color: colorScheme.primary),
                 const SizedBox(width: NexusSpacing.sm),
                 Text('Traffic Summary', style: NexusTypography.headlineSm),
               ],
@@ -763,19 +766,19 @@ class _MyComputerPageState extends State<MyComputerPage> {
                   'Total Downloaded',
                   formatBytes(s?.totalRecv ?? 0),
                   Icons.file_download_outlined,
-                  NexusColors.secondary,
+                  colorScheme.secondary,
                 ),
                 _buildTrafficMetric(
                   'Total Uploaded',
                   formatBytes(s?.totalSent ?? 0),
                   Icons.file_upload_outlined,
-                  NexusColors.primary,
+                  colorScheme.primary,
                 ),
                 _buildTrafficMetric(
                   'Total Combined',
                   formatBytes(s?.totalBytes ?? 0),
                   Icons.swap_vert,
-                  NexusColors.tertiary,
+                  colorScheme.tertiary,
                 ),
                 _buildTrafficMetric(
                   'Records',
@@ -802,10 +805,10 @@ class _MyComputerPageState extends State<MyComputerPage> {
       child: Container(
         padding: const EdgeInsets.all(NexusSpacing.md),
         decoration: BoxDecoration(
-          color: NexusColors.surfaceContainerLow,
+          color: colorScheme.surfaceContainerLow,
           borderRadius: NexusRadii.mdRadius,
           border: Border.all(
-            color: NexusColors.outlineVariant.withValues(alpha: 0.15),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.15),
           ),
         ),
         child: Column(
@@ -818,7 +821,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 Text(
                   label,
                   style: NexusTypography.labelSm.copyWith(
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -828,7 +831,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
               value,
               style: NexusTypography.headlineSm.copyWith(
                 fontWeight: FontWeight.w700,
-                color: NexusColors.onSurface,
+                color: colorScheme.onSurface,
               ),
             ),
           ],
@@ -858,7 +861,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 Icon(
                   Icons.date_range,
                   size: 18,
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: NexusSpacing.sm),
                 Text('Period', style: NexusTypography.labelMd),
@@ -882,13 +885,13 @@ class _MyComputerPageState extends State<MyComputerPage> {
         ),
         decoration: BoxDecoration(
           color: isSelected
-              ? NexusColors.primary.withValues(alpha: 0.1)
-              : NexusColors.surfaceContainerLow,
+              ? colorScheme.primary.withValues(alpha: 0.1)
+              : colorScheme.surfaceContainerLow,
           borderRadius: NexusRadii.mdRadius,
           border: Border.all(
             color: isSelected
-                ? NexusColors.primary.withValues(alpha: 0.3)
-                : NexusColors.outlineVariant.withValues(alpha: 0.1),
+                ? colorScheme.primary.withValues(alpha: 0.3)
+                : colorScheme.outlineVariant.withValues(alpha: 0.1),
           ),
         ),
         child: Text(
@@ -896,8 +899,8 @@ class _MyComputerPageState extends State<MyComputerPage> {
           style: NexusTypography.labelMd.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             color: isSelected
-                ? NexusColors.primary
-                : NexusColors.onSurfaceVariant,
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -914,7 +917,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.bar_chart, size: 20, color: NexusColors.secondary),
+                Icon(Icons.bar_chart, size: 20, color: colorScheme.secondary),
                 const SizedBox(width: NexusSpacing.sm),
                 Text('Daily Traffic', style: NexusTypography.headlineSm),
                 const Spacer(),
@@ -963,7 +966,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           drawVerticalLine: false,
           horizontalInterval: maxY / 4,
           getDrawingHorizontalLine: (value) => FlLine(
-            color: NexusColors.outlineVariant.withValues(alpha: 0.3),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
             strokeWidth: 1,
           ),
         ),
@@ -983,7 +986,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 formatBytes(value.toInt()),
                 style: NexusTypography.labelSm.copyWith(
                   fontSize: 9,
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -1004,7 +1007,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                     '${d.month}/${d.day}',
                     style: NexusTypography.labelSm.copyWith(
                       fontSize: 9,
-                      color: NexusColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 );
@@ -1019,7 +1022,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
               barRods: [
                 BarChartRodData(
                   toY: data[i].recvBytes.toDouble(),
-                  color: NexusColors.secondary,
+                  color: colorScheme.secondary,
                   width: 8,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(3),
@@ -1027,7 +1030,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 ),
                 BarChartRodData(
                   toY: data[i].sentBytes.toDouble(),
-                  color: NexusColors.primary,
+                  color: colorScheme.primary,
                   width: 8,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(3),
@@ -1050,7 +1053,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.schedule, size: 20, color: NexusColors.tertiary),
+                Icon(Icons.schedule, size: 20, color: colorScheme.tertiary),
                 const SizedBox(width: NexusSpacing.sm),
                 Text('Hourly Detail', style: NexusTypography.headlineSm),
                 const Spacer(),
@@ -1099,10 +1102,10 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 horizontal: NexusSpacing.md,
               ),
               decoration: BoxDecoration(
-                color: NexusColors.surfaceContainerLow,
+                color: colorScheme.surfaceContainerLow,
                 borderRadius: NexusRadii.mdRadius,
                 border: Border.all(
-                  color: NexusColors.outlineVariant.withValues(alpha: 0.15),
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.15),
                 ),
               ),
               child: Row(
@@ -1118,7 +1121,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                   const Icon(
                     Icons.arrow_drop_down,
                     size: 20,
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -1159,13 +1162,13 @@ class _MyComputerPageState extends State<MyComputerPage> {
               for (var h = 0; h < 24; h++)
                 FlSpot(h.toDouble(), data[h].recvBytes.toDouble()),
             ],
-            color: NexusColors.secondary,
+            color: colorScheme.secondary,
             isCurved: true,
             barWidth: 2,
             dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: NexusColors.secondary.withValues(alpha: 0.15),
+              color: colorScheme.secondary.withValues(alpha: 0.15),
             ),
           ),
           LineChartBarData(
@@ -1173,13 +1176,13 @@ class _MyComputerPageState extends State<MyComputerPage> {
               for (var h = 0; h < 24; h++)
                 FlSpot(h.toDouble(), data[h].sentBytes.toDouble()),
             ],
-            color: NexusColors.primary,
+            color: colorScheme.primary,
             isCurved: true,
             barWidth: 2,
             dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: NexusColors.primary.withValues(alpha: 0.15),
+              color: colorScheme.primary.withValues(alpha: 0.15),
             ),
           ),
         ],
@@ -1188,7 +1191,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           drawVerticalLine: false,
           horizontalInterval: maxY / 4,
           getDrawingHorizontalLine: (value) => FlLine(
-            color: NexusColors.outlineVariant.withValues(alpha: 0.3),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
             strokeWidth: 1,
           ),
         ),
@@ -1208,7 +1211,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 formatBytes(value.toInt()),
                 style: NexusTypography.labelSm.copyWith(
                   fontSize: 9,
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -1224,7 +1227,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                   '${value.toInt()}h',
                   style: NexusTypography.labelSm.copyWith(
                     fontSize: 9,
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -1250,7 +1253,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.list_alt, size: 20, color: NexusColors.secondary),
+                Icon(Icons.list_alt, size: 20, color: colorScheme.secondary),
                 const SizedBox(width: NexusSpacing.sm),
                 Text('Daily Breakdown', style: NexusTypography.headlineSm),
               ],
@@ -1275,7 +1278,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
               '${d.date.month}/${d.date.day}',
               style: NexusTypography.labelMd.copyWith(
                 fontWeight: FontWeight.w600,
-                color: NexusColors.onSurface,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -1286,11 +1289,11 @@ class _MyComputerPageState extends State<MyComputerPage> {
               child: LinearProgressIndicator(
                 value: ratio,
                 minHeight: 14,
-                backgroundColor: NexusColors.surfaceContainerLow,
+                backgroundColor: colorScheme.surfaceContainerLow,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   Color.lerp(
-                    NexusColors.secondary.withValues(alpha: 0.4),
-                    NexusColors.secondary,
+                    colorScheme.secondary.withValues(alpha: 0.4),
+                    colorScheme.secondary,
                     ratio,
                   )!,
                 ),
@@ -1306,14 +1309,14 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 Text(
                   '↓ ${formatBytes(d.recvBytes)}',
                   style: NexusTypography.labelSm.copyWith(
-                    color: NexusColors.secondary,
+                    color: colorScheme.secondary,
                     fontSize: 10,
                   ),
                 ),
                 Text(
                   '↑ ${formatBytes(d.sentBytes)}',
                   style: NexusTypography.labelSm.copyWith(
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                     fontSize: 10,
                   ),
                 ),
@@ -1329,9 +1332,9 @@ class _MyComputerPageState extends State<MyComputerPage> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildLegendDot(NexusColors.secondary, 'Download'),
+        _buildLegendDot(colorScheme.secondary, 'Download'),
         const SizedBox(width: NexusSpacing.md),
-        _buildLegendDot(NexusColors.primary, 'Upload'),
+        _buildLegendDot(colorScheme.primary, 'Upload'),
       ],
     );
   }
@@ -1364,14 +1367,14 @@ class _MyComputerPageState extends State<MyComputerPage> {
             Icon(
               Icons.network_check,
               size: 40,
-              color: NexusColors.onSurfaceVariant.withValues(alpha: 0.25),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.25),
             ),
             const SizedBox(height: NexusSpacing.sm),
             Text(
               message,
               textAlign: TextAlign.center,
               style: NexusTypography.bodyMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -1410,7 +1413,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 Icon(
                   Icons.calendar_today,
                   size: 20,
-                  color: NexusColors.primary,
+                  color: colorScheme.primary,
                 ),
                 const SizedBox(width: NexusSpacing.sm),
                 Text('Date', style: NexusTypography.headlineSm),
@@ -1451,10 +1454,10 @@ class _MyComputerPageState extends State<MyComputerPage> {
                         horizontal: NexusSpacing.md,
                       ),
                       decoration: BoxDecoration(
-                        color: NexusColors.surfaceContainerLow,
+                        color: colorScheme.surfaceContainerLow,
                         borderRadius: NexusRadii.mdRadius,
                         border: Border.all(
-                          color: NexusColors.outlineVariant.withValues(
+                          color: colorScheme.outlineVariant.withValues(
                             alpha: 0.15,
                           ),
                         ),
@@ -1472,7 +1475,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                           Icon(
                             Icons.arrow_drop_down,
                             size: 20,
-                            color: NexusColors.onSurfaceVariant,
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ],
                       ),
@@ -1531,13 +1534,13 @@ class _MyComputerPageState extends State<MyComputerPage> {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? NexusColors.primary.withValues(alpha: 0.1)
-                              : NexusColors.surfaceContainerLow,
+                              ? colorScheme.primary.withValues(alpha: 0.1)
+                              : colorScheme.surfaceContainerLow,
                           borderRadius: NexusRadii.mdRadius,
                           border: Border.all(
                             color: isSelected
-                                ? NexusColors.primary.withValues(alpha: 0.3)
-                                : NexusColors.outlineVariant.withValues(
+                                ? colorScheme.primary.withValues(alpha: 0.3)
+                                : colorScheme.outlineVariant.withValues(
                                     alpha: 0.1,
                                   ),
                           ),
@@ -1550,8 +1553,8 @@ class _MyComputerPageState extends State<MyComputerPage> {
                                   ? FontWeight.w600
                                   : FontWeight.w400,
                               color: isSelected
-                                  ? NexusColors.primary
-                                  : NexusColors.onSurfaceVariant,
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -1593,7 +1596,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 Icon(
                   Icons.keyboard_outlined,
                   size: 20,
-                  color: NexusColors.secondary,
+                  color: colorScheme.secondary,
                 ),
                 const SizedBox(width: NexusSpacing.sm),
                 Text('Keyboard Heatmap', style: NexusTypography.headlineSm),
@@ -1655,8 +1658,8 @@ class _MyComputerPageState extends State<MyComputerPage> {
             margin: const EdgeInsets.only(right: 2),
             decoration: BoxDecoration(
               color: Color.lerp(
-                NexusColors.secondary.withValues(alpha: 0.2),
-                NexusColors.secondary,
+                colorScheme.secondary.withValues(alpha: 0.2),
+                colorScheme.secondary,
                 i / 4,
               ),
               borderRadius: NexusRadii.smRadius,
@@ -1686,15 +1689,15 @@ class _MyComputerPageState extends State<MyComputerPage> {
     final Color bg;
     final Color fg;
     if (count == 0) {
-      bg = NexusColors.surfaceContainerLow;
-      fg = NexusColors.onSurfaceVariant;
+      bg = colorScheme.surfaceContainerLow;
+      fg = colorScheme.onSurfaceVariant;
     } else {
       bg = Color.lerp(
-        NexusColors.secondary.withValues(alpha: 0.25),
-        NexusColors.secondary,
+        colorScheme.secondary.withValues(alpha: 0.25),
+        colorScheme.secondary,
         t,
       )!;
-      fg = t > 0.45 ? NexusColors.onSecondary : NexusColors.onSurface;
+      fg = t > 0.45 ? colorScheme.onSecondary : colorScheme.onSurface;
     }
 
     return Tooltip(
@@ -1705,7 +1708,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           color: bg,
           borderRadius: NexusRadii.smRadius,
           border: Border.all(
-            color: NexusColors.outlineVariant.withValues(alpha: 0.2),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.2),
           ),
         ),
         alignment: Alignment.center,
@@ -1740,13 +1743,13 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 Icon(
                   Icons.bar_chart_outlined,
                   size: 48,
-                  color: NexusColors.onSurfaceVariant.withValues(alpha: 0.3),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                 ),
                 const SizedBox(height: NexusSpacing.md),
                 Text(
                   'No key press data for this date',
                   style: NexusTypography.bodyMd.copyWith(
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -1768,7 +1771,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.bar_chart, size: 20, color: NexusColors.primary),
+                Icon(Icons.bar_chart, size: 20, color: colorScheme.primary),
                 const SizedBox(width: NexusSpacing.sm),
                 Text('Key Press Statistics', style: NexusTypography.headlineSm),
                 const Spacer(),
@@ -1778,14 +1781,14 @@ class _MyComputerPageState extends State<MyComputerPage> {
                     vertical: NexusSpacing.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: NexusColors.primary.withValues(alpha: 0.1),
+                    color: colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: NexusRadii.mdRadius,
                   ),
                   child: Text(
                     'Total: ${stats.totalPresses}',
                     style: NexusTypography.labelMd.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: NexusColors.primary,
+                      color: colorScheme.primary,
                     ),
                   ),
                 ),
@@ -1819,7 +1822,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
             child: Text(
               '$rank',
               style: NexusTypography.labelSm.copyWith(
-                color: NexusColors.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -1829,10 +1832,10 @@ class _MyComputerPageState extends State<MyComputerPage> {
             height: 30,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: NexusColors.surfaceContainerHigh,
+              color: colorScheme.surfaceContainerHigh,
               borderRadius: NexusRadii.smRadius,
               border: Border.all(
-                color: NexusColors.outlineVariant.withValues(alpha: 0.2),
+                color: colorScheme.outlineVariant.withValues(alpha: 0.2),
               ),
             ),
             child: Tooltip(
@@ -1844,7 +1847,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                 overflow: TextOverflow.ellipsis,
                 style: NexusTypography.labelSm.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: NexusColors.onSurface,
+                  color: colorScheme.onSurface,
                   fontSize: stat.keyName.length > 4 ? 9 : 11,
                   letterSpacing: 0,
                 ),
@@ -1859,11 +1862,11 @@ class _MyComputerPageState extends State<MyComputerPage> {
               child: LinearProgressIndicator(
                 value: ratio,
                 minHeight: 18,
-                backgroundColor: NexusColors.surfaceContainerLow,
+                backgroundColor: colorScheme.surfaceContainerLow,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   Color.lerp(
-                    NexusColors.secondary.withValues(alpha: 0.4),
-                    NexusColors.secondary,
+                    colorScheme.secondary.withValues(alpha: 0.4),
+                    colorScheme.secondary,
                     ratio,
                   )!,
                 ),
@@ -1880,7 +1883,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
               style: NexusTypography.labelMd.copyWith(
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
-                color: NexusColors.onSurface,
+                color: colorScheme.onSurface,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/colors.dart';
+import '../../theme/spacing.dart';
 import 'desktop_environment.dart';
 import 'top_app_bar.dart';
 
@@ -41,10 +42,12 @@ class _BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: NexusColors.outlineVariant)),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLowest,
+        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
       ),
       child: SafeArea(
         child: Padding(
@@ -108,7 +111,9 @@ class _BottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? NexusColors.primary : NexusColors.onSurfaceVariant;
+    final colorScheme = Theme.of(context).colorScheme;
+    final color = isActive ? colorScheme.onSurface : colorScheme.onSurfaceVariant;
+
     return InkWell(
       onTap: () => context.go(path),
       child: Column(
@@ -116,7 +121,14 @@ class _BottomNavItem extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(color: color, fontSize: 11)),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
         ],
       ),
     );

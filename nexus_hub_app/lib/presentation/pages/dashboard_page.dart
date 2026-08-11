@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -16,6 +15,7 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return PageScaffold(
       header: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -25,7 +25,7 @@ class DashboardPage extends StatelessWidget {
           Text(
             'Here is everything happening today',
             style: NexusTypography.bodyMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -44,7 +44,7 @@ class DashboardPage extends StatelessWidget {
                       label: 'Tasks Done',
                       value: '12',
                       trend: '+3 today',
-                      color: NexusColors.secondary,
+                      color: colorScheme.secondary,
                     ),
                     _MetricCard(
                       label: 'Unread Articles',
@@ -56,7 +56,7 @@ class DashboardPage extends StatelessWidget {
                       label: 'Bookmarks',
                       value: '142',
                       trend: '+5 this week',
-                      color: NexusColors.primary,
+                      color: colorScheme.primary,
                     ),
                     _MetricCard(
                       label: 'Portfolio',
@@ -110,6 +110,7 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: 220,
       child: NexusCard(
@@ -142,6 +143,7 @@ class _RecentTasksCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final tasks = [
       ('Review PR #402', 'Work', 'high'),
       ('Read AI paper', 'Learning', 'medium'),
@@ -162,7 +164,7 @@ class _RecentTasksCard extends StatelessWidget {
                 child: Text(
                   'See all',
                   style: NexusTypography.labelMd.copyWith(
-                    color: NexusColors.secondary,
+                    color: colorScheme.secondary,
                   ),
                 ),
               ),
@@ -174,10 +176,10 @@ class _RecentTasksCard extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.circle_outlined,
                     size: 18,
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: NexusSpacing.sm),
                   Expanded(child: Text(task.$1, style: NexusTypography.bodyMd)),
@@ -201,10 +203,11 @@ class _PriorityDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final color = switch (priority) {
-      'high' => NexusColors.error,
-      'medium' => NexusColors.secondary,
-      _ => NexusColors.outline,
+      'high' => colorScheme.error,
+      'medium' => colorScheme.secondary,
+      _ => colorScheme.outline,
     };
     return Container(
       width: 8,
@@ -222,6 +225,7 @@ class _FocusChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,7 +235,7 @@ class _FocusChartCard extends StatelessWidget {
           Text(
             'This week: 18h 20m',
             style: NexusTypography.bodyMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: NexusSpacing.md),
@@ -242,13 +246,13 @@ class _FocusChartCard extends StatelessWidget {
                 final opacity = Random().nextDouble();
                 Color color;
                 if (opacity < 0.2) {
-                  color = NexusColors.surfaceVariant;
+                  color = colorScheme.surfaceContainerHighest;
                 } else if (opacity < 0.5) {
-                  color = NexusColors.secondaryFixedDim.withValues(alpha: 0.4);
+                  color = colorScheme.secondary.withValues(alpha: 0.4);
                 } else if (opacity < 0.8) {
-                  color = NexusColors.secondaryFixedDim.withValues(alpha: 0.7);
+                  color = colorScheme.secondary.withValues(alpha: 0.7);
                 } else {
-                  color = NexusColors.secondaryContainer;
+                  color = colorScheme.secondaryContainer;
                 }
                 return Expanded(
                   child: Container(
@@ -273,6 +277,7 @@ class _QuickActionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final actions = [
       ('New Task', Icons.add_task),
       ('Add Bookmark', Icons.bookmark_add_outlined),
