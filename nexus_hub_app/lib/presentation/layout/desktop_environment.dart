@@ -31,6 +31,7 @@ import '../pages/terminal_page.dart';
 import '../pages/trending_page.dart';
 import '../states/desktop_state.dart';
 import '../states/pomodoro_state.dart';
+import '../states/theme_state.dart';
 import '../states/wallpaper_state.dart';
 
 /// Navigation item descriptor for the desktop environment.
@@ -280,7 +281,8 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   @override
   void initState() {
     super.initState();
-    // Load persisted wallpaper and desktop state.
+    // Load persisted theme, wallpaper and desktop state.
+    ThemeState.instance.init();
     WallpaperState.instance.init();
     PomodoroState.instance.init();
     DesktopState.instance.init(
@@ -579,7 +581,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
         child: Stack(
           children: [
             // Desktop background
-            _buildBackground(),
+            _buildBackground(context),
             // Desktop icons area
             Positioned.fill(
               child: Padding(
@@ -604,43 +606,65 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     });
   }
 
-  Widget _buildBackground() {
+  Widget _buildBackground(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Watch((_) {
       final wallpaper = WallpaperState.instance.currentWallpaper.value;
+      Widget base;
       if (wallpaper == null) {
-        return _buildGradientBackground();
+        base = _buildGradientBackground(context);
+      } else {
+        base = Image.network(
+          wallpaper.url,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) {
+              return child;
+            }
+            return _buildGradientBackground(context);
+          },
+          errorBuilder: (context, error, stackTrace) =>
+              _buildGradientBackground(context),
+        );
       }
-      return Image.network(
-        wallpaper.url,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        // Keep the gradient visible while the image is still loading.
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) {
-            return child;
-          }
-          return _buildGradientBackground();
-        },
-        // Fall back to the gradient if the network image fails to load.
-        errorBuilder: (context, error, stackTrace) =>
-            _buildGradientBackground(),
+
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          base,
+          Container(
+            color: colorScheme.background.withValues(alpha: 0.35),
+          ),
+        ],
       );
     });
   }
 
-  Widget _buildGradientBackground() {
+  Widget _buildGradientBackground(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
+
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1A1A2E),
-            Color(0xFF16213E),
-            Color(0xFF0F3460),
-            Color(0xFF533483),
-          ],
+          colors: isDark
+              ? const [
+                  Color(0xFF1A1A2E),
+                  Color(0xFF16213E),
+                  Color(0xFF0F3460),
+                  Color(0xFF533483),
+                ]
+              : const [
+                  Color(0xFFF0F4FF),
+                  Color(0xFFE5EEFF),
+                  Color(0xFFDCE9FF),
+                  Color(0xFFD3E4FE),
+                ],
         ),
       ),
     );
@@ -696,6 +720,8 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   }
 
   Widget _buildDock(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
@@ -705,8 +731,10 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
             height: 80,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              color: colorScheme.surface.withValues(alpha: 0.18),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+              ),
               borderRadius: BorderRadius.circular(22),
             ),
             child: Row(
@@ -738,14 +766,21 @@ class _MenuBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
+
     return Container(
       height: 32,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.25),
+        color: isDark
+            ? Colors.black.withValues(alpha: 0.25)
+            : Colors.white.withValues(alpha: 0.2),
         border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.1),
+          ),
         ),
       ),
       child: Row(
@@ -757,13 +792,17 @@ class _MenuBar extends StatelessWidget {
               Icon(
                 Icons.apple,
                 size: 16,
-                color: Colors.white.withValues(alpha: 0.9),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.9)
+                    : Colors.black.withValues(alpha: 0.85),
               ),
               const SizedBox(width: 8),
               Text(
                 'Nexus Hub',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : Colors.black.withValues(alpha: 0.85),
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.2,
@@ -772,9 +811,47 @@ class _MenuBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          // Right: live clock with seconds
+          // Right: theme toggle + live clock
+          _MenuIconButton(
+            icon: isDark ? Icons.dark_mode : Icons.light_mode,
+            onTap: () => ThemeState.instance.toggle(),
+          ),
+          const SizedBox(width: 8),
           const _ClockWidget(),
         ],
+      ),
+    );
+  }
+}
+
+class _MenuIconButton extends StatelessWidget {
+  const _MenuIconButton({required this.icon, this.onTap});
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        hoverColor: colorScheme.surfaceContainerHigh.withValues(alpha: 0.4),
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: Icon(
+            icon,
+            size: 16,
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.9)
+                : Colors.black.withValues(alpha: 0.85),
+          ),
+        ),
       ),
     );
   }
@@ -828,13 +905,18 @@ class _ClockWidgetState extends State<_ClockWidget> {
   Widget build(BuildContext context) {
     final time = DateFormat('HH:mm:ss').format(_now);
     final date = DateFormat('M/d (EEE)').format(_now);
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           date,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.8),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.8)
+                : Colors.black.withValues(alpha: 0.75),
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -843,7 +925,9 @@ class _ClockWidgetState extends State<_ClockWidget> {
         Text(
           time,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.95),
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.95)
+                : Colors.black.withValues(alpha: 0.9),
             fontSize: 13,
             fontWeight: FontWeight.w600,
             fontFeatures: const [FontFeature.tabularFigures()],
@@ -936,25 +1020,7 @@ class _DesktopIcon extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              appItem.label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                height: 1.2,
-                shadows: [
-                  Shadow(
-                    color: Colors.black45,
-                    blurRadius: 4,
-                    offset: Offset(0, 1),
-                  ),
-                ],
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            _DesktopIconLabel(label: appItem.label),
           ],
         ),
       ),
@@ -962,6 +1028,8 @@ class _DesktopIcon extends StatelessWidget {
   }
 
   Widget _buildFolderIcon(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
     final folderName = item.label ?? item.folderName ?? '文件夹';
     return DragTarget<DesktopItem>(
       onWillAcceptWithDetails: (details) =>
@@ -989,12 +1057,16 @@ class _DesktopIcon extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(48 * 0.23),
                       color: isHovering
-                          ? Colors.white.withValues(alpha: 0.3)
-                          : Colors.white.withValues(alpha: 0.15),
+                          ? colorScheme.surfaceContainerLow
+                              .withValues(alpha: isDark ? 0.5 : 0.6)
+                          : colorScheme.surfaceContainerLow
+                              .withValues(alpha: isDark ? 0.25 : 0.35),
                       border: Border.all(
                         color: isHovering
-                            ? Colors.white.withValues(alpha: 0.6)
-                            : Colors.white.withValues(alpha: 0.2),
+                            ? colorScheme.outlineVariant
+                                .withValues(alpha: isDark ? 0.6 : 0.7)
+                            : colorScheme.outlineVariant
+                                .withValues(alpha: isDark ? 0.3 : 0.4),
                       ),
                     ),
                     child: ClipRRect(
@@ -1004,28 +1076,39 @@ class _DesktopIcon extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  folderName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    height: 1.2,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black45,
-                        blurRadius: 4,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                _DesktopIconLabel(label: folderName),
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  /// Theme-aware label used by both app and folder desktop icons.
+  Widget _DesktopIconLabel({required String label}) {
+    return Builder(
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        final isDark = colorScheme.brightness == Brightness.dark;
+        return Text(
+          label,
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black.withValues(alpha: 0.9),
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+            shadows: [
+              Shadow(
+                color: isDark ? Colors.black45 : Colors.white54,
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         );
       },
     );

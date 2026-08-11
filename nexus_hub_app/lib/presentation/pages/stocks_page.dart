@@ -78,6 +78,7 @@ class _StocksPageState extends State<StocksPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return PageScaffold(
       header: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -91,7 +92,7 @@ class _StocksPageState extends State<StocksPage> {
               Text(
                 'Real-time portfolio and market tracking',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -157,7 +158,7 @@ class _StocksPageState extends State<StocksPage> {
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: NexusColors.primary.withValues(alpha: 0.6),
+                            color: colorScheme.primary.withValues(alpha: 0.6),
                           ),
                         ),
                       ),
@@ -174,7 +175,7 @@ class _StocksPageState extends State<StocksPage> {
                             Icon(
                               Icons.cloud_off,
                               size: 32,
-                              color: NexusColors.onSurfaceVariant.withValues(
+                              color: colorScheme.onSurfaceVariant.withValues(
                                 alpha: 0.5,
                               ),
                             ),
@@ -182,7 +183,7 @@ class _StocksPageState extends State<StocksPage> {
                             Text(
                               _indexError!,
                               style: NexusTypography.bodyMd.copyWith(
-                                color: NexusColors.onSurfaceVariant,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                             const SizedBox(height: NexusSpacing.sm),
@@ -237,6 +238,7 @@ class _WatchlistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final stocks = [
       ('AAPL', 'Apple Inc.', 'Tech', 182.52, 1.2, true),
       ('TSLA', 'Tesla', 'Auto', 199.40, -0.8, false),
@@ -257,7 +259,7 @@ class _WatchlistCard extends StatelessWidget {
                 icon: const Icon(
                   Icons.add,
                   size: 20,
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -298,6 +300,7 @@ class _WatchlistItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final color = isUp ? NexusColors.stockUp : NexusColors.stockDown;
 
     return Padding(
@@ -308,7 +311,7 @@ class _WatchlistItem extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: NexusColors.surfaceVariant,
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: NexusRadii.mdRadius,
             ),
             alignment: Alignment.center,
@@ -369,6 +372,7 @@ class _MarketOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,6 +427,7 @@ class _OverviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final color = isUp ? NexusColors.stockUp : NexusColors.stockDown;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -485,6 +490,7 @@ class _HoldingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final holdings = [
       ('AAPL', 'Apple Inc.', 50, 175.30, 182.52),
       ('MSFT', 'Microsoft', 30, 380.00, 410.34),
@@ -505,7 +511,7 @@ class _HoldingsCard extends StatelessWidget {
                 child: Text(
                   'View All',
                   style: NexusTypography.labelSm.copyWith(
-                    color: NexusColors.secondary,
+                    color: colorScheme.secondary,
                   ),
                 ),
               ),
@@ -546,7 +552,7 @@ class _HoldingsCard extends StatelessWidget {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: NexusColors.surfaceVariant,
+                              color: colorScheme.surfaceContainerHighest,
                               borderRadius: NexusRadii.mdRadius,
                             ),
                             alignment: Alignment.center,
@@ -603,6 +609,7 @@ class _TableHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
       child: Text(label.toUpperCase(), style: NexusTypography.labelSm),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/typography.dart';
 
@@ -13,13 +12,14 @@ class NexusAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final fallback = label?.isNotEmpty == true ? label![0].toUpperCase() : '?';
 
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: NexusColors.primary,
+        color: colorScheme.primary,
         borderRadius: NexusRadii.fullRadius,
         image: imageUrl != null
             ? DecorationImage(image: NetworkImage(imageUrl!), fit: BoxFit.cover)
@@ -30,7 +30,7 @@ class NexusAvatar extends StatelessWidget {
           ? Text(
               fallback,
               style: NexusTypography.labelMd.copyWith(
-                color: NexusColors.onPrimary,
+                color: colorScheme.onPrimary,
                 fontWeight: FontWeight.w700,
               ),
             )

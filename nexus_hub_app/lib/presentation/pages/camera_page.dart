@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -217,8 +216,9 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
 
   void _showError(String message) {
     if (!mounted) return;
+    final colorScheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: NexusColors.error),
+      SnackBar(content: Text(message), backgroundColor: colorScheme.error),
     );
   }
 
@@ -231,6 +231,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return PageScaffold(
       header: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -244,7 +245,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
               Text(
                 'Capture photos and videos from your webcam',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -274,6 +275,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
 
   /// Row of camera selection chips and the photo/video mode toggle.
   Widget _buildCameraBar() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Wrap(
       spacing: NexusSpacing.sm,
       runSpacing: NexusSpacing.sm,
@@ -291,16 +293,16 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
               ),
               decoration: BoxDecoration(
                 color: i == _selectedIndex
-                    ? NexusColors.secondaryContainer
-                    : NexusColors.surfaceContainerHigh,
+                    ? colorScheme.secondaryContainer
+                    : colorScheme.surfaceContainerHigh,
                 borderRadius: NexusRadii.mdRadius,
               ),
               child: Text(
                 cam.name.isNotEmpty ? cam.name : 'Camera ${i + 1}',
                 style: NexusTypography.labelMd.copyWith(
                   color: i == _selectedIndex
-                      ? NexusColors.onSecondaryContainer
-                      : NexusColors.onSurfaceVariant,
+                      ? colorScheme.onSecondaryContainer
+                      : colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -320,11 +322,12 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
   }
 
   Widget _buildPreviewPane() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLow,
+        color: colorScheme.surfaceContainerLow,
         borderRadius: NexusRadii.lgRadius,
-        border: Border.all(color: NexusColors.outlineVariant),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -349,13 +352,14 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
 
   /// Bottom bar with the mode-aware capture button, state hint and folder link.
   Widget _buildPreviewFooter() {
+    final colorScheme = Theme.of(context).colorScheme;
     final ready = _controller?.value.isInitialized ?? false;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: NexusSpacing.md,
         vertical: NexusSpacing.sm,
       ),
-      color: NexusColors.surfaceContainerLowest,
+      color: colorScheme.surfaceContainerLowest,
       child: Row(
         children: [
           Expanded(
@@ -385,11 +389,12 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
   }
 
   Widget _buildCaptureList() {
+    final colorScheme = Theme.of(context).colorScheme;
     if (_captures.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(NexusSpacing.lg),
         decoration: BoxDecoration(
-          color: NexusColors.surfaceContainerLow,
+          color: colorScheme.surfaceContainerLow,
           borderRadius: NexusRadii.lgRadius,
         ),
         child: Column(
@@ -397,7 +402,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
             const Icon(
               Icons.photo_library_outlined,
               size: 32,
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: NexusSpacing.sm),
             Text('尚无捕获', style: NexusTypography.bodyMd),
@@ -405,7 +410,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
             Text(
               '拍摄的照片和视频会保存在此文件夹',
               style: NexusTypography.labelMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -414,7 +419,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
     }
     return Container(
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLow,
+        color: colorScheme.surfaceContainerLow,
         borderRadius: NexusRadii.lgRadius,
       ),
       clipBehavior: Clip.antiAlias,
@@ -427,7 +432,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
               horizontal: NexusSpacing.md,
               vertical: NexusSpacing.sm,
             ),
-            color: NexusColors.surfaceContainerHigh,
+            color: colorScheme.surfaceContainerHigh,
             child: Text(
               '捕获记录 (${_captures.length})',
               style: NexusTypography.labelMd,
@@ -472,6 +477,7 @@ class _CaptureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: NexusRadii.mdRadius,
@@ -481,13 +487,13 @@ class _CaptureTile extends StatelessWidget {
           vertical: 8,
         ),
         decoration: BoxDecoration(
-          color: NexusColors.surfaceContainerLowest,
+          color: colorScheme.surfaceContainerLowest,
           borderRadius: NexusRadii.mdRadius,
-          border: Border.all(color: NexusColors.outlineVariant),
+          border: Border.all(color: colorScheme.outlineVariant),
         ),
         child: Row(
           children: [
-            Icon(entry.icon, size: 18, color: NexusColors.onSurfaceVariant),
+            Icon(entry.icon, size: 18, color: colorScheme.onSurfaceVariant),
             const SizedBox(width: NexusSpacing.sm),
             Expanded(
               child: Text(
@@ -500,7 +506,7 @@ class _CaptureTile extends StatelessWidget {
             const Icon(
               Icons.folder_open_outlined,
               size: 16,
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ],
         ),
@@ -518,6 +524,7 @@ class _CenteredStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -550,10 +557,11 @@ class _ModeToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(NexusSpacing.xs),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerHigh,
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: NexusRadii.fullRadius,
       ),
       child: Row(
@@ -597,6 +605,7 @@ class _ModeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: enabled && !selected ? onTap : null,
       borderRadius: NexusRadii.fullRadius,
@@ -608,7 +617,7 @@ class _ModeChip extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: selected
-              ? NexusColors.surfaceContainerLowest
+              ? colorScheme.surfaceContainerLowest
               : Colors.transparent,
           borderRadius: NexusRadii.fullRadius,
         ),
@@ -619,16 +628,16 @@ class _ModeChip extends StatelessWidget {
               icon,
               size: 15,
               color: selected
-                  ? NexusColors.primary
-                  : NexusColors.onSurfaceVariant,
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: NexusSpacing.xs),
             Text(
               label,
               style: NexusTypography.labelMd.copyWith(
                 color: selected
-                    ? NexusColors.primary
-                    : NexusColors.onSurfaceVariant,
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
@@ -655,9 +664,10 @@ class _CaptureButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isPhotoMode = mode == _CaptureMode.photo;
     final accent = isPhotoMode
-        ? NexusColors.secondary
+        ? colorScheme.secondary
         : const Color(0xFFE23C3C);
     final color = recording ? const Color(0xFFE23C3C) : accent;
     return InkWell(
@@ -668,7 +678,7 @@ class _CaptureButton extends StatelessWidget {
         width: 52,
         height: 52,
         decoration: BoxDecoration(
-          color: enabled ? color : NexusColors.surfaceContainerHigh,
+          color: enabled ? color : colorScheme.surfaceContainerHigh,
           shape: recording ? BoxShape.rectangle : BoxShape.circle,
           borderRadius: recording ? BorderRadius.circular(10) : null,
           boxShadow: enabled
@@ -687,7 +697,7 @@ class _CaptureButton extends StatelessWidget {
               : isPhotoMode
               ? Icons.camera_alt_rounded
               : Icons.fiber_manual_record,
-          color: enabled ? Colors.white : NexusColors.onSurfaceVariant,
+          color: enabled ? colorScheme.onSecondary : colorScheme.onSurfaceVariant,
           size: 22,
         ),
       ),
@@ -701,13 +711,14 @@ class _CameraBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: NexusSpacing.md,
         vertical: NexusSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: NexusColors.secondaryContainer,
+        color: colorScheme.secondaryContainer,
         borderRadius: NexusRadii.fullRadius,
       ),
       child: Row(

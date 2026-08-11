@@ -8,7 +8,6 @@ import 'package:easy_mail/src/models/mail_message.dart';
 import '../../data/models/mail_account_model.dart';
 import '../../data/models/mail_item_model.dart';
 import '../../data/repositories/mail_repository.dart';
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -47,8 +46,9 @@ class _MailPageState extends State<MailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: NexusColors.background,
+      color: colorScheme.background,
       child: Watch((context) {
         if (!_state.hasValidAccount.value || _state.isEditingAccount.value) {
           return _MailAccountSetup(
@@ -110,12 +110,13 @@ class _MailToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.lg),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLowest,
-        border: Border(bottom: BorderSide(color: NexusColors.outlineVariant)),
+        color: colorScheme.surfaceContainerLowest,
+        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -132,7 +133,7 @@ class _MailToolbar extends StatelessWidget {
             Text(
               'Inbox',
               style: NexusTypography.labelMd.copyWith(
-                color: NexusColors.secondary,
+                color: colorScheme.secondary,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -149,7 +150,7 @@ class _MailToolbar extends StatelessWidget {
             onTap: () => state.startAccountEdit(),
           ),
           const SizedBox(width: NexusSpacing.sm),
-          Container(width: 1, height: 24, color: NexusColors.outlineVariant),
+          Container(width: 1, height: 24, color: colorScheme.outlineVariant),
           const SizedBox(width: NexusSpacing.sm),
           NexusButton(
             label: 'Compose',
@@ -162,10 +163,11 @@ class _MailToolbar extends StatelessWidget {
   }
 
   void _showComposeDialog(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: NexusColors.surfaceContainerLowest,
+        backgroundColor: colorScheme.surfaceContainerLowest,
         title: Text('Compose', style: NexusTypography.headlineSm),
         content: Text(
           'Compose functionality will be implemented in a follow-up.',
@@ -177,7 +179,7 @@ class _MailToolbar extends StatelessWidget {
             child: Text(
               'Close',
               style: NexusTypography.labelMd.copyWith(
-                color: NexusColors.secondary,
+                color: colorScheme.secondary,
               ),
             ),
           ),
@@ -200,6 +202,7 @@ class _ToolbarIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
       color: Colors.transparent,
       borderRadius: NexusRadii.mdRadius,
@@ -216,10 +219,10 @@ class _ToolbarIconButton extends StatelessWidget {
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: NexusColors.secondary,
+                    color: colorScheme.secondary,
                   ),
                 )
-              : Icon(icon, size: 20, color: NexusColors.onSurfaceVariant),
+              : Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
         ),
       ),
     );
@@ -233,8 +236,9 @@ class _FolderSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: NexusColors.surfaceContainerLowest,
+      color: colorScheme.surfaceContainerLowest,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -279,6 +283,7 @@ class _FolderSidebar extends StatelessWidget {
 
   Widget _buildLabelsGroup() {
     return Watch((context) {
+      final colorScheme = Theme.of(context).colorScheme;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -290,7 +295,7 @@ class _FolderSidebar extends StatelessWidget {
             child: Text(
               'LABELS',
               style: NexusTypography.labelSm.copyWith(
-                color: NexusColors.outline,
+                color: colorScheme.outline,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -299,7 +304,7 @@ class _FolderSidebar extends StatelessWidget {
             return _SidebarItem(
               icon: Icons.label,
               label: label,
-              iconColor: _labelColor(label),
+              iconColor: _labelColor(colorScheme, label),
               isSelected: false,
               onTap: () {},
             );
@@ -329,10 +334,11 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
-        color: isSelected ? NexusColors.secondaryContainer : Colors.transparent,
+        color: isSelected ? colorScheme.secondaryContainer : Colors.transparent,
         borderRadius: NexusRadii.mdRadius,
         child: InkWell(
           onTap: onTap,
@@ -348,8 +354,8 @@ class _SidebarItem extends StatelessWidget {
                   color:
                       iconColor ??
                       (isSelected
-                          ? NexusColors.onSecondaryContainer
-                          : NexusColors.onSurfaceVariant),
+                          ? colorScheme.onSecondaryContainer
+                          : colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(width: NexusSpacing.md),
                 Expanded(
@@ -357,8 +363,8 @@ class _SidebarItem extends StatelessWidget {
                     label,
                     style: NexusTypography.bodyMd.copyWith(
                       color: isSelected
-                          ? NexusColors.onSecondaryContainer
-                          : NexusColors.onSurfaceVariant,
+                          ? colorScheme.onSecondaryContainer
+                          : colorScheme.onSurfaceVariant,
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.w500,
@@ -373,16 +379,16 @@ class _SidebarItem extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? NexusColors.secondaryFixed
-                          : NexusColors.secondaryContainer,
+                          ? colorScheme.secondaryContainer
+                          : colorScheme.secondaryContainer,
                       borderRadius: NexusRadii.fullRadius,
                     ),
                     child: Text(
                       count.toString(),
                       style: NexusTypography.labelSm.copyWith(
                         color: isSelected
-                            ? NexusColors.onSecondaryFixed
-                            : NexusColors.onSecondaryContainer,
+                            ? colorScheme.onSecondaryContainer
+                            : colorScheme.onSecondaryContainer,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -403,16 +409,18 @@ class _MessageList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: NexusColors.surface,
+      color: colorScheme.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(),
           Expanded(
             child: Watch((context) {
+              final colorScheme = Theme.of(context).colorScheme;
               if (state.isLoading.value && state.emails.value.isEmpty) {
-                return _buildShimmer();
+                return _buildShimmer(colorScheme);
               }
               if (state.error.value != null && state.emails.value.isEmpty) {
                 return _ErrorState(
@@ -424,8 +432,8 @@ class _MessageList extends StatelessWidget {
                 return _EmptyState(message: 'No messages in this folder.');
               }
               return RefreshIndicator(
-                color: NexusColors.secondary,
-                backgroundColor: NexusColors.surfaceContainerLowest,
+                color: colorScheme.secondary,
+                backgroundColor: colorScheme.surfaceContainerLowest,
                 onRefresh: state.refresh,
                 child: ListView.builder(
                   itemCount: state.emails.value.length,
@@ -448,11 +456,12 @@ class _MessageList extends StatelessWidget {
 
   Widget _buildHeader() {
     return Watch((context) {
+      final colorScheme = Theme.of(context).colorScheme;
       return Container(
         height: 56,
         padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: NexusColors.outlineVariant)),
+          border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -470,10 +479,10 @@ class _MessageList extends StatelessWidget {
     });
   }
 
-  Widget _buildShimmer() {
+  Widget _buildShimmer(ColorScheme colorScheme) {
     return Shimmer.fromColors(
-      baseColor: NexusColors.surfaceContainerLow,
-      highlightColor: NexusColors.surfaceContainerHigh,
+      baseColor: colorScheme.surfaceContainerLow,
+      highlightColor: colorScheme.surfaceContainerHigh,
       child: ListView.builder(
         itemCount: 6,
         itemBuilder: (context, index) {
@@ -484,7 +493,7 @@ class _MessageList extends StatelessWidget {
               vertical: NexusSpacing.xs,
             ),
             decoration: BoxDecoration(
-              color: NexusColors.surfaceContainerLowest,
+              color: colorScheme.surfaceContainerLowest,
               borderRadius: NexusRadii.mdRadius,
             ),
           );
@@ -507,17 +516,18 @@ class _MessageListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final foreground = isSelected
-        ? NexusColors.onSecondaryContainer
+        ? colorScheme.onSecondaryContainer
         : item.isRead
-        ? NexusColors.onSurfaceVariant
-        : NexusColors.onSurface;
+        ? colorScheme.onSurfaceVariant
+        : colorScheme.onSurface;
     final subjectWeight = item.isRead ? FontWeight.w500 : FontWeight.w700;
 
     return Material(
       color: isSelected
-          ? NexusColors.secondaryContainer
-          : NexusColors.surfaceContainerLowest,
+          ? colorScheme.secondaryContainer
+          : colorScheme.surfaceContainerLowest,
       child: InkWell(
         onTap: onTap,
         child: Container(
@@ -527,7 +537,7 @@ class _MessageListItem extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: NexusColors.outlineVariant),
+              bottom: BorderSide(color: colorScheme.outlineVariant),
             ),
           ),
           child: Row(
@@ -539,7 +549,7 @@ class _MessageListItem extends StatelessWidget {
                   height: 32,
                   margin: const EdgeInsets.only(right: NexusSpacing.sm),
                   decoration: BoxDecoration(
-                    color: NexusColors.secondary,
+                    color: colorScheme.secondary,
                     borderRadius: NexusRadii.fullRadius,
                   ),
                 )
@@ -569,8 +579,8 @@ class _MessageListItem extends StatelessWidget {
                           _formatDate(item.date),
                           style: NexusTypography.labelSm.copyWith(
                             color: isSelected
-                                ? NexusColors.onSecondaryContainer
-                                : NexusColors.outline,
+                                ? colorScheme.onSecondaryContainer
+                                : colorScheme.outline,
                           ),
                         ),
                       ],
@@ -590,8 +600,8 @@ class _MessageListItem extends StatelessWidget {
                       item.snippet,
                       style: NexusTypography.bodyMd.copyWith(
                         color: isSelected
-                            ? NexusColors.onSecondaryContainer
-                            : NexusColors.onSurfaceVariant,
+                            ? colorScheme.onSecondaryContainer
+                            : colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -615,8 +625,9 @@ class _ReadingPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: NexusColors.surfaceContainerLowest,
+      color: colorScheme.surfaceContainerLowest,
       child: Column(
         children: [
           _buildToolbar(context),
@@ -634,15 +645,15 @@ class _ReadingPane extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSubjectHeader(item),
+                      _buildSubjectHeader(item, colorScheme),
                       const SizedBox(height: NexusSpacing.lg),
-                      _buildSenderCard(item),
+                      _buildSenderCard(item, colorScheme),
                       const SizedBox(height: NexusSpacing.lg),
                       _buildBody(message),
                       if (message != null &&
                           message.attachments.isNotEmpty) ...[
                         const SizedBox(height: NexusSpacing.lg),
-                        _buildAttachments(message),
+                        _buildAttachments(message, colorScheme),
                       ],
                     ],
                   ),
@@ -656,12 +667,13 @@ class _ReadingPane extends StatelessWidget {
   }
 
   Widget _buildToolbar(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLowest,
-        border: Border(bottom: BorderSide(color: NexusColors.outlineVariant)),
+        color: colorScheme.surfaceContainerLowest,
+        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -672,7 +684,7 @@ class _ReadingPane extends StatelessWidget {
             ),
           _ToolbarIconButton(icon: Icons.reply, onTap: () {}),
           _ToolbarIconButton(icon: Icons.forward, onTap: () {}),
-          Container(width: 1, height: 24, color: NexusColors.outlineVariant),
+          Container(width: 1, height: 24, color: colorScheme.outlineVariant),
           _ToolbarIconButton(icon: Icons.archive_outlined, onTap: () {}),
           _ToolbarIconButton(icon: Icons.delete_outlined, onTap: () {}),
           const Spacer(),
@@ -683,7 +695,7 @@ class _ReadingPane extends StatelessWidget {
     );
   }
 
-  Widget _buildSubjectHeader(MailItem item) {
+  Widget _buildSubjectHeader(MailItem item, ColorScheme colorScheme) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -699,20 +711,20 @@ class _ReadingPane extends StatelessWidget {
         ...item.labels.map((label) {
           return Padding(
             padding: const EdgeInsets.only(left: NexusSpacing.xs),
-            child: NexusChip(label: label, color: _labelColor(label)),
+            child: NexusChip(label: label, color: _labelColor(colorScheme, label)),
           );
         }),
       ],
     );
   }
 
-  Widget _buildSenderCard(MailItem item) {
+  Widget _buildSenderCard(MailItem item, ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.all(NexusSpacing.md),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLow,
+        color: colorScheme.surfaceContainerLow,
         borderRadius: NexusRadii.lgRadius,
-        border: Border.all(color: NexusColors.outlineVariant),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
@@ -741,7 +753,7 @@ class _ReadingPane extends StatelessWidget {
                     Text(
                       item.senderName.isEmpty ? '' : '<${item.senderAddress}>',
                       style: NexusTypography.bodyMd.copyWith(
-                        color: NexusColors.onSurfaceVariant,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -750,7 +762,7 @@ class _ReadingPane extends StatelessWidget {
                 Text(
                   'To: nexus.user@hub.io • ${_formatDate(item.date, full: true)}',
                   style: NexusTypography.bodyMd.copyWith(
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -768,14 +780,14 @@ class _ReadingPane extends StatelessWidget {
     return MailBodyView(message: message);
   }
 
-  Widget _buildAttachments(MailMessage message) {
+  Widget _buildAttachments(MailMessage message, ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Attachments (${message.attachments.length})',
           style: NexusTypography.labelSm.copyWith(
-            color: NexusColors.outline,
+            color: colorScheme.outline,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -788,15 +800,15 @@ class _ReadingPane extends StatelessWidget {
               width: 240,
               padding: const EdgeInsets.all(NexusSpacing.md),
               decoration: BoxDecoration(
-                color: NexusColors.surfaceContainerLowest,
+                color: colorScheme.surfaceContainerLowest,
                 borderRadius: NexusRadii.mdRadius,
-                border: Border.all(color: NexusColors.outlineVariant),
+                border: Border.all(color: colorScheme.outlineVariant),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.description_outlined,
-                    color: NexusColors.secondary,
+                    color: colorScheme.secondary,
                     size: 28,
                   ),
                   const SizedBox(width: NexusSpacing.md),
@@ -815,7 +827,7 @@ class _ReadingPane extends StatelessWidget {
                         Text(
                           '${(attachment.size / 1024).ceil()} KB',
                           style: NexusTypography.labelSm.copyWith(
-                            color: NexusColors.onSurfaceVariant,
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -824,7 +836,7 @@ class _ReadingPane extends StatelessWidget {
                   Icon(
                     Icons.download_outlined,
                     size: 20,
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -843,6 +855,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -850,13 +863,13 @@ class _EmptyState extends StatelessWidget {
           Icon(
             Icons.mail_outline,
             size: 48,
-            color: NexusColors.onSurfaceVariant,
+            color: colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: NexusSpacing.md),
           Text(
             message,
             style: NexusTypography.bodyMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -873,17 +886,18 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(NexusSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: NexusColors.error),
+            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
             const SizedBox(height: NexusSpacing.md),
             Text(
               message,
-              style: NexusTypography.bodyMd.copyWith(color: NexusColors.error),
+              style: NexusTypography.bodyMd.copyWith(color: colorScheme.error),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: NexusSpacing.md),
@@ -995,6 +1009,8 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
   bool _useSmtpSsl = true;
   bool _isSaving = false;
 
+  ColorScheme get colorScheme => Theme.of(context).colorScheme;
+
   @override
   void initState() {
     super.initState();
@@ -1024,6 +1040,7 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(NexusSpacing.lg),
@@ -1044,7 +1061,7 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
                             ? Icons.settings_outlined
                             : Icons.mail_outlined,
                         size: 32,
-                        color: NexusColors.secondary,
+                        color: colorScheme.secondary,
                       ),
                       const SizedBox(width: NexusSpacing.md),
                       Text(
@@ -1063,7 +1080,7 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
                         ? 'Update your account details below.'
                         : 'Enter your email account details to get started.',
                     style: NexusTypography.bodyMd.copyWith(
-                      color: NexusColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: NexusSpacing.lg),
@@ -1171,19 +1188,20 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
                   ),
                   const SizedBox(height: NexusSpacing.lg),
                   Watch((context) {
+                    final colorScheme = Theme.of(context).colorScheme;
                     final error = widget.state.configError.value;
                     if (error == null) return const SizedBox.shrink();
                     return Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(NexusSpacing.md),
                       decoration: BoxDecoration(
-                        color: NexusColors.errorContainer,
+                        color: colorScheme.errorContainer,
                         borderRadius: NexusRadii.mdRadius,
                       ),
                       child: Text(
                         error,
                         style: NexusTypography.bodyMd.copyWith(
-                          color: NexusColors.onErrorContainer,
+                          color: colorScheme.onErrorContainer,
                         ),
                       ),
                     );
@@ -1244,8 +1262,10 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
   Future<void> _signOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: NexusColors.surfaceContainerLowest,
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+          backgroundColor: colorScheme.surfaceContainerLowest,
         title: Text('Sign out?', style: NexusTypography.headlineSm),
         content: Text(
           'This will remove the saved account and return to the setup screen.',
@@ -1257,7 +1277,7 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
             child: Text(
               'Cancel',
               style: NexusTypography.labelMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -1265,11 +1285,12 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
               'Sign Out',
-              style: NexusTypography.labelMd.copyWith(color: NexusColors.error),
+              style: NexusTypography.labelMd.copyWith(color: colorScheme.error),
             ),
           ),
         ],
       ),
+    },
     );
     if (confirmed == true) {
       await widget.state.signOut();
@@ -1280,7 +1301,7 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
     return Text(
       title.toUpperCase(),
       style: NexusTypography.labelSm.copyWith(
-        color: NexusColors.outline,
+        color: colorScheme.outline,
         fontWeight: FontWeight.w600,
       ),
     );
@@ -1295,9 +1316,9 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLow,
+        color: colorScheme.surfaceContainerLow,
         borderRadius: NexusRadii.mdRadius,
-        border: Border.all(color: NexusColors.outlineVariant),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1306,8 +1327,8 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: NexusColors.secondary,
-            activeTrackColor: NexusColors.secondary.withValues(alpha: 0.5),
+            activeThumbColor: colorScheme.secondary,
+            activeTrackColor: colorScheme.secondary.withValues(alpha: 0.5),
           ),
         ],
       ),
@@ -1394,11 +1415,11 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
   }
 }
 
-Color _labelColor(String label) {
+Color _labelColor(ColorScheme colorScheme, String label) {
   return switch (label.toLowerCase()) {
-    'work' => NexusColors.secondary,
+    'work' => colorScheme.secondary,
     'personal' => const Color(0xFF9333EA),
-    _ => NexusColors.outline,
+    _ => colorScheme.outline,
   };
 }
 

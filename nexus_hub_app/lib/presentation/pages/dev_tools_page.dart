@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -68,8 +67,9 @@ class _DevToolsPageState extends State<DevToolsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: NexusColors.background,
+      color: colorScheme.background,
       padding: const EdgeInsets.all(NexusSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,7 +79,7 @@ class _DevToolsPageState extends State<DevToolsPage> {
           Text(
             'Handy utilities for everyday development',
             style: NexusTypography.bodyMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: NexusSpacing.md),
@@ -160,6 +160,7 @@ class _ToolSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final width = expanded ? 220.0 : 64.0;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -230,8 +231,9 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final item = Material(
-      color: selected ? NexusColors.primaryContainer : Colors.transparent,
+      color: selected ? colorScheme.primaryContainer : Colors.transparent,
       borderRadius: NexusRadii.mdRadius,
       child: InkWell(
         onTap: onTap,
@@ -244,7 +246,7 @@ class _SidebarItem extends StatelessWidget {
               Icon(
                 tool.icon,
                 size: 20,
-                color: selected ? NexusColors.primary : NexusColors.onSurface,
+                color: selected ? colorScheme.primary : colorScheme.onSurface,
               ),
               if (expanded) ...[
                 const SizedBox(width: NexusSpacing.sm),
@@ -253,8 +255,8 @@ class _SidebarItem extends StatelessWidget {
                     tool.title,
                     style: NexusTypography.bodyMd.copyWith(
                       color: selected
-                          ? NexusColors.primary
-                          : NexusColors.onSurface,
+                          ? colorScheme.primary
+                          : colorScheme.onSurface,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -288,6 +290,7 @@ class _ToolToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       padding: const EdgeInsets.all(NexusSpacing.sm),
       child: Column(
@@ -337,10 +340,11 @@ class _ToolbarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
       color: selected
-          ? NexusColors.primaryContainer
-          : NexusColors.surfaceContainer,
+          ? colorScheme.primaryContainer
+          : colorScheme.surfaceContainer,
       borderRadius: NexusRadii.mdRadius,
       child: InkWell(
         onTap: onTap,
@@ -356,13 +360,13 @@ class _ToolbarItem extends StatelessWidget {
               Icon(
                 tool.icon,
                 size: 18,
-                color: selected ? NexusColors.primary : NexusColors.onSurface,
+                color: selected ? colorScheme.primary : colorScheme.onSurface,
               ),
               const SizedBox(width: NexusSpacing.xs),
               Text(
                 tool.title,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: selected ? NexusColors.primary : NexusColors.onSurface,
+                  color: selected ? colorScheme.primary : colorScheme.onSurface,
                 ),
               ),
             ],
@@ -380,6 +384,7 @@ class _PlaceholderToolCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       child: SizedBox(
         height: 320,
@@ -390,7 +395,7 @@ class _PlaceholderToolCard extends StatelessWidget {
               Icon(
                 Icons.construction,
                 size: 48,
-                color: NexusColors.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
               const SizedBox(height: NexusSpacing.md),
               Text(title, style: NexusTypography.headlineSm),
@@ -398,7 +403,7 @@ class _PlaceholderToolCard extends StatelessWidget {
               Text(
                 'This tool is not yet implemented.',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -493,6 +498,7 @@ class _JsonFormatterCardState extends State<_JsonFormatterCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,7 +544,7 @@ class _JsonFormatterCardState extends State<_JsonFormatterCard> {
             const SizedBox(height: NexusSpacing.sm),
             Text(
               _error!,
-              style: NexusTypography.labelSm.copyWith(color: NexusColors.error),
+              style: NexusTypography.labelSm.copyWith(color: colorScheme.error),
             ),
           ],
           const SizedBox(height: NexusSpacing.md),
@@ -594,6 +600,7 @@ class _IndentSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -628,8 +635,9 @@ class _IndentChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? NexusColors.primaryContainer : Colors.transparent,
+      color: selected ? colorScheme.primaryContainer : Colors.transparent,
       borderRadius: NexusRadii.smRadius,
       child: InkWell(
         onTap: onTap,
@@ -642,15 +650,15 @@ class _IndentChip extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border.all(
               color: selected
-                  ? NexusColors.primary
-                  : NexusColors.outlineVariant,
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant,
             ),
             borderRadius: NexusRadii.smRadius,
           ),
           child: Text(
             label,
             style: NexusTypography.labelSm.copyWith(
-              color: selected ? NexusColors.primary : NexusColors.onSurface,
+              color: selected ? colorScheme.primary : colorScheme.onSurface,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             ),
           ),

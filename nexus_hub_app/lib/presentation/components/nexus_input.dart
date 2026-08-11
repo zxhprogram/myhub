@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -41,6 +40,9 @@ class NexusInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -51,7 +53,7 @@ class NexusInput extends StatelessWidget {
             child: Text(
               labelText!,
               style: NexusTypography.labelMd.copyWith(
-                color: NexusColors.onSurface,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -66,16 +68,16 @@ class NexusInput extends StatelessWidget {
           autovalidateMode: autovalidateMode,
           onChanged: onChanged,
           onFieldSubmitted: onSubmitted,
-          style: NexusTypography.bodyMd,
+          style: NexusTypography.bodyMd.copyWith(color: colorScheme.onSurface),
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: NexusTypography.bodyMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             ),
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: NexusColors.surfaceContainerLow,
+            fillColor: colorScheme.surfaceContainerLow,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: NexusSpacing.md,
               vertical: NexusSpacing.sm,
@@ -86,11 +88,23 @@ class NexusInput extends StatelessWidget {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: NexusRadii.mdRadius,
-              borderSide: const BorderSide(color: Colors.transparent),
+              borderSide: BorderSide(
+                color: isDark
+                    ? Colors.transparent
+                    : colorScheme.outlineVariant.withValues(alpha: 0.5),
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: NexusRadii.mdRadius,
-              borderSide: const BorderSide(color: NexusColors.outline),
+              borderSide: BorderSide(color: colorScheme.secondary),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: NexusRadii.mdRadius,
+              borderSide: BorderSide(color: colorScheme.error),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: NexusRadii.mdRadius,
+              borderSide: BorderSide(color: colorScheme.error),
             ),
           ),
         ),

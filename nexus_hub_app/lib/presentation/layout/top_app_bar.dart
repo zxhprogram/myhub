@@ -10,14 +10,16 @@ class TopAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
       decoration: BoxDecoration(
-        color: NexusColors.background,
+        color: colorScheme.background,
         border: Border(
           bottom: BorderSide(
-            color: NexusColors.outlineVariant.withValues(alpha: 0.3),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
           ),
         ),
       ),
@@ -47,17 +49,19 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),
-        hoverColor: NexusColors.surfaceContainerHigh.withValues(alpha: 0.5),
+        hoverColor: colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
         child: Container(
           width: 40,
           height: 40,
           alignment: Alignment.center,
-          child: Icon(icon, size: 20, color: NexusColors.onSurfaceVariant),
+          child: Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
         ),
       ),
     );

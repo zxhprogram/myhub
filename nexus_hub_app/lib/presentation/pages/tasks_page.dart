@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/task_model.dart';
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -31,8 +30,9 @@ class _TasksPageState extends State<TasksPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: NexusColors.background,
+      color: colorScheme.background,
       padding: const EdgeInsets.all(NexusSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -50,7 +50,7 @@ class _TasksPageState extends State<TasksPage> {
                   Text(
                     'Manage your work across the board',
                     style: NexusTypography.bodyMd.copyWith(
-                      color: NexusColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -75,7 +75,7 @@ class _TasksPageState extends State<TasksPage> {
                   child: Text(
                     'Error: ${_state.error.value}',
                     style: NexusTypography.bodyMd.copyWith(
-                      color: NexusColors.error,
+                      color: colorScheme.error,
                     ),
                   ),
                 );
@@ -151,8 +151,10 @@ class _TasksPageState extends State<TasksPage> {
     final controller = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: NexusColors.surfaceContainerLowest,
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+        backgroundColor: colorScheme.surfaceContainerLowest,
         shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
         title: Text('Add List', style: NexusTypography.headlineSm),
         content: SizedBox(
@@ -179,7 +181,8 @@ class _TasksPageState extends State<TasksPage> {
             },
           ),
         ],
-      ),
+        );
+      },
     );
   }
 
@@ -190,8 +193,10 @@ class _TasksPageState extends State<TasksPage> {
     );
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: NexusColors.surfaceContainerLowest,
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+        backgroundColor: colorScheme.surfaceContainerLowest,
         shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
         title: Text(
           'Delete "${column.title}"?',
@@ -219,7 +224,8 @@ class _TasksPageState extends State<TasksPage> {
                   },
           ),
         ],
-      ),
+        );
+      },
     );
   }
 }
@@ -245,6 +251,7 @@ class _KanbanColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: 320,
       child: Column(
@@ -263,21 +270,21 @@ class _KanbanColumn extends StatelessWidget {
                     vertical: 1,
                   ),
                   decoration: BoxDecoration(
-                    color: NexusColors.surfaceContainerHighest,
+                    color: colorScheme.surfaceContainerHighest,
                     borderRadius: NexusRadii.fullRadius,
                   ),
                   child: Text(
                     '${tasks.length}',
                     style: NexusTypography.labelMd.copyWith(
-                      color: NexusColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
                 const Spacer(),
                 PopupMenuButton<String>(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.more_horiz,
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                   tooltip: 'List options',
                   shape: RoundedRectangleBorder(
@@ -312,16 +319,16 @@ class _KanbanColumn extends StatelessWidget {
                 return Container(
                   decoration: BoxDecoration(
                     color: isHovering
-                        ? NexusColors.surfaceContainerHigh.withValues(
+                        ? colorScheme.surfaceContainerHigh.withValues(
                             alpha: 0.6,
                           )
-                        : NexusColors.surfaceContainerLow.withValues(
+                        : colorScheme.surfaceContainerLow.withValues(
                             alpha: 0.4,
                           ),
                     borderRadius: NexusRadii.xlRadius,
                     border: isHovering
                         ? Border.all(
-                            color: NexusColors.secondary.withValues(alpha: 0.5),
+                            color: colorScheme.secondary.withValues(alpha: 0.5),
                             width: 2,
                           )
                         : null,
@@ -367,6 +374,7 @@ class _DraggableTaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return LongPressDraggable<TaskModel>(
       data: task,
       feedback: Material(
@@ -400,34 +408,35 @@ class _TaskCard extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onTap;
 
-  Color _tagColor(String tag) {
+  Color _tagColor(ColorScheme colorScheme, String tag) {
     return switch (tag.toLowerCase()) {
       'design' => const Color(0xFF7C3AED),
       'backend' => NexusColors.tertiary,
-      'frontend' => NexusColors.primary,
+      'frontend' => colorScheme.primary,
       'research' => const Color(0xFF2563EB),
-      _ => NexusColors.outline,
+      _ => colorScheme.outline,
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final tagColor = _tagColor(task.tag);
+    final colorScheme = Theme.of(context).colorScheme;
+    final tagColor = _tagColor(colorScheme, task.tag);
     return InkWell(
       onTap: onTap,
       borderRadius: NexusRadii.xlRadius,
       child: Container(
         padding: const EdgeInsets.all(NexusSpacing.md),
         decoration: BoxDecoration(
-          color: NexusColors.surfaceContainerLowest,
+          color: colorScheme.surfaceContainerLowest,
           borderRadius: NexusRadii.xlRadius,
           border: Border.all(
-            color: NexusColors.outlineVariant.withValues(alpha: 0.5),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
           boxShadow: dragging
               ? [
                   BoxShadow(
-                    color: NexusColors.onSurface.withValues(alpha: 0.15),
+                    color: colorScheme.onSurface.withValues(alpha: 0.15),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -465,7 +474,7 @@ class _TaskCard extends StatelessWidget {
               Text(
                 task.plainDescription,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -478,10 +487,10 @@ class _TaskCard extends StatelessWidget {
                   NexusChip(label: task.priority, color: tagColor),
                 const Spacer(),
                 if (task.dueDate != null) ...[
-                  const Icon(
+                  Icon(
                     Icons.calendar_today,
                     size: 14,
-                    color: NexusColors.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -493,12 +502,12 @@ class _TaskCard extends StatelessWidget {
                 InkWell(
                   onTap: onDelete,
                   borderRadius: NexusRadii.fullRadius,
-                  child: const Padding(
-                    padding: EdgeInsets.all(2),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
                     child: Icon(
                       Icons.delete_outline,
                       size: 16,
-                      color: NexusColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -518,6 +527,7 @@ class _AddTaskButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -527,7 +537,7 @@ class _AddTaskButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: NexusSpacing.md),
           decoration: BoxDecoration(
             border: Border.all(
-              color: NexusColors.outlineVariant,
+              color: colorScheme.outlineVariant,
               style: BorderStyle.solid,
             ),
             borderRadius: NexusRadii.xlRadius,
@@ -553,6 +563,7 @@ class _AddColumnButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: 320,
       child: Align(
@@ -567,11 +578,11 @@ class _AddColumnButton extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: NexusSpacing.md),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: NexusColors.outlineVariant,
+                  color: colorScheme.outlineVariant,
                   style: BorderStyle.solid,
                 ),
                 borderRadius: NexusRadii.xlRadius,
-                color: NexusColors.surfaceContainerLow.withValues(alpha: 0.3),
+                color: colorScheme.surfaceContainerLow.withValues(alpha: 0.3),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -581,7 +592,7 @@ class _AddColumnButton extends StatelessWidget {
                   Text(
                     'Add another list',
                     style: NexusTypography.bodyLg.copyWith(
-                      color: NexusColors.onSurfaceVariant,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -625,8 +636,9 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return AlertDialog(
-      backgroundColor: NexusColors.surfaceContainerLowest,
+      backgroundColor: colorScheme.surfaceContainerLowest,
       shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Text('New Task', style: NexusTypography.headlineSm),
       content: SizedBox(
@@ -641,7 +653,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
               Text(
                 'Description',
                 style: NexusTypography.labelMd.copyWith(
-                  color: NexusColors.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: NexusSpacing.sm),

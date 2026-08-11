@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -19,8 +18,9 @@ class NexusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = backgroundColor ?? NexusColors.surfaceContainerHigh;
-    final fg = foregroundColor ?? NexusColors.onSurfaceVariant;
+    final colorScheme = Theme.of(context).colorScheme;
+    final bg = backgroundColor ?? colorScheme.surfaceContainerHigh;
+    final fg = foregroundColor ?? colorScheme.onSurfaceVariant;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -30,9 +30,17 @@ class NexusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(NexusRadii.full),
-        border: Border.all(color: fg.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
       ),
-      child: Text(label, style: NexusTypography.labelSm.copyWith(color: fg)),
+      child: Text(
+        label,
+        style: NexusTypography.labelSm.copyWith(
+          color: fg,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }

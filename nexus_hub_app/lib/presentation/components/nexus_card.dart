@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 
@@ -10,7 +9,7 @@ class NexusCard extends StatelessWidget {
     super.key,
     this.child,
     this.padding = const EdgeInsets.all(NexusSpacing.md),
-    this.borderRadius = NexusRadii.md,
+    this.borderRadius = NexusRadii.xl,
     this.onTap,
   });
 
@@ -21,14 +20,26 @@ class NexusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
+
     final card = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLowest,
+        color: colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
-          color: NexusColors.outlineVariant.withValues(alpha: 0.2),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.16)
+                : Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: child,
     );
@@ -41,7 +52,7 @@ class NexusCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(borderRadius),
-        hoverColor: NexusColors.surfaceContainerLow.withValues(alpha: 0.3),
+        hoverColor: colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
         child: card,
       ),
     );
