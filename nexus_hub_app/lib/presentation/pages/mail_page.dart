@@ -619,7 +619,24 @@ class _ReadingPane extends StatelessWidget {
               if (item == null) {
                 return _EmptyState(message: 'Select a message to read');
               }
+              final error = state.messageError.value;
+              if (error != null) {
+                return _ErrorState(
+                  message: error,
+                  onRetry: () => state.selectEmail(item),
+                );
+              }
               final message = state.selectedEmailMessage.value;
+              if (message == null) {
+                // Message body still loading (or reloading after a switch).
+                return const Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  ),
+                );
+              }
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(NexusSpacing.lg),
                 child: ConstrainedBox(

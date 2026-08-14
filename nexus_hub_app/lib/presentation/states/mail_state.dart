@@ -71,6 +71,10 @@ class MailState {
   final emails = signal<List<MailItem>>([]);
   final selectedEmail = signal<MailItem?>(null);
   final selectedEmailMessage = signal<MailMessage?>(null);
+
+  /// Load error for the currently selected message body, if any.
+  final messageError = signal<String?>(null);
+
   final isLoading = signal<bool>(false);
   final error = signal<String?>(null);
   final searchQuery = signal<String>('');
@@ -184,6 +188,7 @@ class MailState {
     emails.value = [];
     selectedEmail.value = null;
     selectedEmailMessage.value = null;
+    messageError.value = null;
     unreadCounts.value = {};
     error.value = null;
   }
@@ -242,6 +247,7 @@ class MailState {
     selectedFolder.value = folder;
     selectedEmail.value = null;
     selectedEmailMessage.value = null;
+    messageError.value = null;
     isLoading.value = true;
     error.value = null;
     try {
@@ -292,19 +298,39 @@ class MailState {
     if (item == null) {
       selectedEmail.value = null;
       selectedEmailMessage.value = null;
+      messageError.value = null;
       return;
     }
     selectedEmail.value = item;
+    // Clear the previous body right away: rendering the stale message while
+    // the next one loads wastes UI time and re-parses the old HTML.
+    selectedEmailMessage.value = null;
+    messageError.value = null;
     if (!item.isRead) {
-      await markAsRead(item);
+      // Fire-and-forget: the optimistic local update is already applied and
+      // awaiting the IMAP round-trip would delay opening the message.
+      unawaited(
+        markAsRead(item).catchError((Object error) {
+          // Keep the optimistic update; the next refresh reconciles it.
+        }),
+      );
     }
     try {
-      selectedEmailMessage.value = await _requireRepository.fetchMessage(
+      final message = await _requireRepository.fetchMessage(
         item.uid,
         folder: item.folder,
       );
+      // Ignore stale responses if the user already switched to another
+      // message while this one was loading.
+      if (selectedEmail.value?.uid == item.uid) {
+        selectedEmailMessage.value = message;
+      }
     } catch (e) {
-      selectedEmailMessage.value = null;
+      if (selectedEmail.value?.uid == item.uid) {
+        messageError.value = e is MailException
+            ? e.message
+            : 'Failed to load message: $e';
+      }
     }
   }
 

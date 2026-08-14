@@ -26,6 +26,18 @@ class MailBodyView extends StatelessWidget {
 
   final MailMessage message;
 
+  /// Cap for inline (cid:) images embedded as data URIs. Larger inline parts
+  /// are skipped and simply don't render inline, keeping the UI thread free.
+  static const int _maxInlineImageBytes = 2 * 1024 * 1024;
+
+  /// Cap for the HTML body rendered with [HtmlWidget]. Rendering HTML larger
+  /// than this is parsed synchronously on the UI thread and freezes the app
+  /// when switching between heavy messages, so oversized bodies fall back to
+  /// the plain-text rendering.
+  static const int _maxHtmlBodyBytes = 600 * 1024;
+
+  static final RegExp _cidRefRe = RegExp(r'cid:([^\s">&]+)');
+
   @override
   Widget build(BuildContext context) {
     final html = _buildHtml();
@@ -39,11 +51,19 @@ class MailBodyView extends StatelessWidget {
   }
 
   String _buildHtml() {
-    // Build a CID-to-data-URI map from the MIME tree.
-    final cidMap = _buildCidMap();
+    // Oversized HTML bodies are parsed synchronously on the UI thread by
+    // HtmlWidget; fall back to the plain-text body for those to avoid
+    // freezing the app when opening heavy messages.
+    final useHtml =
+        message.htmlBody.isNotEmpty &&
+        message.htmlBody.length <= _maxHtmlBodyBytes;
+
+    // Build a CID-to-data-URI map from the MIME tree, only for parts that are
+    // actually referenced in the HTML body.
+    final cidMap = _buildCidMap(useHtml ? message.htmlBody : '');
 
     // Prefer HTML body; fall back to plain text wrapped in a minimal document.
-    final bodyHtml = message.htmlBody.isNotEmpty
+    final bodyHtml = useHtml
         ? _resolveCidReferences(message.htmlBody, cidMap)
         : _escapePlainText(message.plainTextBody);
 
@@ -97,14 +117,27 @@ $bodyHtml
 ''';
   }
 
-  /// Traverses the MIME tree to build a map of content-id → base64 data URI.
-  Map<String, String> _buildCidMap() {
+  /// Traverses the MIME tree to build a map of content-id → base64 data URI,
+  /// but only for inline parts actually referenced by `cid:` links in [html]
+  /// and small enough to embed — large unused attachments are never
+  /// base64-encoded on the UI thread.
+  Map<String, String> _buildCidMap(String html) {
+    final referenced = <String>{};
+    for (final match in _cidRefRe.allMatches(html)) {
+      final cid = match.group(1);
+      if (cid != null) referenced.add(cid);
+    }
+    if (referenced.isEmpty) return const {};
     final map = <String, String>{};
-    _collectCidParts(message.root, map);
+    _collectCidParts(message.root, map, referenced);
     return map;
   }
 
-  void _collectCidParts(MimePart part, Map<String, String> map) {
+  void _collectCidParts(
+    MimePart part,
+    Map<String, String> map,
+    Set<String> referenced,
+  ) {
     final cid = part.headers['content-id'];
     if (cid != null && part.body != null && part.body!.isNotEmpty) {
       final cleanCid = cid.trim();
@@ -112,19 +145,21 @@ $bodyHtml
       final stripped = cleanCid.startsWith('<') && cleanCid.endsWith('>')
           ? cleanCid.substring(1, cleanCid.length - 1)
           : cleanCid;
-      final base64 = base64Encode(part.body!);
-      map[stripped] = 'data:${part.contentType};base64,$base64';
+      if (referenced.contains(stripped) &&
+          part.body!.length <= _maxInlineImageBytes) {
+        final base64 = base64Encode(part.body!);
+        map[stripped] = 'data:${part.contentType};base64,$base64';
+      }
     }
     for (final child in part.children) {
-      _collectCidParts(child, map);
+      _collectCidParts(child, map, referenced);
     }
   }
 
   /// Replaces `cid:...` references in the HTML with data URIs from [cidMap].
   String _resolveCidReferences(String html, Map<String, String> cidMap) {
     if (cidMap.isEmpty) return html;
-    final cidRegex = RegExp(r'cid:([^\s">&]+)');
-    return html.replaceAllMapped(cidRegex, (match) {
+    return html.replaceAllMapped(_cidRefRe, (match) {
       final cid = match.group(1)!;
       final dataUri = cidMap[cid];
       if (dataUri != null) return dataUri;
