@@ -6,6 +6,7 @@ import 'package:signals_flutter/signals_flutter.dart';
 import 'package:easy_mail/src/models/mail_message.dart';
 
 import '../../data/client/mail_client.dart';
+import '../../data/client/mail_sender.dart';
 import '../../data/models/mail_account_model.dart';
 import '../../data/models/mail_item_model.dart';
 import '../../data/repositories/mail_repository.dart';
@@ -74,6 +75,9 @@ class MailState {
   final error = signal<String?>(null);
   final searchQuery = signal<String>('');
   final unreadCounts = signal<Map<String, int>>({});
+
+  final isSending = signal<bool>(false);
+  final sendError = signal<String?>(null);
 
   /// Loads the persisted account configuration and then fetches mail if valid.
   Future<void> init() async {
@@ -328,6 +332,43 @@ class MailState {
   Future<void> search(String query) async {
     searchQuery.value = query;
     await loadFolder(selectedFolder.value);
+  }
+
+  /// Sends an email with the given recipients, subject, and HTML body.
+  /// Returns true on success, false on failure (with [sendError] set).
+  Future<bool> sendMail({
+    required List<String> to,
+    List<String>? cc,
+    required String subject,
+    required String htmlBody,
+    String? textBody,
+  }) async {
+    if (!hasValidAccount.value) {
+      sendError.value = 'No mail account configured.';
+      return false;
+    }
+    isSending.value = true;
+    sendError.value = null;
+    try {
+      await _requireRepository.sendMail(
+        to: to,
+        cc: cc,
+        subject: subject,
+        htmlBody: htmlBody,
+        textBody: textBody,
+      );
+      // Refresh the current folder so the sent message appears if applicable.
+      await loadFolder(selectedFolder.value);
+      return true;
+    } on MailSendException catch (e) {
+      sendError.value = e.message;
+      return false;
+    } catch (e) {
+      sendError.value = 'Failed to send message: $e';
+      return false;
+    } finally {
+      isSending.value = false;
+    }
   }
 
   Future<void> dispose() async {

@@ -1118,7 +1118,7 @@ class _MyComputerPageState extends State<MyComputerPage> {
                     ),
                   ),
                   const SizedBox(width: NexusSpacing.sm),
-                  const Icon(
+                  Icon(
                     Icons.arrow_drop_down,
                     size: 20,
                     color: colorScheme.onSurfaceVariant,

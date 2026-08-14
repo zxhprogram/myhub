@@ -8,16 +8,23 @@ import 'package:easy_mail/src/models/mail_message.dart';
 
 import '../client/mail_client.dart';
 import '../client/mail_client_factory.dart';
+import '../client/mail_sender.dart';
+import '../client/mail_sender_factory.dart';
 import '../models/mail_account_model.dart';
 import '../models/mail_item_model.dart';
 import '../services/local_database.dart';
 
 /// Repository that orchestrates mail fetching, caching, and mutations.
 class MailRepository {
-  MailRepository({required MailAccount account, MailClient? client})
-    : _client = client ?? createMailClient(account);
+  MailRepository({
+    required MailAccount account,
+    MailClient? client,
+    MailSender? sender,
+  })  : _client = client ?? createMailClient(account),
+        _sender = sender ?? createMailSender(account);
 
   final MailClient _client;
+  final MailSender _sender;
   bool _initialized = false;
 
   /// Fetches messages for a folder, using cache unless [forceRefresh] is true.
@@ -123,6 +130,23 @@ class MailRepository {
       }
     }
     return result;
+  }
+
+  /// Sends an email via SMTP.
+  Future<void> sendMail({
+    required List<String> to,
+    List<String>? cc,
+    required String subject,
+    required String htmlBody,
+    String? textBody,
+  }) async {
+    await _sender.send(
+      to: to,
+      cc: cc,
+      subject: subject,
+      htmlBody: htmlBody,
+      textBody: textBody,
+    );
   }
 
   /// Closes the underlying mail connection.

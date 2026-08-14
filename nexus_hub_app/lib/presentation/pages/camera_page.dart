@@ -399,7 +399,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
         ),
         child: Column(
           children: [
-            const Icon(
+            Icon(
               Icons.photo_library_outlined,
               size: 32,
               color: colorScheme.onSurfaceVariant,
@@ -503,7 +503,7 @@ class _CaptureTile extends StatelessWidget {
                 style: NexusTypography.labelMd,
               ),
             ),
-            const Icon(
+            Icon(
               Icons.folder_open_outlined,
               size: 16,
               color: colorScheme.onSurfaceVariant,

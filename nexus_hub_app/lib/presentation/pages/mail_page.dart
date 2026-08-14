@@ -18,6 +18,7 @@ import '../components/nexus_card.dart';
 import '../components/nexus_chip.dart';
 import '../components/nexus_input.dart';
 import '../states/mail_state.dart';
+import 'mail_compose_dialog.dart';
 
 class MailPage extends StatefulWidget {
   const MailPage({super.key, this.repository});
@@ -163,28 +164,9 @@ class _MailToolbar extends StatelessWidget {
   }
 
   void _showComposeDialog(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        title: Text('Compose', style: NexusTypography.headlineSm),
-        content: Text(
-          'Compose functionality will be implemented in a follow-up.',
-          style: NexusTypography.bodyMd,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Close',
-              style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.secondary,
-              ),
-            ),
-          ),
-        ],
-      ),
+      builder: (context) => MailComposeDialog(state: state),
     );
   }
 }
@@ -682,8 +664,14 @@ class _ReadingPane extends StatelessWidget {
               icon: Icons.arrow_back,
               onTap: () => state.selectEmail(null),
             ),
-          _ToolbarIconButton(icon: Icons.reply, onTap: () {}),
-          _ToolbarIconButton(icon: Icons.forward, onTap: () {}),
+          _ToolbarIconButton(
+            icon: Icons.reply,
+            onTap: () => _showReplyDialog(context),
+          ),
+          _ToolbarIconButton(
+            icon: Icons.forward,
+            onTap: () => _showForwardDialog(context),
+          ),
           Container(width: 1, height: 24, color: colorScheme.outlineVariant),
           _ToolbarIconButton(icon: Icons.archive_outlined, onTap: () {}),
           _ToolbarIconButton(icon: Icons.delete_outlined, onTap: () {}),
@@ -693,6 +681,72 @@ class _ReadingPane extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showReplyDialog(BuildContext context) {
+    final item = state.selectedEmail.value;
+    final message = state.selectedEmailMessage.value;
+    if (item == null) return;
+    final subject = item.subject.startsWith('Re:')
+        ? item.subject
+        : 'Re: ${item.subject}';
+    final quoteBody = _buildQuoteBody(item, message);
+    showDialog(
+      context: context,
+      builder: (context) => MailComposeDialog(
+        state: state,
+        initialTo: [item.senderAddress],
+        initialSubject: subject,
+        initialBodyDeltaJson: quoteBody,
+      ),
+    );
+  }
+
+  void _showForwardDialog(BuildContext context) {
+    final item = state.selectedEmail.value;
+    final message = state.selectedEmailMessage.value;
+    if (item == null) return;
+    final subject = item.subject.startsWith('Fwd:')
+        ? item.subject
+        : 'Fwd: ${item.subject}';
+    final quoteBody = _buildQuoteBody(item, message);
+    showDialog(
+      context: context,
+      builder: (context) => MailComposeDialog(
+        state: state,
+        initialSubject: subject,
+        initialBodyDeltaJson: quoteBody,
+      ),
+    );
+  }
+
+  String _buildQuoteBody(MailItem item, MailMessage? message) {
+    final sender = item.senderName.isEmpty
+        ? item.senderAddress
+        : item.senderName;
+    final dateStr = item.date != null
+        ? DateFormat('EEE, MMM d, y h:mm a').format(item.date!.toLocal())
+        : '';
+    final originalText = message?.plainTextBody.isNotEmpty == true
+        ? message!.plainTextBody
+        : _stripHtml(message?.htmlBody ?? '');
+    final quoted = originalText
+        .split('\n')
+        .map((line) => '> $line')
+        .join('\n');
+    return '\n\nOn $dateStr, $sender wrote:\n$quoted';
+  }
+
+  String _stripHtml(String html) {
+    return html
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'</p\s*>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'<[^>]+>'), '')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .trim();
   }
 
   Widget _buildSubjectHeader(MailItem item, ColorScheme colorScheme) {
@@ -1289,8 +1343,8 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
             ),
           ),
         ],
-      ),
-    },
+      );
+      },
     );
     if (confirmed == true) {
       await widget.state.signOut();

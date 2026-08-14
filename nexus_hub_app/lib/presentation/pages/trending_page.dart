@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/trending_repo_model.dart';
 import '../../data/services/trending_service.dart';
+import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -93,7 +94,7 @@ class _TrendingPageState extends State<TrendingPage> {
     final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        const Icon(
+        Icon(
           Icons.calendar_today_outlined,
           size: 14,
           color: colorScheme.onSurfaceVariant,

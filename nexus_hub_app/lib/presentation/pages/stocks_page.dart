@@ -256,7 +256,7 @@ class _WatchlistCard extends StatelessWidget {
               Text('Watchlist', style: NexusTypography.headlineSm),
               IconButton(
                 onPressed: () {},
-                icon: const Icon(
+                icon: Icon(
                   Icons.add,
                   size: 20,
                   color: colorScheme.onSurfaceVariant,
