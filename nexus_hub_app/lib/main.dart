@@ -6,17 +6,24 @@ import 'package:flutter_alacritty/flutter_alacritty.dart' show RustLib;
 
 import 'app.dart';
 import 'data/services/clipboard_monitor_service.dart';
+import 'data/services/input_hook_service.dart';
 import 'data/services/network_monitor_service.dart';
-import 'presentation/states/theme_state.dart';
+import 'presentation/states/clipboard_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ThemeState.instance.init();
   ClipboardMonitorService.instance.start();
+  // Persist clipboard items app-wide even before the history page is opened,
+  // so nothing is lost when the corresponding icon is never visited.
+  ClipboardState.instance.ensureListening();
   // Start per-minute network traffic recording app-wide so history is captured
   // regardless of which page is open. No-ops when network_monitor.dll is
   // absent (e.g. non-Windows).
   NetworkMonitorService.instance.start();
+  // Start the global input hook and background key press recording app-wide
+  // so statistics are captured even when the My Computer page is not open.
+  // No-ops when input_hook.dll is absent (e.g. non-Windows).
+  InputHookService.instance.start();
 
   // Boot the Alacritty Rust engine (used by the Terminal desktop app).
   // It is desktop-only (loads a native .so/.dll) — skip for web.

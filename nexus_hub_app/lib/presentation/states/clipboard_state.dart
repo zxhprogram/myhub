@@ -9,15 +9,22 @@ import '../../data/services/clipboard_monitor_service.dart';
 /// Signals-based state for the clipboard history page.
 class ClipboardState {
   ClipboardState._({ClipboardRepository? repository})
-    : _repository = repository ?? ClipboardRepository() {
-    _monitorSubscription = ClipboardMonitorService.instance.onItem.listen(add);
-  }
+      : _repository = repository ?? ClipboardRepository();
 
   /// The singleton instance used across the app.
   static final ClipboardState instance = ClipboardState._();
 
   final ClipboardRepository _repository;
-  late final StreamSubscription<ClipboardItemModel> _monitorSubscription;
+  StreamSubscription<ClipboardItemModel>? _monitorSubscription;
+
+  /// Subscribe to the clipboard monitor so detected items are persisted
+  /// app-wide, even before the history page is opened. Idempotent: safe to
+  /// call once at app launch from `main`.
+  void ensureListening() {
+    _monitorSubscription ??= ClipboardMonitorService.instance.onItem.listen(
+      add,
+    );
+  }
 
   final items = signal<List<ClipboardItemModel>>([]);
   final isLoading = signal<bool>(false);
@@ -40,11 +47,11 @@ class ClipboardState {
     try {
       final created = item.hasFile
           ? await _repository.uploadFile(
-              filePath: item.filePath!,
-              type: item.type,
-              mimeType: item.mimeType,
-              content: item.content,
-            )
+        filePath: item.filePath!,
+        type: item.type,
+        mimeType: item.mimeType,
+        content: item.content,
+      )
           : await _repository.createItem(item);
       items.value = [created, ...items.value];
     } catch (e) {
@@ -93,6 +100,6 @@ class ClipboardState {
   }
 
   void dispose() {
-    _monitorSubscription.cancel();
+    _monitorSubscription?.cancel();
   }
 }

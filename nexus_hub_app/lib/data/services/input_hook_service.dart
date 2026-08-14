@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+
+import '../repositories/key_stats_repository.dart';
 
 // FFI type definitions
 typedef StartHookNative = Int32 Function();
@@ -32,6 +35,11 @@ class InputHookService {
   static InputHookService? _instance;
   DynamicLibrary? _lib;
   bool _isRunning = false;
+
+  // Background key press recording state.
+  Timer? _statsTimer;
+  final Set<int> _previousKeys = {};
+  bool _firstStatsPoll = true;
 
   // Native function pointers
   StartHookDart? _startHook;
@@ -77,16 +85,16 @@ class InputHookService {
       );
       _isMouseButtonDown = _lib!
           .lookupFunction<IsMouseButtonDownNative, IsMouseButtonDownDart>(
-            'IsMouseButtonDown',
-          );
+        'IsMouseButtonDown',
+      );
       _getScrollDelta = _lib!
           .lookupFunction<GetScrollDeltaNative, GetScrollDeltaDart>(
-            'GetScrollDelta',
-          );
+        'GetScrollDelta',
+      );
       _resetScrollDelta = _lib!
           .lookupFunction<ResetScrollDeltaNative, ResetScrollDeltaDart>(
-            'ResetScrollDelta',
-          );
+        'ResetScrollDelta',
+      );
 
       final result = _startHook!();
       _isRunning = result == 0;
@@ -97,8 +105,50 @@ class InputHookService {
     }
   }
 
-  /// Stop the hook and release resources.
+  /// Initialize the hook and start background key press recording so
+  /// statistics are captured app-wide regardless of which page is open.
+  ///
+  /// Safe to call from `main`; no-ops when already running or when the
+  /// input_hook.dll is missing (e.g. non-Windows).
+  void start() {
+    if (_statsTimer != null) return;
+    if (!initialize()) return;
+
+    _firstStatsPoll = true;
+    _previousKeys.clear();
+    _statsTimer = Timer.periodic(
+      const Duration(milliseconds: 16),
+          (_) => _recordKeyPresses(),
+    );
+  }
+
+  /// Poll the current key state and record newly pressed keys. The first poll
+  /// is skipped so already-held keys are not counted as new presses.
+  void _recordKeyPresses() {
+    final keys = <int>{};
+    for (var code = 0; code < 256; code++) {
+      if (isKeyDown(code)) {
+        keys.add(code);
+      }
+    }
+
+    if (!_firstStatsPoll) {
+      for (final code in keys) {
+        if (!_previousKeys.contains(code)) {
+          KeyStatsRepository.recordKeyPress(code);
+        }
+      }
+    }
+    _firstStatsPoll = false;
+    _previousKeys.clear();
+    _previousKeys.addAll(keys);
+  }
+
+  /// Stop background recording, stop the hook and release resources.
   void dispose() {
+    _statsTimer?.cancel();
+    _statsTimer = null;
+
     if (_isRunning && _stopHook != null) {
       _stopHook!();
       _isRunning = false;
@@ -309,7 +359,7 @@ class VirtualKey {
         return 'Win';
       case 0x5C:
         return 'Win';
-      // Left/right specific modifier virtual key codes
+    // Left/right specific modifier virtual key codes
       case 0xA0:
         return 'Shift';
       case 0xA1:
@@ -322,7 +372,7 @@ class VirtualKey {
         return 'Alt';
       case 0xA5:
         return 'Alt';
-      // Common scan codes used by low-level hooks
+    // Common scan codes used by low-level hooks
       case 0x1D:
         return 'Ctrl';
       case 0x2A:
