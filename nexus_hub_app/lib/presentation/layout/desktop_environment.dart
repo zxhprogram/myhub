@@ -376,7 +376,17 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
           ),
         ],
       ),
-      content: ClipRect(child: appItem.pageBuilder(context)),
+      // Each window gets its own local Navigator so in-page navigation
+      // (e.g. Google News article details) stays inside the window instead
+      // of being pushed onto the app's root navigator, which would cover
+      // the whole desktop and break back navigation.
+      content: ClipRect(
+        child: Navigator(
+          onGenerateRoute: (settings) => MaterialPageRoute<void>(
+            builder: (context) => appItem.pageBuilder(context),
+          ),
+        ),
+      ),
     );
 
     // Track window close to remove from our map
