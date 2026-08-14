@@ -8,6 +8,7 @@ import 'presentation/pages/camera_page.dart';
 import 'presentation/pages/clipboard_history_page.dart';
 import 'presentation/pages/dashboard_page.dart';
 import 'presentation/pages/dev_tools_page.dart';
+import 'presentation/pages/google_news_page.dart';
 import 'presentation/pages/mail_page.dart';
 import 'presentation/pages/my_computer_page.dart';
 import 'presentation/pages/pomodoro_page.dart';
@@ -47,6 +48,10 @@ class AppRouter {
           GoRoute(
             path: '/rss',
             builder: (context, state) => const RssReaderPage(),
+          ),
+          GoRoute(
+            path: '/news',
+            builder: (context, state) => const GoogleNewsPage(),
           ),
           GoRoute(
             path: '/ai-chat',

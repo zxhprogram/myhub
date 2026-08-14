@@ -21,6 +21,7 @@ import '../pages/camera_page.dart';
 import '../pages/clipboard_history_page.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/dev_tools_page.dart';
+import '../pages/google_news_page.dart';
 import '../pages/mail_page.dart';
 import '../pages/my_computer_page.dart';
 import '../pages/pomodoro_page.dart';
@@ -187,6 +188,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const RssReaderPage(),
       gradientStart: const Color(0xFFFF2D55),
       gradientEnd: const Color(0xFFFF6B6B),
+    ),
+    DesktopAppItem(
+      label: 'Google News',
+      icon: Icons.newspaper,
+      route: '/news',
+      pageBuilder: (_) => const GoogleNewsPage(),
+      gradientStart: const Color(0xFF4285F4),
+      gradientEnd: const Color(0xFF34A853),
     ),
     DesktopAppItem(
       label: 'Mail',
