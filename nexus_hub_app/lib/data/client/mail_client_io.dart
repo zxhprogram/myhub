@@ -15,11 +15,34 @@ class _ImapMailClient implements MailClient {
   ImapClient? _client;
   String? _selectedMailbox;
 
+  // ImapClient's response reader is not safe for concurrent commands: two
+  // in-flight commands race on the shared byte buffer and corrupt each
+  // other's responses (typically hanging until a timeout fires). Callers
+  // such as MailState.selectEmail fire markAsRead concurrently with
+  // fetchMessage, so every server interaction must be serialized here.
+  Future<void> _commandQueue = Future<void>.value();
+
+  Future<T> _serialized<T>(Future<T> Function() action) {
+    final previous = _commandQueue;
+    final release = Completer<void>();
+    _commandQueue = release.future;
+    return () async {
+      await previous;
+      try {
+        return await action();
+      } finally {
+        release.complete();
+      }
+    }();
+  }
+
   @override
   bool get isConnected => _client?.isConnected ?? false;
 
   @override
-  Future<void> connect() async {
+  Future<void> connect() => _serialized(_connect);
+
+  Future<void> _connect() async {
     try {
       final client = ImapClient(
         host: _account.host,
@@ -51,7 +74,9 @@ class _ImapMailClient implements MailClient {
   }
 
   @override
-  Future<void> authenticate() async {
+  Future<void> authenticate() => _serialized(_authenticate);
+
+  Future<void> _authenticate() async {
     final client = _client;
     if (client == null) {
       throw MailException('Not connected', recoverable: true);
@@ -71,7 +96,10 @@ class _ImapMailClient implements MailClient {
   }
 
   @override
-  Future<Map<int, MailEnvelope>> fetchEnvelopes(
+  Future<Map<int, MailEnvelope>> fetchEnvelopes(String folder, {int? limit}) =>
+      _serialized(() => _fetchEnvelopes(folder, limit: limit));
+
+  Future<Map<int, MailEnvelope>> _fetchEnvelopes(
     String folder, {
     int? limit,
   }) async {
@@ -109,7 +137,10 @@ class _ImapMailClient implements MailClient {
   }
 
   @override
-  Future<MailMessage> fetchMessage(int uid, {String? folder}) async {
+  Future<MailMessage> fetchMessage(int uid, {String? folder}) =>
+      _serialized(() => _fetchMessage(uid, folder: folder));
+
+  Future<MailMessage> _fetchMessage(int uid, {String? folder}) async {
     final client = folder != null
         ? await _ensureSelected(folder)
         : (_client ?? await _ensureSelected('INBOX'));
@@ -131,7 +162,9 @@ class _ImapMailClient implements MailClient {
   }
 
   @override
-  Future<void> markAsRead(int uid) async {
+  Future<void> markAsRead(int uid) => _serialized(() => _markAsRead(uid));
+
+  Future<void> _markAsRead(int uid) async {
     final client = _client;
     if (client == null) {
       throw MailException('Not connected', recoverable: true);
@@ -146,7 +179,10 @@ class _ImapMailClient implements MailClient {
   }
 
   @override
-  Future<List<int>> searchUnseen(String folder) async {
+  Future<List<int>> searchUnseen(String folder) =>
+      _serialized(() => _searchUnseen(folder));
+
+  Future<List<int>> _searchUnseen(String folder) async {
     final client = await _ensureSelected(folder);
     try {
       return await client

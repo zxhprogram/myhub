@@ -9,6 +9,7 @@ import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 
 import '../../theme/colors.dart';
 import '../../theme/typography.dart';
+import '../pages/google_news_article_page.dart';
 
 /// Renders the body of an email message using [HtmlWidget] from
 /// `flutter_widget_from_html`.
@@ -47,7 +48,22 @@ class MailBodyView extends StatelessWidget {
         height: 1.5,
         color: NexusColors.onSurface,
       ),
+      onTapUrl: (url) => _openUrl(context, url),
     );
+  }
+
+  /// Opens links from the email body in the in-app web reader
+  /// ([NexusWebViewPage]), which embeds a WebView on all desktop platforms
+  /// including Windows (WebView2).
+  Future<bool> _openUrl(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return true;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NexusWebViewPage(url: url, title: uri.host),
+      ),
+    );
+    return true;
   }
 
   String _buildHtml() {

@@ -214,7 +214,8 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
   void _openArticle(GoogleNewsItem item) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) => GoogleNewsArticlePage(item: item),
+        builder: (context) =>
+            NexusWebViewPage(url: item.link, title: item.title),
       ),
     );
   }

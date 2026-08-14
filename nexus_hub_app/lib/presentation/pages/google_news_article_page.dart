@@ -1,48 +1,52 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
-import '../../data/models/google_news_item.dart';
 import '../../theme/typography.dart';
 import '../components/nexus_button.dart';
 import '../components/nexus_empty_state.dart';
 
-/// In-app web reader that opens a news article inside a [WebViewWidget].
+/// In-app web reader that opens [url] inside an embedded WebView.
 ///
-/// Falls back to an "open in browser" prompt when the platform has no WebView
-/// implementation (e.g. Windows desktop), so the feature degrades gracefully.
-class GoogleNewsArticlePage extends StatefulWidget {
-  const GoogleNewsArticlePage({super.key, required this.item});
+/// Uses `flutter_inappwebview`, which supports Windows desktop via the
+/// WebView2 runtime (in addition to Android, iOS and macOS). Falls back to
+/// an "open in browser" prompt when no WebView runtime is available, so the
+/// feature degrades gracefully.
+class NexusWebViewPage extends StatefulWidget {
+  const NexusWebViewPage({super.key, required this.url, required this.title});
 
-  final GoogleNewsItem item;
+  final String url;
+  final String title;
 
   @override
-  State<GoogleNewsArticlePage> createState() => _GoogleNewsArticlePageState();
+  State<NexusWebViewPage> createState() => _NexusWebViewPageState();
 }
 
-class _GoogleNewsArticlePageState extends State<GoogleNewsArticlePage> {
-  late final WebViewController _controller;
+class _NexusWebViewPageState extends State<NexusWebViewPage> {
+  InAppWebViewController? _webviewController;
   bool _isLoading = true;
   bool _webviewFailed = false;
 
   @override
   void initState() {
     super.initState();
+    _ensureWebViewAvailable();
+  }
+
+  /// On Windows the embedded WebView is backed by the WebView2 runtime.
+  /// It ships with Windows 10/11 via Edge, but double-check and degrade
+  /// gracefully when it is missing. Other platforms always have a viewer.
+  Future<void> _ensureWebViewAvailable() async {
+    if (defaultTargetPlatform != TargetPlatform.windows) return;
+    String? version;
     try {
-      _controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(Colors.white)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onPageStarted: (_) => _setLoading(true),
-            onPageFinished: (_) => _setLoading(false),
-          ),
-        )
-        ..loadRequest(Uri.parse(widget.item.link));
+      version = await WebViewEnvironment.getAvailableVersion();
     } catch (_) {
-      // Platform without a WebView implementation (e.g. Windows desktop).
-      _webviewFailed = true;
+      version = null;
     }
+    if (!mounted || version != null) return;
+    setState(() => _webviewFailed = true);
   }
 
   void _setLoading(bool loading) {
@@ -52,11 +56,11 @@ class _GoogleNewsArticlePageState extends State<GoogleNewsArticlePage> {
 
   Future<void> _reload() async {
     if (_webviewFailed) return;
-    await _controller.reload();
+    await _webviewController?.reload();
   }
 
   Future<void> _openInBrowser() async {
-    final uri = Uri.tryParse(widget.item.link);
+    final uri = Uri.tryParse(widget.url);
     if (uri == null || !uri.hasScheme) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
@@ -75,7 +79,7 @@ class _GoogleNewsArticlePageState extends State<GoogleNewsArticlePage> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          widget.item.title,
+          widget.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: NexusTypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
@@ -102,7 +106,17 @@ class _GoogleNewsArticlePageState extends State<GoogleNewsArticlePage> {
     final colorScheme = Theme.of(context).colorScheme;
     return Stack(
       children: [
-        WebViewWidget(controller: _controller),
+        InAppWebView(
+          initialUrlRequest: URLRequest(url: WebUri(widget.url)),
+          initialSettings: InAppWebViewSettings(
+            javaScriptEnabled: true,
+            transparentBackground: false,
+          ),
+          onWebViewCreated: (controller) => _webviewController = controller,
+          onLoadStart: (_, _) => _setLoading(true),
+          onLoadStop: (_, _) => _setLoading(false),
+          onReceivedError: (_, _, _) => _setLoading(false),
+        ),
         if (_isLoading)
           Positioned.fill(
             child: ColoredBox(
