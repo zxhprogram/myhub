@@ -52,5 +52,20 @@ dependency_overrides:
   shadcn_flutter:
     path: ../third_party/shadcn_flutter
 
+  # Vendored copy with two local patches:
+  # 1. utils/log.h: suppress "dealloc ..." teardown logs that flood stdout
+  #    whenever a WebView or the plugin itself is destroyed (e.g. closing
+  #    the Google News sub-app window). Not addressed upstream as of v0.6.0.
+  # 2. InAppWebViewManager: the static WinRT/COM members (RoHelper,
+  #    dispatcher queue, GraphicsContext, compositor) are intentionally
+  #    leaked raw pointers so their Release()/RoUninitialize() never run
+  #    during DLL_PROCESS_DETACH, which otherwise raises an
+  #    "Unknown Hard Error" dialog at app exit (upstream issue #2733,
+  #    same approach as upstream PR #2838).
+  # When upgrading flutter_inappwebview_windows, re-copy the new version
+  # into third_party/ and re-apply both patches.
+  flutter_inappwebview_windows:
+    path: ../third_party/flutter_inappwebview_windows
+
 flutter:
   uses-material-design: true
