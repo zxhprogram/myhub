@@ -134,6 +134,12 @@ class _SquircleShine extends StatelessWidget {
   }
 }
 
+/// Height of the overlay menu bar at the top of the desktop.
+///
+/// Windows are maximized below it (see [WindowNavigator.maximizedInsets]) so
+/// their title bar is never covered by the menu bar.
+const double _kMenuBarHeight = 32.0;
+
 /// macOS-style desktop environment with a window manager.
 ///
 /// Replaces the traditional sidebar navigation with a desktop metaphor:
@@ -345,7 +351,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     final controller = shadcn.WindowController(
       bounds: Rect.fromLTWH(
         60 + (_windowCounter % 5) * 40,
-        40 + 32 + (_windowCounter % 5) * 40, // +32 for menu bar height
+        40 + _kMenuBarHeight + (_windowCounter % 5) * 40, // below menu bar
         900,
         600,
       ),
@@ -561,6 +567,9 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
               shadcn.WindowNavigator(
                 key: _navigatorKey,
                 initialWindows: const [],
+                // Maximized windows stop below the overlay menu bar so their
+                // title bar stays visible and draggable.
+                maximizedInsets: const EdgeInsets.only(top: _kMenuBarHeight),
                 child: _buildDesktopContent(context),
               ),
               // Menu bar on top of everything, including windows (like macOS).
@@ -789,7 +798,7 @@ class _MenuBar extends StatelessWidget {
     final isDark = colorScheme.brightness == Brightness.dark;
 
     return Container(
-      height: 32,
+      height: _kMenuBarHeight,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(

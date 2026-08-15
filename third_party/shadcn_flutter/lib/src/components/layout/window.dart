@@ -1046,11 +1046,8 @@ class _WindowWidgetState extends State<WindowWidget> with WindowHandle {
                         var max = maximized;
                         var size = _viewport?.size;
                         if (max != null && size != null) {
-                          bounds = Rect.fromLTWH(
-                              max.left * size.width,
-                              max.top * size.height,
-                              max.width * size.width,
-                              max.height * size.height);
+                          bounds = _viewport!.navigator._state
+                              ._resolveMaximizedBounds(max, size);
                         }
                         var alignX = lerpDouble(
                             -1, 1, (localPosition.dx / bounds.width))!;
@@ -1363,19 +1360,17 @@ class _WindowWidgetState extends State<WindowWidget> with WindowHandle {
               var rect = bounds;
               if (newValue != null) {
                 var size = _viewport?.size ?? Size.zero;
-                var value = Rect.fromLTWH(
-                    newValue.left * size.width,
-                    newValue.top * size.height,
-                    newValue.width * size.width,
-                    newValue.height * size.height);
+                var value =
+                    _viewport?.navigator._state._resolveMaximizedBounds(
+                        newValue, size) ??
+                        Rect.zero;
                 rect = Rect.lerp(bounds, value, t)!;
               } else if (oldValue != null) {
                 var size = _viewport?.size ?? Size.zero;
-                var value = Rect.fromLTWH(
-                    oldValue.left * size.width,
-                    oldValue.top * size.height,
-                    oldValue.width * size.width,
-                    oldValue.height * size.height);
+                var value =
+                    _viewport?.navigator._state._resolveMaximizedBounds(
+                        oldValue, size) ??
+                        Rect.zero;
                 rect = Rect.lerp(value, bounds, t)!;
               }
               return GroupPositioned.fromRect(rect: rect, child: child!);
@@ -1532,17 +1527,28 @@ class WindowNavigator extends StatefulWidget {
   /// Whether to show the top snap bar for window snapping.
   final bool showTopSnapBar;
 
+  /// Insets applied to maximized and snapped window bounds within this
+  /// navigator's viewport.
+  ///
+  /// Use this when an overlay (e.g. a global menu bar) covers part of the
+  /// viewport, so maximized windows stop below the overlay and their title
+  /// bar remains visible and draggable.
+  final EdgeInsets maximizedInsets;
+
   /// Creates a [WindowNavigator].
   ///
   /// Parameters:
-  /// - [initialWindows] (`List<Window>`, required): Windows to display initially.
+  /// - [initialWindows] (`List<Window>`, required): Windows to display initially
   /// - [child] (`Widget?`, optional): Background widget.
   /// - [showTopSnapBar] (`bool`, default: `true`): Show snap bar.
+  /// - [maximizedInsets] (`EdgeInsets`, default: `EdgeInsets.zero`): Insets to
+  ///   subtract from maximized/snapped bounds.
   const WindowNavigator({
     super.key,
     required this.initialWindows,
     this.child,
     this.showTopSnapBar = true,
+    this.maximizedInsets = EdgeInsets.zero,
   });
 
   @override
@@ -1959,15 +1965,9 @@ class _WindowLayerGroup extends StatelessWidget {
             _isAlwaysOnTop(handle._draggingWindow.value!.window) ==
                 alwaysOnTop)
           GroupPositioned.fromRect(
-            rect: Rect.fromLTWH(
-              handle._snappingStrategy.value!.relativeBounds.left *
-                  constraints.biggest.width,
-              handle._snappingStrategy.value!.relativeBounds.top *
-                  constraints.biggest.height,
-              handle._snappingStrategy.value!.relativeBounds.width *
-                  constraints.biggest.width,
-              handle._snappingStrategy.value!.relativeBounds.height *
-                  constraints.biggest.height,
+            rect: handle._resolveMaximizedBounds(
+              handle._snappingStrategy.value!.relativeBounds,
+              constraints.biggest,
             ),
             child: _BlurContainer(
               key: ValueKey(handle._snappingStrategy.value),
@@ -1978,7 +1978,7 @@ class _WindowLayerGroup extends StatelessWidget {
               listenable: handle._hoveringTopSnapper,
               builder: (context, _) {
                 return GroupPositioned(
-                  top: 0,
+                  top: handle.widget.maximizedInsets.top,
                   left: 0,
                   right: 0,
                   child: Align(
@@ -2350,6 +2350,19 @@ class _WindowNavigatorState extends State<WindowNavigator>
   final ValueNotifier<WindowSnapStrategy?> _snappingStrategy =
       ValueNotifier(null);
 
+  /// Converts maximized/snap relative bounds into viewport pixels, shrunk by
+  /// [WindowNavigator.maximizedInsets] so maximized windows don't slide under
+  /// overlays covering the viewport.
+  Rect _resolveMaximizedBounds(Rect relative, Size size) {
+    final insets = widget.maximizedInsets;
+    return Rect.fromLTWH(
+      relative.left * size.width + insets.left,
+      relative.top * size.height + insets.top,
+      relative.width * size.width - insets.horizontal,
+      relative.height * size.height - insets.vertical,
+    );
+  }
+
   void _startDraggingWindow(Window draggingWindow, Offset cursorPosition) {
     if (_draggingWindow.value != null) return;
     _draggingWindow.value = _DraggingWindow(draggingWindow, cursorPosition);
@@ -2450,28 +2463,28 @@ class _WindowNavigatorState extends State<WindowNavigator>
                     showTopSnapBar: widget.showTopSnapBar,
                   ),
                   GroupPositioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: titleBarHeight,
-                      child: _createBorderSnapStrategy(const WindowSnapStrategy(
+                    top: widget.maximizedInsets.top,
+                    left: 0,
+                    right: 0,
+                    height: titleBarHeight,
+                    child: _createBorderSnapStrategy(const WindowSnapStrategy(
                         relativeBounds: Rect.fromLTWH(0, 0, 1, 1),
                         shouldMinifyWindow: false,
                       ))),
                   GroupPositioned(
-                      top: titleBarHeight,
-                      bottom: 0,
-                      left: 0,
-                      width: titleBarHeight,
-                      child: _createBorderSnapStrategy(const WindowSnapStrategy(
+                    top: titleBarHeight + widget.maximizedInsets.top,
+                    bottom: 0,
+                    left: 0,
+                    width: titleBarHeight,
+                    child: _createBorderSnapStrategy(const WindowSnapStrategy(
                         relativeBounds: Rect.fromLTWH(0, 0, 0.5, 1),
                         shouldMinifyWindow: false,
                       ))),
                   GroupPositioned(
-                      top: titleBarHeight,
-                      bottom: 0,
-                      right: 0,
-                      width: titleBarHeight,
+                    top: titleBarHeight + widget.maximizedInsets.top,
+                    bottom: 0,
+                    right: 0,
+                    width: titleBarHeight,
                       child: _createBorderSnapStrategy(const WindowSnapStrategy(
                         relativeBounds: Rect.fromLTWH(0.5, 0, 0.5, 1),
                         shouldMinifyWindow: false,
