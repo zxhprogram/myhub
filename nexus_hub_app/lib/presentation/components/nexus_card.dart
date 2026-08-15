@@ -11,12 +11,14 @@ class NexusCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(NexusSpacing.md),
     this.borderRadius = NexusRadii.xl,
     this.onTap,
+    this.highlight = false,
   });
 
   final Widget? child;
   final EdgeInsetsGeometry padding;
   final double borderRadius;
   final VoidCallback? onTap;
+  final bool highlight;
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +28,15 @@ class NexusCard extends StatelessWidget {
     final card = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLowest,
+        color: highlight
+            ? colorScheme.primary.withValues(alpha: 0.06)
+            : colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          color: highlight
+              ? colorScheme.primary.withValues(alpha: 0.7)
+              : colorScheme.outlineVariant.withValues(alpha: 0.5),
+          width: highlight ? 1.5 : 1,
         ),
         boxShadow: [
           BoxShadow(

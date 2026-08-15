@@ -12,8 +12,9 @@ import '../components/nexus_empty_state.dart';
 import '../layout/page_scaffold.dart';
 import 'google_news_article_page.dart';
 
-/// Google News — latest headlines fetched from Google News RSS, with an
-/// in-app web reader for article details.
+/// Google News — latest headlines fetched from Google News RSS, presented in
+/// a master-detail layout: headline list on the left, in-app web reader for
+/// the selected article on the right.
 class GoogleNewsPage extends StatefulWidget {
   const GoogleNewsPage({super.key});
 
@@ -23,9 +24,11 @@ class GoogleNewsPage extends StatefulWidget {
 
 class _GoogleNewsPageState extends State<GoogleNewsPage> {
   final GoogleNewsService _service = GoogleNewsService();
+  final GlobalKey<NexusWebViewState> _webViewKey = GlobalKey<NexusWebViewState>();
 
   GoogleNewsTopic _topic = GoogleNewsTopic.topStories;
   List<GoogleNewsItem> _items = const [];
+  GoogleNewsItem? _selectedItem;
   bool _isLoading = true;
   bool _hasError = false;
 
@@ -46,6 +49,9 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
       setState(() {
         _items = items;
         _isLoading = false;
+        if (_selectedItem == null && items.isNotEmpty) {
+          _selectedItem = items.first;
+        }
       });
     } catch (_) {
       if (!mounted) return;
@@ -67,6 +73,9 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
       setState(() {
         _items = items;
         _isLoading = false;
+        if (_selectedItem == null && items.isNotEmpty) {
+          _selectedItem = items.first;
+        }
       });
     } catch (_) {
       if (!mounted) return;
@@ -85,6 +94,11 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
       _hasError = false;
     });
     _load();
+  }
+
+  void _selectItem(GoogleNewsItem item) {
+    if (_selectedItem == item) return;
+    setState(() => _selectedItem = item);
   }
 
   @override
@@ -121,7 +135,16 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
         children: [
           _buildTopicSelector(),
           const SizedBox(height: NexusSpacing.md),
-          Expanded(child: _buildContent()),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(width: 400, child: _buildListPane()),
+                const SizedBox(width: NexusSpacing.md),
+                Expanded(child: _buildDetailPane()),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -146,7 +169,7 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildListPane() {
     if (_isLoading) return _buildLoading();
     if (_hasError) return _buildError();
     if (_items.isEmpty) return _buildEmpty();
@@ -156,16 +179,13 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
   Widget _buildLoading() {
     final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
-      child: SizedBox(
-        height: 320,
-        child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: colorScheme.primary.withValues(alpha: 0.6),
-            ),
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: colorScheme.primary.withValues(alpha: 0.6),
           ),
         ),
       ),
@@ -173,24 +193,32 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
   }
 
   Widget _buildError() {
-    return NexusEmptyState(
-      icon: Icons.cloud_off,
-      title: 'Could not load news',
-      subtitle: 'Check your connection and try again.',
-      action: NexusButton(label: 'Retry', icon: Icons.refresh, onPressed: _load),
+    return NexusCard(
+      child: NexusEmptyState(
+        icon: Icons.cloud_off,
+        title: 'Could not load news',
+        subtitle: 'Check your connection and try again.',
+        action: NexusButton(
+          label: 'Retry',
+          icon: Icons.refresh,
+          onPressed: _load,
+        ),
+      ),
     );
   }
 
   Widget _buildEmpty() {
-    return NexusEmptyState(
-      icon: Icons.newspaper,
-      title: 'No news yet',
-      subtitle: 'Refresh to load the latest headlines.',
-      action: NexusButton(
-        label: 'Refresh',
-        icon: Icons.refresh,
-        variant: NexusButtonVariant.outlined,
-        onPressed: _refresh,
+    return NexusCard(
+      child: NexusEmptyState(
+        icon: Icons.newspaper,
+        title: 'No news yet',
+        subtitle: 'Refresh to load the latest headlines.',
+        action: NexusButton(
+          label: 'Refresh',
+          icon: Icons.refresh,
+          variant: NexusButtonVariant.outlined,
+          onPressed: _refresh,
+        ),
       ),
     );
   }
@@ -205,34 +233,116 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
         separatorBuilder: (_, _) => const SizedBox(height: NexusSpacing.sm),
         itemBuilder: (context, index) {
           final item = _items[index];
-          return _NewsCard(item: item, onTap: () => _openArticle(item));
+          return _NewsCard(
+            item: item,
+            isSelected: item == _selectedItem,
+            onTap: () => _selectItem(item),
+          );
         },
       ),
     );
   }
 
-  void _openArticle(GoogleNewsItem item) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) =>
-            NexusWebViewPage(url: item.link, title: item.title),
+  Widget _buildDetailPane() {
+    final item = _selectedItem;
+    if (item == null) {
+      return NexusCard(
+        child: NexusEmptyState(
+          icon: Icons.article,
+          title: 'No article selected',
+          subtitle: 'Pick a headline on the left to read it here.',
+        ),
+      );
+    }
+    final colorScheme = Theme.of(context).colorScheme;
+    return NexusCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(NexusSpacing.md),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: NexusTypography.bodyLg.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: NexusSpacing.xs),
+                      Row(
+                        children: [
+                          if (item.source.isNotEmpty) ...[
+                            NexusBadge(label: item.source),
+                            const SizedBox(width: NexusSpacing.sm),
+                          ],
+                          if (item.timeAgo.isNotEmpty)
+                            Text(item.timeAgo, style: NexusTypography.labelSm),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: NexusSpacing.md),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Reload',
+                  onPressed: () => _webViewKey.currentState?.reload(),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.open_in_browser),
+                  tooltip: 'Open in browser',
+                  color: colorScheme.onSurfaceVariant,
+                  onPressed: () =>
+                      _webViewKey.currentState?.openInBrowser(),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(NexusRadii.xl),
+              ),
+              child: NexusWebView(key: _webViewKey, url: item.link),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 /// A single headline card: title, snippet, source badge, timestamp and an
-/// optional thumbnail. Tapping it opens the in-app web reader.
+/// optional thumbnail. Tapping it shows the article in the detail pane.
 class _NewsCard extends StatelessWidget {
-  const _NewsCard({required this.item, required this.onTap});
+  const _NewsCard({
+    required this.item,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   final GoogleNewsItem item;
+  final bool isSelected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return NexusCard(
       onTap: onTap,
+      highlight: isSelected,
       padding: const EdgeInsets.all(NexusSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,6 +355,9 @@ class _NewsCard extends StatelessWidget {
                   item.title,
                   style: NexusTypography.bodyMd.copyWith(
                     fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
                   ),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,

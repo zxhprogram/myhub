@@ -24,6 +24,59 @@ class NexusWebViewPage extends StatefulWidget {
 }
 
 class _NexusWebViewPageState extends State<NexusWebViewPage> {
+  final GlobalKey<NexusWebViewState> _webViewKey =
+      GlobalKey<NexusWebViewState>();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      appBar: AppBar(
+        backgroundColor: colorScheme.surfaceContainerLow,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        title: Text(
+          widget.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: NexusTypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Reload',
+            onPressed: () => _webViewKey.currentState?.reload(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.open_in_browser),
+            tooltip: 'Open in browser',
+            onPressed: () => _webViewKey.currentState?.openInBrowser(),
+          ),
+        ],
+      ),
+      body: NexusWebView(key: _webViewKey, url: widget.url),
+    );
+  }
+}
+
+/// Embeddable WebView widget without its own Scaffold, suitable for placing
+/// inside a page region (e.g. the Google News detail pane). Reacts to [url]
+/// changes by loading the new address in-place.
+class NexusWebView extends StatefulWidget {
+  const NexusWebView({super.key, required this.url});
+
+  final String url;
+
+  @override
+  State<NexusWebView> createState() => NexusWebViewState();
+}
+
+class NexusWebViewState extends State<NexusWebView> {
   InAppWebViewController? _webviewController;
   bool _isLoading = true;
   bool _webviewFailed = false;
@@ -32,6 +85,16 @@ class _NexusWebViewPageState extends State<NexusWebViewPage> {
   void initState() {
     super.initState();
     _ensureWebViewAvailable();
+  }
+
+  @override
+  void didUpdateWidget(NexusWebView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url == widget.url) return;
+    _setLoading(true);
+    _webviewController?.loadUrl(
+      urlRequest: URLRequest(url: WebUri(widget.url)),
+    );
   }
 
   /// On Windows the embedded WebView is backed by the WebView2 runtime.
@@ -54,12 +117,13 @@ class _NexusWebViewPageState extends State<NexusWebViewPage> {
     setState(() => _isLoading = loading);
   }
 
-  Future<void> _reload() async {
+  Future<void> reload() async {
     if (_webviewFailed) return;
+    _setLoading(true);
     await _webviewController?.reload();
   }
 
-  Future<void> _openInBrowser() async {
+  Future<void> openInBrowser() async {
     final uri = Uri.tryParse(widget.url);
     if (uri == null || !uri.hasScheme) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -67,39 +131,7 @@ class _NexusWebViewPageState extends State<NexusWebViewPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surfaceContainerLow,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          widget.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: NexusTypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          if (!_webviewFailed)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Reload',
-              onPressed: _reload,
-            ),
-          IconButton(
-            icon: const Icon(Icons.open_in_browser),
-            tooltip: 'Open in browser',
-            onPressed: _openInBrowser,
-          ),
-        ],
-      ),
-      body: _webviewFailed ? _buildFallback() : _buildWebview(),
-    );
+    return _webviewFailed ? _buildFallback() : _buildWebview();
   }
 
   Widget _buildWebview() {
@@ -144,7 +176,7 @@ class _NexusWebViewPageState extends State<NexusWebViewPage> {
       action: NexusButton(
         label: 'Open in Browser',
         icon: Icons.open_in_browser,
-        onPressed: _openInBrowser,
+        onPressed: openInBrowser,
       ),
     );
   }
