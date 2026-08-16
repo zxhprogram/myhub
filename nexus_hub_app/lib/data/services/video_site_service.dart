@@ -67,8 +67,8 @@ class VideoSiteService {
   // Browse list
   // ------------------------------------------------------------------
 
-  /// Fetches one page of a browse list (movies / series / variety, sorted
-  /// by recency).
+  /// Fetches one page of a browse list (movies / series / documentary /
+  /// variety / anime, sorted by recency).
   ///
   /// An empty [items] list with the requested [page] means the site reported
   /// "no more data" (endpoint code 2).

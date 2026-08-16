@@ -11,8 +11,8 @@ import '../../components/nexus_input.dart';
 import '../../layout/page_scaffold.dart';
 import 'video_detail_page.dart';
 
-/// Video streaming sub-app: browses the movies / series / variety lists
-/// scraped from netflixgc.com, with title search.
+/// Video streaming sub-app: browses the movies / series / documentary /
+/// variety / anime lists scraped from netflixgc.com, with title search.
 ///
 /// Tapping a poster opens [VideoDetailPage] inside the desktop window's
 /// local navigator.
@@ -257,7 +257,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   }
 }
 
-/// Movie / series / variety selector shown above the browse grid.
+/// Category (movie / series / documentary / variety / anime) selector shown
+/// above the browse grid.
 ///
 /// Passes `null` as [selected] while search results are displayed; picking
 /// any tab leaves search mode.

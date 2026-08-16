@@ -9,7 +9,9 @@
 enum VideoCategory {
   movies('电影', '1'),
   series('电视剧', '2'),
-  variety('综艺', '24');
+  documentary('纪录片', '24'),
+  variety('综艺', '23'),
+  anime('漫剧', '3');
 
   const VideoCategory(this.label, this.typeId);
 
