@@ -22,6 +22,7 @@ import '../pages/clipboard_history_page.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/dev_tools_page.dart';
 import '../pages/google_news_page.dart';
+import '../pages/java_decompiler_page.dart';
 import '../pages/mail_page.dart';
 import '../pages/music_player_page.dart';
 import '../pages/my_computer_page.dart';
@@ -291,6 +292,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const MusicPlayerPage(),
       gradientStart: const Color(0xFFFB5C74),
       gradientEnd: const Color(0xFFFA233B),
+    ),
+    DesktopAppItem(
+      label: 'Java Decompiler',
+      icon: Icons.coffee,
+      route: '/java-decompiler',
+      pageBuilder: (_) => const JavaDecompilerPage(),
+      gradientStart: const Color(0xFFC89060),
+      gradientEnd: const Color(0xFF6F4E37),
     ),
   ];
 
