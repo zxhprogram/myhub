@@ -4,8 +4,17 @@ import 'package:dio/dio.dart';
 import 'package:pointycastle/export.dart';
 
 import '../models/video_models.dart';
+import '../models/video_site_config.dart';
+import 'video_site_config_storage.dart';
 
-/// Scrapes netflixgc.com (a MacCMS V10 video site) for the video sub-app.
+/// Scrapes a netflixgc-protocol site (a MacCMS V10 deployment, by default
+/// www.netflixgc.com) for the video sub-app.
+///
+/// The extraction rules below make up the netflixgc protocol; the two hosts
+/// it talks to — the site itself and the cloud parse endpoint — come from
+/// the [VideoSiteConfig] passed in (or the persisted one), because the
+/// domains a deployment lives on change over time while the URL layout
+/// does not.
 ///
 /// Four data paths are used:
 ///  * Browse list — the site's own JSON endpoint `POST /index.php/ds_api/vod`
@@ -22,12 +31,15 @@ import '../models/video_models.dart';
 ///    embeds the actual stream URL behind AES-128-CBC (key derived from a
 ///    per-request `uid`, mirroring the site player's `uic()` routine).
 class VideoSiteService {
-  VideoSiteService({Dio? dio})
-    : _dio =
+  /// Creates a scraper for the site described by [config], defaulting to
+  /// the persisted configuration (see [VideoSiteConfigStorage]).
+  VideoSiteService({Dio? dio, VideoSiteConfig? config})
+    : _config = config ?? VideoSiteConfigStorage.current,
+      _dio =
           dio ??
           Dio(
             BaseOptions(
-              baseUrl: 'https://www.netflixgc.com',
+              baseUrl: (config ?? VideoSiteConfigStorage.current).origin,
               connectTimeout: const Duration(seconds: 15),
               receiveTimeout: const Duration(seconds: 20),
               headers: {
@@ -39,13 +51,15 @@ class VideoSiteService {
             ),
           );
 
+  final VideoSiteConfig _config;
+
   final Dio _dio;
 
-  /// Cloud parse endpoint every playback source on this site resolves
+  /// Cloud parse endpoint every playback source on the site resolves
   /// through (see the site's `playerconfig.js`). It must be requested with
-  /// a netflixgc.com Referer, otherwise it answers with a failure code.
-  static const String _parseEndpoint =
-      'https://cjbfq.netflixgc.tv/player/ec.php?code=netflix&if=1&url=';
+  /// a Referer on the configured site domain, otherwise it answers with a
+  /// failure code.
+  String get _parseEndpoint => _config.parseEndpoint;
 
   /// AES setup of the site player's `uic()` decryption, keyed by the
   /// per-request `uid` embedded in each parse response.
@@ -165,9 +179,10 @@ class VideoSiteService {
   ///
   /// 1. The play page hides the resource reference in `player_aaaa`
   ///    (base64 + percent-encoded).
-  /// 2. The reference goes to the cloud parse endpoint (netflixgc.com
-  ///    Referer required), whose HTML embeds a `ConFig` object with the
-  ///    stream URL AES-encrypted and the per-request key material.
+  /// 2. The reference goes to the cloud parse endpoint (a Referer on the
+  ///    configured site domain required), whose HTML embeds a `ConFig`
+  ///    object with the stream URL AES-encrypted and the per-request key
+  ///    material.
   /// 3. AES-128-CBC decryption (the site player's `uic()` algorithm)
   ///    yields the final stream URL, playable without a browser.
   Future<VideoPlayInfo> resolvePlay({
@@ -228,7 +243,7 @@ class VideoSiteService {
       '$_parseEndpoint${Uri.encodeComponent(rawUrl)}',
       options: Options(
         responseType: ResponseType.plain,
-        headers: {'Referer': 'https://www.netflixgc.com$playPath'},
+        headers: {'Referer': '${_config.origin}$playPath'},
       ),
     );
     final html = response.data ?? '';

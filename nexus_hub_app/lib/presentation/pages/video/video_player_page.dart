@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/models/video_models.dart';
+import '../../../data/models/video_site_config.dart';
+import '../../../data/services/video_site_config_storage.dart';
 import '../../../data/services/video_site_service.dart';
 import '../../../theme/radii.dart';
 import '../../../theme/spacing.dart';
@@ -10,9 +12,13 @@ import '../../components/nexus_empty_state.dart';
 import '../../components/nexus_input.dart';
 import '../../layout/page_scaffold.dart';
 import 'video_detail_page.dart';
+import 'video_source_manager_dialog.dart';
 
 /// Video streaming sub-app: browses the movies / series / documentary /
-/// variety / anime lists scraped from netflixgc.com, with title search.
+/// variety / anime lists of the active data source (a netflixgc-protocol
+/// site), with title search. The header offers a quick source switcher;
+/// the settings button beside it opens the source manager where sources
+/// can be created, edited and deleted.
 ///
 /// Tapping a poster opens [VideoDetailPage] inside the desktop window's
 /// local navigator.
@@ -30,7 +36,10 @@ class _CategoryTabData {
 }
 
 class _VideoPlayerPageState extends State<VideoPlayerPage> {
-  final VideoSiteService _service = VideoSiteService();
+  /// Data source the current [_service] was built from; kept besides the
+  /// service so the source switcher can mark the active entry.
+  VideoSiteConfig _config = VideoSiteConfigStorage.current;
+  late VideoSiteService _service = VideoSiteService(config: _config);
   final TextEditingController _searchController = TextEditingController();
 
   final Map<VideoCategory, _CategoryTabData> _tabs = {
@@ -51,7 +60,61 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   @override
   void initState() {
     super.initState();
+    _init();
+  }
+
+  /// Activates the persisted data source configuration before the first
+  /// load; the field-initialized service already matches it unless
+  /// storage holds a customized one.
+  Future<void> _init() async {
+    final config = await VideoSiteConfigStorage.load();
+    if (!mounted) return;
+    if (config != _config) {
+      setState(() => _applyConfig(config));
+    }
     _loadCategory(VideoCategory.series);
+  }
+
+  /// Points the page at a new data source: rebuilds the service with
+  /// [config] and drops every cached browse page and search result.
+  ///
+  /// Callers are responsible for wrapping this in `setState` and reloading
+  /// the visible category.
+  void _applyConfig(VideoSiteConfig config) {
+    _config = config;
+    _service = VideoSiteService(config: config);
+    _error = null;
+    _searchKeyword = '';
+    _searchResults = const [];
+    _searchController.clear();
+    for (final tab in _tabs.values) {
+      tab
+        ..page = 1
+        ..result = null;
+    }
+  }
+
+  /// Switches browsing and playback to the saved source with [id].
+  Future<void> _switchSource(String id) async {
+    if (id == _config.id) return;
+    final source = VideoSiteConfigStorage.sources
+        .where((s) => s.id == id)
+        .firstOrNull;
+    if (source == null) return;
+    await VideoSiteConfigStorage.setActive(id);
+    if (!mounted) return;
+    setState(() => _applyConfig(VideoSiteConfigStorage.current));
+    _loadCategory(_category);
+  }
+
+  /// Opens the data source manager. Every change inside is persisted
+  /// directly; when the active source changed (switched, edited or the
+  /// active one deleted), the browse list reloads from it.
+  Future<void> _openSources() async {
+    final active = await showVideoSourceManagerDialog(context);
+    if (!mounted || active == _config) return;
+    setState(() => _applyConfig(active));
+    _loadCategory(_category);
   }
 
   @override
@@ -174,7 +237,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
               const SizedBox(height: NexusSpacing.xs),
               Text(
                 _searchKeyword.isEmpty
-                    ? 'Browse ${_category.label} on NetflixGC'
+                    ? '${_category.label} · ${_config.name} · ${_config.domain}'
                     : '搜索“$_searchKeyword”的结果',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -184,6 +247,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
               ),
             ],
           ),
+        ),
+        const SizedBox(width: NexusSpacing.md),
+        _SourceSwitcherButton(
+          config: _config,
+          onSelected: _switchSource,
+          onManage: _openSources,
         ),
         const SizedBox(width: NexusSpacing.md),
         SizedBox(
@@ -201,6 +270,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                   ),
             onSubmitted: _runSearch,
           ),
+        ),
+        const SizedBox(width: NexusSpacing.sm),
+        IconButton(
+          icon: const Icon(Icons.settings_outlined, size: 20),
+          tooltip: '管理数据源',
+          onPressed: _openSources,
         ),
       ],
     );
@@ -440,6 +515,140 @@ class _CoverImage extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Compact header button listing every saved data source; picking one
+/// switches browsing and playback to it, the trailing entry opens the
+/// source manager.
+class _SourceSwitcherButton extends StatelessWidget {
+  const _SourceSwitcherButton({
+    required this.config,
+    required this.onSelected,
+    required this.onManage,
+  });
+
+  /// The currently active source, marked in the menu.
+  final VideoSiteConfig config;
+
+  /// Called with the id of the picked source.
+  final ValueChanged<String> onSelected;
+
+  /// Opens the source manager dialog.
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return PopupMenuButton<String>(
+      tooltip: '切换数据源',
+      constraints: const BoxConstraints(minWidth: 240),
+      position: PopupMenuPosition.under,
+      onSelected: (value) {
+        if (value == '_manage') {
+          onManage();
+        } else {
+          onSelected(value);
+        }
+      },
+      itemBuilder: (context) => [
+        for (final source in VideoSiteConfigStorage.sources)
+          PopupMenuItem<String>(
+            value: source.id,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  child:
+                      source.id == config.id
+                          ? Icon(
+                              Icons.check,
+                              size: 16,
+                              color: colorScheme.secondary,
+                            )
+                          : null,
+                ),
+                const SizedBox(width: NexusSpacing.xs),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        source.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        source.domain,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: NexusTypography.labelSm.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: '_manage',
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                child: Icon(Icons.settings_outlined, size: 16),
+              ),
+              const SizedBox(width: NexusSpacing.xs),
+              const Text('管理数据源…'),
+            ],
+          ),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: NexusSpacing.sm + 2,
+          vertical: NexusSpacing.xs + 3,
+        ),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHigh,
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+          borderRadius: NexusRadii.mdRadius,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.dns_outlined,
+              size: 16,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: NexusSpacing.xs),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 140),
+              child: Text(
+                config.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: NexusTypography.labelMd,
+              ),
+            ),
+            const SizedBox(width: NexusSpacing.xs),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 18,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
