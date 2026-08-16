@@ -6,6 +6,7 @@ import 'package:signals_flutter/signals_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/ai_chat_message.dart';
+import '../../data/models/ai_chat_session.dart';
 import '../../data/models/ai_provider_config.dart';
 import '../../data/repositories/ai_chat_repository.dart';
 import '../../theme/spacing.dart';
@@ -82,6 +83,20 @@ class _AiChatPageState extends State<AiChatPage> {
     }
   }
 
+  Future<void> _confirmDeleteSession(String id) async {
+    final completer = showOverlay<bool>(
+      context,
+      DialogConfiguration<bool>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) => const _DeleteSessionDialog(),
+      ),
+    );
+    final confirmed = await completer.future;
+    if (confirmed == true) {
+      await _state.deleteSession(id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dark = material.Theme.of(context).brightness == Brightness.dark;
@@ -93,6 +108,8 @@ class _AiChatPageState extends State<AiChatPage> {
       onCopyMessage: _copyMessage,
       onOpenSettings: _openSettings,
       onConfirmClear: _confirmClear,
+      onNewChat: () => _state.createSession(),
+      onDeleteSession: _confirmDeleteSession,
     );
     final ambientShadcnTheme = context.getInheritedWidgetOfExactType<Theme>();
     if (ambientShadcnTheme != null) {
@@ -119,6 +136,8 @@ class _AiChatView extends StatelessWidget {
     required this.onCopyMessage,
     required this.onOpenSettings,
     required this.onConfirmClear,
+    required this.onNewChat,
+    required this.onDeleteSession,
   });
 
   final AiChatState state;
@@ -127,6 +146,8 @@ class _AiChatView extends StatelessWidget {
   final void Function(String) onCopyMessage;
   final VoidCallback onOpenSettings;
   final VoidCallback onConfirmClear;
+  final VoidCallback onNewChat;
+  final void Function(String) onDeleteSession;
 
   @override
   Widget build(BuildContext context) {
@@ -134,221 +155,414 @@ class _AiChatView extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     return Container(
       color: colorScheme.background,
-      padding: const EdgeInsets.all(NexusSpacing.md),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('AI Chat').large().semiBold(),
-                    const SizedBox(height: NexusSpacing.xs),
-                    Text(
-                      'Ask anything, summarize text, or generate code',
-                    ).small().muted(),
-                  ],
-                ),
-              ),
-              const SizedBox(width: NexusSpacing.sm),
-              Watch((_) {
-                final providers = state.providers.value;
-                final active = state.activeProvider;
-                final hasMessages = state.messages.value.isNotEmpty;
-                final isStreaming = state.isStreaming.value;
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (providers.isNotEmpty) ...[
-                      _ProviderSelect(
-                        providers: providers,
-                        active: active,
-                        onChanged: (value) {
-                          if (value == null) return;
-                          if (value == _kManageProviders) {
-                            onOpenSettings();
-                          } else {
-                            state.setActiveProvider(value);
-                          }
-                        },
-                      ),
-                      const SizedBox(width: NexusSpacing.sm),
-                      _ModelSelect(
-                        active: active,
-                        onChanged: (value) {
-                          if (value == null) return;
-                          if (value == _kManageProviders) {
-                            onOpenSettings();
-                          } else if (active != null) {
-                            state.setSelectedModel(active.id, value);
-                          }
-                        },
-                      ),
-                      const SizedBox(width: NexusSpacing.sm),
-                    ],
-                    Tooltip(
-                      tooltip: (context) => const Text('Provider settings'),
-                      child: IconButton.ghost(
-                        icon: const Icon(LucideIcons.settings2, size: 18),
-                        onPressed: onOpenSettings,
-                      ),
-                    ),
-                    Tooltip(
-                      tooltip: (context) => const Text('Clear conversation'),
-                      child: IconButton.ghost(
-                        icon: const Icon(LucideIcons.trash2, size: 18),
-                        onPressed: hasMessages && !isStreaming
-                            ? onConfirmClear
-                            : null,
-                      ),
-                    ),
-                  ],
-                );
-              }),
-            ],
+          _SessionSidebar(
+            state: state,
+            onNewChat: onNewChat,
+            onDeleteSession: onDeleteSession,
           ),
-          const SizedBox(height: NexusSpacing.md),
+          Container(width: 1, color: colorScheme.border),
           Expanded(
-            child: Watch((_) {
-              if (state.providers.value.isEmpty) {
-                return _EmptyState(
-                  icon: LucideIcons.bot,
-                  title: 'No provider configured',
-                  subtitle:
-                      'Add an OpenAI-compatible provider (OpenAI, DeepSeek, '
-                      'Kimi, Ollama, …) to start chatting.',
-                  action: Button.primary(
-                    leading: const Icon(LucideIcons.settings2),
-                    onPressed: onOpenSettings,
-                    child: const Text('Configure providers'),
-                  ),
-                );
-              }
-              final messages = state.messages.value;
-              final isStreaming = state.isStreaming.value;
-              if (messages.isEmpty && !isStreaming) {
-                return _EmptyState(
-                  icon: LucideIcons.messageCircle,
-                  title: 'Ask anything',
-                  subtitle: 'Replies stream in live and render as rich '
-                      'Markdown with code blocks and tables.',
-                );
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.all(NexusSpacing.md),
-                reverse: true,
-                itemCount: messages.length + (isStreaming ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (isStreaming && index == 0) {
-                    return const _StreamingBubble();
-                  }
-                  final message = messages[messages.length - 1 - index + (isStreaming ? 1 : 0)];
-                  return _ChatBubble(
-                    message: message,
-                    onCopy: onCopyMessage,
-                  );
-                },
-              );
-            }),
-          ),
-          const SizedBox(height: NexusSpacing.md),
-          Watch((_) {
-            final error = state.error.value;
-            if (error == null) return const SizedBox.shrink();
-            return Padding(
-              padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
-              child: Alert.destructive(
-                leading: const Icon(LucideIcons.circleAlert, size: 18),
-                title: Text(error).small(),
-                trailing: IconButton.ghost(
-                  icon: const Icon(LucideIcons.x, size: 14),
-                  size: ButtonSize.small,
-                  onPressed: () => state.error.value = null,
-                ),
+            child: Padding(
+              padding: const EdgeInsets.all(NexusSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: NexusSpacing.md),
+                  Expanded(child: _buildTranscript()),
+                  const SizedBox(height: NexusSpacing.md),
+                  _buildError(),
+                  _buildComposer(),
+                  const SizedBox(height: NexusSpacing.md),
+                  _buildQuickPrompts(),
+                ],
               ),
-            );
-          }),
-          Watch((_) {
-            final isStreaming = state.isStreaming.value;
-            final messages = state.messages.value;
-            final canRegenerate = !isStreaming &&
-                messages.isNotEmpty &&
-                messages.last.role == AiChatRole.assistant;
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Tooltip(
-                  tooltip: (context) => const Text('Regenerate reply'),
-                  child: IconButton.outline(
-                    icon: const Icon(LucideIcons.refreshCw, size: 18),
-                    onPressed: canRegenerate ? () => state.regenerate() : null,
-                  ),
-                ),
-                const SizedBox(width: NexusSpacing.sm),
-                Expanded(
-                  child: Shortcuts(
-                    shortcuts: const <ShortcutActivator, Intent>{
-                      SingleActivator(LogicalKeyboardKey.enter): _SendIntent(),
-                      SingleActivator(
-                        LogicalKeyboardKey.numpadEnter,
-                      ): _SendIntent(),
-                    },
-                    child: Actions(
-                      actions: <Type, Action<Intent>>{
-                        _SendIntent: CallbackAction<_SendIntent>(
-                          onInvoke: (_) {
-                            onSend();
-                            return null;
-                          },
-                        ),
-                      },
-                      child: TextField(
-                        controller: controller,
-                        placeholder: const Text(
-                          'Type your message… (Enter to send, Shift+Enter '
-                          'for a new line)',
-                        ),
-                        maxLines: 5,
-                        minLines: 1,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: NexusSpacing.sm),
-                if (isStreaming)
-                  Button.secondary(
-                    leading: const Icon(LucideIcons.circleStop),
-                    onPressed: state.stopStreaming,
-                    child: const Text('Stop'),
-                  )
-                else
-                  Button.primary(
-                    leading: const Icon(LucideIcons.send),
-                    onPressed: onSend,
-                    child: const Text('Send'),
-                  ),
-              ],
-            );
-          }),
-          const SizedBox(height: NexusSpacing.md),
-          Wrap(
-            spacing: NexusSpacing.sm,
-            runSpacing: NexusSpacing.sm,
-            children: [
-              for (final prompt in _quickPrompts)
-                Chip(
-                  onPressed: () => controller.text = prompt,
-                  child: Text(prompt).small(),
-                ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildHeader() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Watch((_) {
+            final title = state.activeSession?.title ?? 'AI Chat';
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title).large().semiBold(),
+                const SizedBox(height: NexusSpacing.xs),
+                Text(
+                  'Ask anything, summarize text, or generate code',
+                ).small().muted(),
+              ],
+            );
+          }),
+        ),
+        const SizedBox(width: NexusSpacing.sm),
+        Watch((_) {
+          final providers = state.providers.value;
+          final active = state.activeProvider;
+          final hasMessages = state.messages.value.isNotEmpty;
+          final isStreaming = state.isStreaming.value;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (providers.isNotEmpty) ...[
+                _ProviderSelect(
+                  providers: providers,
+                  active: active,
+                  onChanged: (value) {
+                    if (value == null) return;
+                    if (value == _kManageProviders) {
+                      onOpenSettings();
+                    } else {
+                      state.setActiveProvider(value);
+                    }
+                  },
+                ),
+                const SizedBox(width: NexusSpacing.sm),
+                _ModelSelect(
+                  active: active,
+                  onChanged: (value) {
+                    if (value == null) return;
+                    if (value == _kManageProviders) {
+                      onOpenSettings();
+                    } else if (active != null) {
+                      state.setSelectedModel(active.id, value);
+                    }
+                  },
+                ),
+                const SizedBox(width: NexusSpacing.sm),
+              ],
+              Tooltip(
+                tooltip: (context) => const Text('Provider settings'),
+                child: IconButton.ghost(
+                  icon: const Icon(LucideIcons.settings2, size: 18),
+                  onPressed: onOpenSettings,
+                ),
+              ),
+              Tooltip(
+                tooltip: (context) => const Text('Clear conversation'),
+                child: IconButton.ghost(
+                  icon: const Icon(LucideIcons.trash2, size: 18),
+                  onPressed: hasMessages && !isStreaming
+                      ? onConfirmClear
+                      : null,
+                ),
+              ),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildTranscript() {
+    return Watch((_) {
+      if (state.providers.value.isEmpty) {
+        return _EmptyState(
+          icon: LucideIcons.bot,
+          title: 'No provider configured',
+          subtitle:
+              'Add an OpenAI-compatible provider (OpenAI, DeepSeek, '
+              'Kimi, Ollama, …) to start chatting.',
+          action: Button.primary(
+            leading: const Icon(LucideIcons.settings2),
+            onPressed: onOpenSettings,
+            child: const Text('Configure providers'),
+          ),
+        );
+      }
+      final messages = state.messages.value;
+      // The streaming bubble belongs to the session that owns the stream,
+      // which may differ from the selected one.
+      final streamingHere = state.isStreaming.value &&
+          state.streamingSessionId.value == state.activeSessionId.value;
+      if (messages.isEmpty && !streamingHere) {
+        return _EmptyState(
+          icon: LucideIcons.messageCircle,
+          title: 'Ask anything',
+          subtitle: 'Replies stream in live and render as rich '
+              'Markdown with code blocks and tables.',
+        );
+      }
+      return ListView.builder(
+        padding: const EdgeInsets.all(NexusSpacing.md),
+        reverse: true,
+        itemCount: messages.length + (streamingHere ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (streamingHere && index == 0) {
+            return const _StreamingBubble();
+          }
+          final message =
+              messages[messages.length - 1 - index + (streamingHere ? 1 : 0)];
+          return _ChatBubble(
+            message: message,
+            onCopy: onCopyMessage,
+          );
+        },
+      );
+    });
+  }
+
+  Widget _buildError() {
+    return Watch((_) {
+      final error = state.error.value;
+      if (error == null) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
+        child: Alert.destructive(
+          leading: const Icon(LucideIcons.circleAlert, size: 18),
+          title: Text(error).small(),
+          trailing: IconButton.ghost(
+            icon: const Icon(LucideIcons.x, size: 14),
+            size: ButtonSize.small,
+            onPressed: () => state.error.value = null,
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildComposer() {
+    return Watch((_) {
+      final isStreaming = state.isStreaming.value;
+      final messages = state.messages.value;
+      final canRegenerate = !isStreaming &&
+          messages.isNotEmpty &&
+          messages.last.role == AiChatRole.assistant;
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Tooltip(
+            tooltip: (context) => const Text('Regenerate reply'),
+            child: IconButton.outline(
+              icon: const Icon(LucideIcons.refreshCw, size: 18),
+              onPressed: canRegenerate ? () => state.regenerate() : null,
+            ),
+          ),
+          const SizedBox(width: NexusSpacing.sm),
+          Expanded(
+            child: Shortcuts(
+              shortcuts: const <ShortcutActivator, Intent>{
+                SingleActivator(LogicalKeyboardKey.enter): _SendIntent(),
+                SingleActivator(
+                  LogicalKeyboardKey.numpadEnter,
+                ): _SendIntent(),
+              },
+              child: Actions(
+                actions: <Type, Action<Intent>>{
+                  _SendIntent: CallbackAction<_SendIntent>(
+                    onInvoke: (_) {
+                      onSend();
+                      return null;
+                    },
+                  ),
+                },
+                child: TextField(
+                  controller: controller,
+                  placeholder: const Text(
+                    'Type your message… (Enter to send, Shift+Enter '
+                    'for a new line)',
+                  ),
+                  maxLines: 5,
+                  minLines: 1,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: NexusSpacing.sm),
+          if (isStreaming)
+            Button.secondary(
+              leading: const Icon(LucideIcons.circleStop),
+              onPressed: state.stopStreaming,
+              child: const Text('Stop'),
+            )
+          else
+            Button.primary(
+              leading: const Icon(LucideIcons.send),
+              onPressed: onSend,
+              child: const Text('Send'),
+            ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildQuickPrompts() {
+    return Wrap(
+      spacing: NexusSpacing.sm,
+      runSpacing: NexusSpacing.sm,
+      children: [
+        for (final prompt in _quickPrompts)
+          Chip(
+            onPressed: () => controller.text = prompt,
+            child: Text(prompt).small(),
+          ),
+      ],
+    );
+  }
+}
+
+/// Width of the left rail listing the conversation history.
+const _kSidebarWidth = 264.0;
+
+/// Left rail with the "New chat" action and the session history.
+class _SessionSidebar extends StatelessWidget {
+  const _SessionSidebar({
+    required this.state,
+    required this.onNewChat,
+    required this.onDeleteSession,
+  });
+
+  final AiChatState state;
+  final VoidCallback onNewChat;
+  final void Function(String) onDeleteSession;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: _kSidebarWidth,
+      color: theme.colorScheme.card,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(NexusSpacing.sm),
+            child: Button.primary(
+              leading: const Icon(LucideIcons.plus, size: 16),
+              onPressed: onNewChat,
+              child: const Text('New chat'),
+            ),
+          ),
+          Expanded(
+            child: Watch((_) {
+              final sessions = state.sessions.value;
+              if (sessions.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(NexusSpacing.md),
+                  child: const Text('No conversations yet').small().muted(),
+                );
+              }
+              final activeId = state.activeSessionId.value;
+              final streamingId = state.isStreaming.value
+                  ? state.streamingSessionId.value
+                  : null;
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: NexusSpacing.sm,
+                ),
+                itemCount: sessions.length,
+                itemBuilder: (context, index) {
+                  final session = sessions[index];
+                  return _SessionTile(
+                    session: session,
+                    selected: session.id == activeId,
+                    streaming: session.id == streamingId,
+                    onSelect: () => state.selectSession(session.id),
+                    onDelete: () => onDeleteSession(session.id),
+                  );
+                },
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One entry of the session history: title, relative time, delete action, and
+/// a pulsing indicator while the session is streaming.
+class _SessionTile extends StatelessWidget {
+  const _SessionTile({
+    required this.session,
+    required this.selected,
+    required this.streaming,
+    required this.onSelect,
+    required this.onDelete,
+  });
+
+  final AiChatSession session;
+  final bool selected;
+  final bool streaming;
+  final VoidCallback onSelect;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: NexusSpacing.xs),
+      child: SelectedButton(
+        value: selected,
+        enabled: true,
+        onPressed: onSelect,
+        alignment: Alignment.centerLeft,
+        style: const ButtonStyle.ghost(density: ButtonDensity.dense),
+        selectedStyle: const ButtonStyle.secondary(
+          density: ButtonDensity.dense,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              LucideIcons.messageCircle,
+              size: 14,
+              color: theme.colorScheme.mutedForeground,
+            ),
+            const SizedBox(width: NexusSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    session.title,
+                    overflow: TextOverflow.ellipsis,
+                  ).small().semiBold(),
+                  Text(
+                    _formatSessionTime(session.updatedAt),
+                  ).xSmall().muted(),
+                ],
+              ),
+            ),
+            if (streaming)
+              const _PulsingDot()
+            else
+              Tooltip(
+                tooltip: (context) => const Text('Delete conversation'),
+                child: IconButton.ghost(
+                  icon: const Icon(LucideIcons.trash2, size: 14),
+                  size: ButtonSize.small,
+                  onPressed: onDelete,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact relative timestamp shown under the session title.
+String _formatSessionTime(DateTime time) {
+  final now = DateTime.now();
+  final difference = now.difference(time);
+  if (difference.inMinutes < 1) return 'just now';
+  if (difference.inHours < 1) return '${difference.inMinutes}m ago';
+  if (difference.inDays < 1) return '${difference.inHours}h ago';
+  if (difference.inDays < 7) return '${difference.inDays}d ago';
+  final month = time.month.toString().padLeft(2, '0');
+  final day = time.day.toString().padLeft(2, '0');
+  return time.year == now.year ? '$month-$day' : '${time.year}-$month-$day';
 }
 
 const _kManageProviders = '__manage_providers__';
@@ -833,6 +1047,35 @@ class _ClearConversationDialog extends StatelessWidget {
           leading: const Icon(LucideIcons.trash2),
           onPressed: () => closeOverlay<bool>(context, true),
           child: const Text('Clear'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Confirmation dialog for deleting a session from the history.
+class _DeleteSessionDialog extends StatelessWidget {
+  const _DeleteSessionDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return _DialogShell(
+      title: 'Delete conversation?',
+      children: [
+        Text(
+          'This permanently removes the conversation and its transcript '
+          'from this device.',
+        ).small().muted(),
+      ],
+      actions: (context) => [
+        Button.ghost(
+          onPressed: () => closeOverlay<bool>(context, false),
+          child: const Text('Cancel'),
+        ),
+        Button.destructive(
+          leading: const Icon(LucideIcons.trash2),
+          onPressed: () => closeOverlay<bool>(context, true),
+          child: const Text('Delete'),
         ),
       ],
     );

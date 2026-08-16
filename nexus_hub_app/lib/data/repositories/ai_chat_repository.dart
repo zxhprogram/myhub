@@ -139,6 +139,72 @@ class AiChatRepository {
     }
   }
 
+  /// Asks the model for a short title summarizing the opening exchange of a
+  /// conversation (non-streaming). Used to auto-name sessions after their
+  /// first reply; callers fall back to a local heuristic on failure.
+  Future<String> generateTitle({
+    required AiProviderConfig provider,
+    required String model,
+    required String userMessage,
+    required String assistantMessage,
+  }) async {
+    final base = _normalizeBaseUrl(provider.baseUrl);
+    String excerpt(String text) =>
+        text.length > 500 ? '${text.substring(0, 500)}…' : text;
+    final Response<Map<String, dynamic>> response;
+    try {
+      response = await _dio.post<Map<String, dynamic>>(
+        '$base/chat/completions',
+        options: Options(
+          headers: _headers(provider),
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+        data: {
+          'model': model,
+          'messages': [
+            {
+              'role': 'system',
+              'content': 'You name chat conversations. Reply with a concise '
+                  'title of at most 6 words, in the language of the '
+                  'conversation. Output the title only — no quotes, no '
+                  'numbering, no trailing punctuation.',
+            },
+            {
+              'role': 'user',
+              'content': 'User: ${excerpt(userMessage)}\n\n'
+                  'Assistant: ${excerpt(assistantMessage)}',
+            },
+          ],
+          'stream': false,
+          'max_tokens': 64,
+        },
+      );
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.badResponse) {
+        throw AiChatException(
+          'Provider returned HTTP ${e.response?.statusCode}: '
+          '${await _readErrorBody(e.response?.data)}',
+        );
+      }
+      throw _toChatException(e);
+    }
+    final choices = response.data?['choices'];
+    if (choices is! List || choices.isEmpty) {
+      throw const AiChatException(
+        'Unexpected /chat/completions response: missing choices.',
+      );
+    }
+    final choice = choices.first;
+    final message = choice is Map<String, dynamic> ? choice['message'] : null;
+    final content = message is Map<String, dynamic> ? message['content'] : null;
+    if (content is! String || content.trim().isEmpty) {
+      throw const AiChatException(
+        'Unexpected /chat/completions response: missing message content.',
+      );
+    }
+    return content;
+  }
+
   /// Fetches the model ids advertised by the provider's `/models` endpoint.
   Future<List<String>> fetchModels(AiProviderConfig provider) async {
     final base = _normalizeBaseUrl(provider.baseUrl);
