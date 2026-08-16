@@ -38,8 +38,15 @@ dependencies:
   camera_windows: 0.2.6+4
   file_selector: ^1.0.3
   # java_decompiler:
-  #   path: ../../java-decompiler
+ #   path: ../../java-decompiler
   java_decompiler: ^0.1.0
+  # Native video playback (libmpv) for the Video sub-app. The official
+  # video_player has no Windows implementation; media_kit covers Windows.
+  media_kit: ^1.1.10
+  media_kit_video: ^1.2.4
+  media_kit_libs_video: ^1.0.4
+  # AES-CBC decryption of the stream URL embedded in the cloud player page.
+  pointycastle: ^4.0.0
 
 dev_dependencies:
   flutter_test:

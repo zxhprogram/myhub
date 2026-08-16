@@ -1,19 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../data/models/video_models.dart';
 import '../../../data/services/video_site_service.dart';
 import '../../../theme/radii.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/typography.dart';
+import '../../components/nexus_button.dart';
 import '../../components/nexus_empty_state.dart';
-import '../google_news_article_page.dart';
 
 /// Episode player page.
 ///
-/// Each episode's play page on the data source carries an encrypted resource
-/// reference which [VideoSiteService.resolvePlay] decrypts and hands to the
-/// site's cloud parse player; that embeddable player page is loaded inside a
-/// [NexusWebView], mirroring how the site itself streams.
+/// Each episode's play page on the data source hides its resource reference
+/// behind two layers of encryption; [VideoSiteService.resolvePlay] decrypts
+/// both natively and returns a direct stream URL, which is played by the
+/// libmpv-backed [Player] — no WebView involved.
 class VideoPlayPage extends StatefulWidget {
   const VideoPlayPage({
     super.key,
@@ -38,18 +42,35 @@ class VideoPlayPage extends StatefulWidget {
 
 class _VideoPlayPageState extends State<VideoPlayPage> {
   final VideoSiteService _service = VideoSiteService();
+  late final Player _player = Player();
+  late final VideoController _controller = VideoController(_player);
 
   VideoPlayInfo? _playInfo;
   bool _loading = false;
   String? _error;
   late int _current = widget.initialEpisode;
+  StreamSubscription<bool>? _completedSub;
 
   VideoEpisode get _episode => widget.episodes[_current];
 
   @override
   void initState() {
     super.initState();
+    // Auto-advance to the next episode when playback completes.
+    _completedSub = _player.stream.completed.listen((_) {
+      if (!mounted || _loading || _error != null) return;
+      if (_current < widget.episodes.length - 1) {
+        _switchEpisode(_current + 1);
+      }
+    });
     _resolve();
+  }
+
+  @override
+  void dispose() {
+    _completedSub?.cancel();
+    _player.dispose();
+    super.dispose();
   }
 
   Future<void> _resolve() async {
@@ -67,6 +88,7 @@ class _VideoPlayPageState extends State<VideoPlayPage> {
         _playInfo = info;
         _loading = false;
       });
+      await _player.open(Media(info.streamUrl));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -137,15 +159,23 @@ class _VideoPlayPageState extends State<VideoPlayPage> {
         icon: Icons.cloud_off_outlined,
         title: '播放解析失败',
         subtitle: _error!,
+        action: NexusButton(
+          label: '重试',
+          icon: Icons.refresh,
+          onPressed: _resolve,
+        ),
       );
     }
-    final playInfo = _playInfo;
-    if (playInfo == null) {
+    if (_playInfo == null) {
       return const SizedBox.shrink();
     }
     return Column(
       children: [
-        Expanded(child: NexusWebView(url: playInfo.playerUrl)),
+        Expanded(
+          // media_kit's built-in controls provide play/pause, seek, volume
+          // and fullscreen on top of the libmpv backend.
+          child: Video(controller: _controller),
+        ),
         _EpisodeStrip(
           episodes: widget.episodes,
           current: _current,

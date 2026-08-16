@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_alacritty/flutter_alacritty.dart' show RustLib;
+import 'package:media_kit/media_kit.dart';
 
 import 'app.dart';
 import 'data/services/clipboard_monitor_service.dart';
@@ -12,6 +13,9 @@ import 'presentation/states/clipboard_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Boot the libmpv backend used by the Video sub-app (no-op where bundled
+  // libraries are absent).
+  MediaKit.ensureInitialized();
   ClipboardMonitorService.instance.start();
   // Persist clipboard items app-wide even before the history page is opened,
   // so nothing is lost when the corresponding icon is never visited.

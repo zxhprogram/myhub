@@ -1,24 +1,26 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:pointycastle/export.dart';
 
 import '../models/video_models.dart';
 
 /// Scrapes netflixgc.com (a MacCMS V10 video site) for the video sub-app.
 ///
-/// Three data paths are used:
+/// Four data paths are used:
 ///  * Browse list — the site's own JSON endpoint `POST /index.php/ds_api/vod`
 ///    that the web list page loads its grid from.
 ///  * Search — `GET /index.php/ajax/suggest?mid=1&wd=...`, the JSON
 ///    autocomplete API behind the site's search box.
-///  * Detail / play pages — server-rendered HTML parsed with regular
-///    expressions, following the same approach as the Google News RSS
-///    parser (no XML/HTML package dependency).
-///
-/// Play pages encrypt the raw resource reference inside a `player_aaaa`
-/// payload (`encrypt: 2` = base64 + percent-encoding). After decrypting, the
-/// reference is handed to the site's cloud parse player, which is what gets
-/// embedded in the in-app WebView.
+///  * Detail pages — server-rendered HTML parsed with regular expressions,
+///    following the same approach as the Google News RSS parser (no
+///    XML/HTML package dependency).
+///  * Play pages — two layers of encryption, both decrypted natively:
+///    the play page hides the resource reference in a `player_aaaa`
+///    payload (`encrypt: 2` = base64 + percent-encoding), and the cloud
+///    parse endpoint responds with a player page whose `ConFig` object
+///    embeds the actual stream URL behind AES-128-CBC (key derived from a
+///    per-request `uid`, mirroring the site player's `uic()` routine).
 class VideoSiteService {
   VideoSiteService({Dio? dio})
     : _dio =
@@ -39,11 +41,27 @@ class VideoSiteService {
 
   final Dio _dio;
 
-  /// Cloud parse player used by every playback source on this site (see the
-  /// site's `playerconfig.js`); it resolves the encrypted resource reference
-  /// into a streamable video inside an embeddable HTML page.
-  static const String _parsePlayerPrefix =
+  /// Cloud parse endpoint every playback source on this site resolves
+  /// through (see the site's `playerconfig.js`). It must be requested with
+  /// a netflixgc.com Referer, otherwise it answers with a failure code.
+  static const String _parseEndpoint =
       'https://cjbfq.netflixgc.tv/player/ec.php?code=netflix&if=1&url=';
+
+  /// AES setup of the site player's `uic()` decryption, keyed by the
+  /// per-request `uid` embedded in each parse response.
+  static const String _aesKeyPrefix = '2890';
+  static const String _aesKeySuffix = 'tB959C';
+  static const String _aesIv = '2F131BE91247866E';
+
+  /// Failure codes of the parse endpoint (see its `tips` messages).
+  static const Map<int, String> _parseErrors = {
+    304: '访问过于频繁，已被临时冻结，请稍后再试',
+    301: '解析接口未返回播放地址',
+    0: '资源解析失败，请稍后重试或更换播放源',
+    101: '资源解析失败，请稍后重试或更换播放源',
+    102: '该资源暂时无法解析，请更换播放源',
+    103: '未匹配到解析接口',
+  };
 
   // ------------------------------------------------------------------
   // Browse list
@@ -143,7 +161,15 @@ class VideoSiteService {
   // ------------------------------------------------------------------
 
   /// Resolves one episode's play page (`/vodplay/{id}-{source}-{ep}.html`)
-  /// into the embeddable cloud player URL.
+  /// into a directly playable stream URL.
+  ///
+  /// 1. The play page hides the resource reference in `player_aaaa`
+  ///    (base64 + percent-encoded).
+  /// 2. The reference goes to the cloud parse endpoint (netflixgc.com
+  ///    Referer required), whose HTML embeds a `ConFig` object with the
+  ///    stream URL AES-encrypted and the per-request key material.
+  /// 3. AES-128-CBC decryption (the site player's `uic()` algorithm)
+  ///    yields the final stream URL, playable without a browser.
   Future<VideoPlayInfo> resolvePlay({
     required String playPath,
     required String episodeLabel,
@@ -178,17 +204,102 @@ class VideoSiteService {
 
     final vodData = payload['vod_data'];
     final vodName =
-        vodData is Map<String, dynamic> ? (vodData['vod_name'] as String? ?? '') : '';
+        vodData is Map<String, dynamic>
+            ? (vodData['vod_name'] as String? ?? '')
+            : '';
+
+    final streamUrl = await _resolveStream(decrypted, playPath);
 
     return VideoPlayInfo(
       title: vodName,
       episodeLabel: episodeLabel,
       rawUrl: decrypted,
-      playerUrl: '$_parsePlayerPrefix${Uri.encodeComponent(decrypted)}',
+      streamUrl: streamUrl,
       nextPlayPath: (payload['link_next'] as String?)?.isNotEmpty == true
           ? payload['link_next'] as String
           : null,
     );
+  }
+
+  /// Runs the resource reference through the cloud parse endpoint and
+  /// decrypts the embedded stream URL.
+  Future<String> _resolveStream(String rawUrl, String playPath) async {
+    final response = await _dio.get<String>(
+      '$_parseEndpoint${Uri.encodeComponent(rawUrl)}',
+      options: Options(
+        responseType: ResponseType.plain,
+        headers: {'Referer': 'https://www.netflixgc.com$playPath'},
+      ),
+    );
+    final html = response.data ?? '';
+    final config = _extractParseConfig(html);
+    if (config == null) {
+      throw StateException('解析接口返回异常，请稍后重试');
+    }
+
+    final code = (config['code'] as num?)?.toInt() ?? 0;
+    if (code != 200) {
+      throw StateException(_parseErrors[code] ?? '资源解析失败（code $code）');
+    }
+
+    final encryptedUrl = config['url'] as String? ?? '';
+    final configSection = config['config'];
+    final uid =
+        configSection is Map<String, dynamic>
+        ? (configSection['uid'] as String? ?? '')
+        : '';
+    if (encryptedUrl.isEmpty || uid.isEmpty) {
+      throw StateException(_parseErrors[301]!);
+    }
+
+    final streamUrl = _decryptStreamUrl(encryptedUrl, uid);
+    if (streamUrl.isEmpty) {
+      throw StateException('资源解析失败，请稍后重试或更换播放源');
+    }
+    return streamUrl;
+  }
+
+  /// Extracts the `let ConFig = {...}` object embedded in the parse
+  /// response. The whole inline script is the assignment, so slicing from
+  /// the first `{` to the last `}` yields the JSON.
+  Map<String, dynamic>? _extractParseConfig(String html) {
+    final scriptStart = html.indexOf('let ConFig');
+    if (scriptStart < 0) return null;
+    final braceStart = html.indexOf('{', scriptStart);
+    final braceEnd = html.lastIndexOf('}');
+    if (braceStart < 0 || braceEnd <= braceStart) return null;
+    try {
+      return Map<String, dynamic>.from(
+        jsonDecode(html.substring(braceStart, braceEnd + 1)) as Map,
+      );
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// AES-128-CBC decryption of the stream URL, mirroring the site player's
+  /// `uic()`: key = `'2890' + uid + 'tB959C'`, fixed IV, PKCS7 padding.
+  String _decryptStreamUrl(String encryptedUrl, String uid) {
+    try {
+      final key = utf8.encode('$_aesKeyPrefix$uid$_aesKeySuffix');
+      final iv = utf8.encode(_aesIv);
+      final cipher = PaddedBlockCipherImpl(
+        PKCS7Padding(),
+        CBCBlockCipher(AESEngine()),
+      )..init(
+          false,
+          PaddedBlockCipherParameters(
+            ParametersWithIV<KeyParameter>(KeyParameter(key), iv),
+            null,
+          ),
+        );
+      final decrypted = cipher.process(base64Decode(encryptedUrl));
+      return utf8.decode(decrypted).trim();
+    } catch (_) {
+      // Bad padding / encoding just means the response was not a valid
+      // encrypted URL; surface it as a resolution failure to the caller.
+      return '';
+    }
   }
 
   // ------------------------------------------------------------------

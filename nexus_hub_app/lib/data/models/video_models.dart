@@ -141,15 +141,16 @@ class VideoDetail {
 
 /// Resolved playback information for one episode.
 ///
-/// The site encrypts the raw resource URL in each play page and hands it to a
-/// cloud "parse" player that streams it back. [playerUrl] is the final
-/// embeddable player address loaded inside the in-app WebView.
+/// The site encrypts the resource reference on each play page, then hands it
+/// to a cloud "parse" endpoint whose response embeds the actual stream URL,
+/// AES-encrypted, inside the player HTML (see [VideoSiteService]). Both
+/// layers are decrypted natively so playback needs no WebView.
 class VideoPlayInfo {
   const VideoPlayInfo({
     required this.title,
     required this.episodeLabel,
     required this.rawUrl,
-    required this.playerUrl,
+    required this.streamUrl,
     required this.nextPlayPath,
   });
 
@@ -162,8 +163,8 @@ class VideoPlayInfo {
   /// Decrypted resource reference, e.g. `NBY-XMYAES20...|af3bd...`.
   final String rawUrl;
 
-  /// Cloud parse player URL that actually plays [rawUrl].
-  final String playerUrl;
+  /// Direct, playable stream URL (HLS master/media playlist).
+  final String streamUrl;
 
   /// Site play path of the next episode within the same source, if any.
   final String? nextPlayPath;
