@@ -4,6 +4,21 @@
 // list comes from the site's JSON endpoint; detail and play pages are
 // parsed out of the server-rendered HTML (see VideoSiteService).
 
+/// Top-level browse categories of the video site, one per vodshow channel
+/// (`/vodshow/{typeId}-----------.html`).
+enum VideoCategory {
+  movies('电影', '1'),
+  series('电视剧', '2'),
+  variety('综艺', '24');
+
+  const VideoCategory(this.label, this.typeId);
+
+  final String label;
+
+  /// MacCMS vod type id sent to the list API as the `type` parameter.
+  final String typeId;
+}
+
 /// One series entry in the browse/search list.
 class VideoSeries {
   const VideoSeries({

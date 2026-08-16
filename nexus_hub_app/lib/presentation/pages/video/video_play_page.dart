@@ -186,7 +186,8 @@ class _EpisodeStrip extends StatelessWidget {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: episodes.length,
-              separatorBuilder: (_, _) => const SizedBox(width: NexusSpacing.xs),
+              separatorBuilder: (_, _) =>
+                  const SizedBox(width: NexusSpacing.xs),
               itemBuilder: (context, index) {
                 final selected = index == current;
                 return InkWell(
@@ -199,7 +200,9 @@ class _EpisodeStrip extends StatelessWidget {
                         vertical: NexusSpacing.xs + 2,
                       ),
                       decoration: BoxDecoration(
-                        color: selected ? Colors.red : Colors.white.withValues(alpha: 0.12),
+                        color: selected
+                            ? Colors.red
+                            : Colors.white.withValues(alpha: 0.12),
                         borderRadius: NexusRadii.mdRadius,
                       ),
                       child: Text(

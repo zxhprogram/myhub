@@ -49,15 +49,19 @@ class VideoSiteService {
   // Browse list
   // ------------------------------------------------------------------
 
-  /// Fetches one page of the TV series list (vod type 2, sorted by recency).
+  /// Fetches one page of a browse list (movies / series / variety, sorted
+  /// by recency).
   ///
   /// An empty [items] list with the requested [page] means the site reported
   /// "no more data" (endpoint code 2).
-  Future<VideoSeriesPage> fetchSeries({int page = 1}) async {
+  Future<VideoSeriesPage> fetchSeries({
+    VideoCategory category = VideoCategory.series,
+    int page = 1,
+  }) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/index.php/ds_api/vod',
       data: {
-        'type': '2',
+        'type': category.typeId,
         'class': '',
         'area': '',
         'year': '',

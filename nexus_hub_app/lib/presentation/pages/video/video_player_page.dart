@@ -10,8 +10,8 @@ import '../../components/nexus_input.dart';
 import '../../layout/page_scaffold.dart';
 import 'video_detail_page.dart';
 
-/// Video streaming sub-app: browses the TV series list scraped from
-/// netflixgc.com, with title search.
+/// Video streaming sub-app: browses the movies / series / variety lists
+/// scraped from netflixgc.com, with title search.
 ///
 /// Tapping a poster opens [VideoDetailPage] inside the desktop window's
 /// local navigator.
@@ -22,13 +22,26 @@ class VideoPlayerPage extends StatefulWidget {
   State<VideoPlayerPage> createState() => _VideoPlayerPageState();
 }
 
+/// Browse state of one category tab: the last loaded page and its result.
+class _CategoryTabData {
+  int page = 1;
+  VideoSeriesPage? result;
+}
+
 class _VideoPlayerPageState extends State<VideoPlayerPage> {
   final VideoSiteService _service = VideoSiteService();
   final TextEditingController _searchController = TextEditingController();
 
-  VideoSeriesPage? _result;
+  final Map<VideoCategory, _CategoryTabData> _tabs = {
+    for (final category in VideoCategory.values) category: _CategoryTabData(),
+  };
+  VideoCategory _category = VideoCategory.series;
   bool _loading = false;
   String? _error;
+
+  /// Monotonic request counter; completions of superseded requests only
+  /// update the cache, never the UI.
+  int _requestSeq = 0;
 
   /// Non-empty while search results (instead of the paged list) are shown.
   String _searchKeyword = '';
@@ -37,7 +50,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   @override
   void initState() {
     super.initState();
-    _loadPage(1);
+    _loadCategory(VideoCategory.series);
   }
 
   @override
@@ -46,30 +59,52 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     super.dispose();
   }
 
-  Future<void> _loadPage(int page) async {
+  Future<void> _loadCategory(VideoCategory category, {int? page}) async {
+    final tab = _tabs[category]!;
+    final targetPage = page ?? tab.page;
+    final seq = ++_requestSeq;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final result = await _service.fetchSeries(page: page);
-      if (!mounted) return;
-      setState(() {
-        _result = result;
-        _loading = false;
-      });
+      final result = await _service.fetchSeries(
+        category: category,
+        page: targetPage,
+      );
+      tab
+        ..page = result.page
+        ..result = result;
+      if (!mounted || seq != _requestSeq) return;
+      setState(() => _loading = false);
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || seq != _requestSeq) return;
       setState(() {
-        _error = '无法加载剧集列表：$e';
+        _error = '无法加载${category.label}列表：$e';
         _loading = false;
       });
+    }
+  }
+
+  void _switchCategory(VideoCategory category) {
+    if (category == _category && _searchKeyword.isEmpty) return;
+    setState(() {
+      _category = category;
+      _searchKeyword = '';
+      _searchResults = const [];
+      _searchController.clear();
+      _error = null;
+    });
+    // Cached pages survive tab switches; only fetch what is missing.
+    if (_tabs[category]!.result == null) {
+      _loadCategory(category);
     }
   }
 
   Future<void> _runSearch(String keyword) async {
     final trimmed = keyword.trim();
     if (trimmed.isEmpty) return;
+    final seq = ++_requestSeq;
     setState(() {
       _loading = true;
       _error = null;
@@ -77,13 +112,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     });
     try {
       final results = await _service.search(trimmed);
-      if (!mounted) return;
+      if (!mounted || seq != _requestSeq) return;
       setState(() {
         _searchResults = results;
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || seq != _requestSeq) return;
       setState(() {
         _error = '搜索失败：$e';
         _loading = false;
@@ -111,7 +146,17 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Widget build(BuildContext context) {
     return PageScaffold(
       header: _buildHeader(context),
-      child: _buildBody(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CategoryTabs(
+            selected: _searchKeyword.isEmpty ? _category : null,
+            onSelect: _switchCategory,
+          ),
+          const SizedBox(height: NexusSpacing.md),
+          Expanded(child: _buildBody(context)),
+        ],
+      ),
     );
   }
 
@@ -128,7 +173,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
               const SizedBox(height: NexusSpacing.xs),
               Text(
                 _searchKeyword.isEmpty
-                    ? 'Browse and stream series from NetflixGC'
+                    ? 'Browse ${_category.label} on NetflixGC'
                     : '搜索“$_searchKeyword”的结果',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -176,19 +221,19 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       if (_searchResults.isEmpty) {
         return NexusEmptyState(
           icon: Icons.search_off,
-          title: '没有找到相关剧集',
-          subtitle: '换个关键词试试，或清除搜索返回剧集列表。',
+          title: '没有找到相关影片',
+          subtitle: '换个关键词试试，或点击上方分类返回列表。',
         );
       }
       return _SeriesGrid(items: _searchResults, onTap: _openDetail);
     }
 
-    final result = _result;
+    final result = _tabs[_category]!.result;
     if (result == null || result.items.isEmpty) {
       return NexusEmptyState(
         icon: Icons.movie_outlined,
-        title: '暂无剧集',
-        subtitle: '数据源暂时没有返回剧集，请稍后重试。',
+        title: '暂无${_category.label}',
+        subtitle: '数据源暂时没有返回内容，请切换分类或稍后重试。',
       );
     }
     return Column(
@@ -199,12 +244,80 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
           page: result.page,
           pageCount: result.pageCount,
           total: result.total,
-          onPrev: result.page > 1 ? () => _loadPage(result.page - 1) : null,
+          onPrev: result.page > 1
+              ? () => _loadCategory(_category, page: result.page - 1)
+              : null,
           onNext: result.page < result.pageCount
-              ? () => _loadPage(result.page + 1)
+              ? () => _loadCategory(_category, page: result.page + 1)
               : null,
         ),
       ],
+    );
+  }
+}
+
+/// Movie / series / variety selector shown above the browse grid.
+///
+/// Passes `null` as [selected] while search results are displayed; picking
+/// any tab leaves search mode.
+class _CategoryTabs extends StatelessWidget {
+  const _CategoryTabs({required this.selected, required this.onSelect});
+
+  final VideoCategory? selected;
+  final ValueChanged<VideoCategory> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: NexusSpacing.sm,
+      children: [
+        for (final category in VideoCategory.values)
+          _CategoryTab(
+            label: category.label,
+            selected: category == selected,
+            onTap: () => onSelect(category),
+          ),
+      ],
+    );
+  }
+}
+
+class _CategoryTab extends StatelessWidget {
+  const _CategoryTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: NexusRadii.fullRadius,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: NexusSpacing.md,
+          vertical: NexusSpacing.xs + 2,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? colorScheme.secondary
+              : colorScheme.surfaceContainerHigh,
+          borderRadius: NexusRadii.fullRadius,
+        ),
+        child: Text(
+          label,
+          style: NexusTypography.labelMd.copyWith(
+            color: selected ? colorScheme.onSecondary : colorScheme.onSurface,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
     );
   }
 }
