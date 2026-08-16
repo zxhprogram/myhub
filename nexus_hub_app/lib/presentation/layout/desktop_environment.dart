@@ -32,6 +32,7 @@ import '../pages/stocks_page.dart';
 import '../pages/tasks_page.dart';
 import '../pages/terminal/terminal_page.dart';
 import '../pages/trending_page.dart';
+import '../pages/video/video_player_page.dart';
 import '../states/desktop_state.dart';
 import '../states/pomodoro_state.dart';
 import '../states/terminal_state.dart';
@@ -301,6 +302,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const JavaDecompilerPage(),
       gradientStart: const Color(0xFFC89060),
       gradientEnd: const Color(0xFF6F4E37),
+    ),
+    DesktopAppItem(
+      label: 'Video',
+      icon: Icons.smart_display_outlined,
+      route: '/video',
+      pageBuilder: (_) => const VideoPlayerPage(),
+      gradientStart: const Color(0xFFE50914),
+      gradientEnd: const Color(0xFF7A0005),
     ),
   ];
 
