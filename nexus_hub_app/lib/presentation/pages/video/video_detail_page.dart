@@ -5,6 +5,7 @@ import '../../../data/services/video_site_service.dart';
 import '../../../theme/radii.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/typography.dart';
+import '../../components/nexus_cached_image.dart';
 import '../../components/nexus_empty_state.dart';
 import 'video_play_page.dart';
 
@@ -173,10 +174,12 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
           child: SizedBox(
             width: 140,
             height: 190,
-            child: Image.network(
-              detail.coverUrl.isEmpty ? widget.series.coverUrl : detail.coverUrl,
+            child: NexusCachedImage(
+              url: detail.coverUrl.isEmpty
+                  ? widget.series.coverUrl
+                  : detail.coverUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => ColoredBox(
+              errorBuilder: (context, _) => ColoredBox(
                 color: colorScheme.surfaceContainerHigh,
                 child: Icon(
                   Icons.movie_outlined,

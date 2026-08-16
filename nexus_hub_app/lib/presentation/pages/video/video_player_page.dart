@@ -5,6 +5,7 @@ import '../../../data/services/video_site_service.dart';
 import '../../../theme/radii.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/typography.dart';
+import '../../components/nexus_cached_image.dart';
 import '../../components/nexus_empty_state.dart';
 import '../../components/nexus_input.dart';
 import '../../layout/page_scaffold.dart';
@@ -399,14 +400,12 @@ class _CoverImage extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // No Referer header: the site loads covers with
-        // referrerpolicy="no-referrer" and the CDN rejects other senders.
         ClipRRect(
           borderRadius: NexusRadii.mdRadius,
-          child: Image.network(
-            series.coverUrl,
+          child: NexusCachedImage(
+            url: series.coverUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => ColoredBox(
+            errorBuilder: (context, _) => ColoredBox(
               color: colorScheme.surfaceContainerHigh,
               child: Icon(
                 Icons.movie_outlined,
