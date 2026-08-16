@@ -34,20 +34,18 @@ class _TasksPageState extends State<TasksPage> {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       color: colorScheme.background,
-      padding: const EdgeInsets.all(NexusSpacing.md),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header (single-line toolbar for desktop density)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 children: [
-                  Text('Tasks', style: NexusTypography.headlineXl),
-                  const SizedBox(height: NexusSpacing.xs),
+                  Text('Tasks', style: NexusTypography.headlineLg),
+                  const SizedBox(width: NexusSpacing.sm),
                   Text(
                     'Manage your work across the board',
                     style: NexusTypography.bodyMd.copyWith(
@@ -64,7 +62,7 @@ class _TasksPageState extends State<TasksPage> {
               ),
             ],
           ),
-          const SizedBox(height: NexusSpacing.md),
+          const SizedBox(height: 12),
           // Board
           Expanded(
             child: Watch((_) {
@@ -98,7 +96,7 @@ class _TasksPageState extends State<TasksPage> {
                         ..._state.columns.value.map(
                           (column) => Padding(
                             padding: const EdgeInsets.only(
-                              right: NexusSpacing.lg,
+                              right: NexusSpacing.md,
                             ),
                             child: _KanbanColumn(
                               column: column,
@@ -123,7 +121,7 @@ class _TasksPageState extends State<TasksPage> {
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOutCubic,
-                    width: selected != null ? 420 : 0,
+                    width: selected != null ? 380 : 0,
                     child: selected != null
                         ? TaskDetailPanel(state: _state)
                         : const SizedBox.shrink(),
@@ -254,7 +252,7 @@ class _KanbanColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
-      width: 320,
+      width: 300,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -263,7 +261,12 @@ class _KanbanColumn extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.sm),
             child: Row(
               children: [
-                Text(column.title, style: NexusTypography.headlineSm),
+                Text(
+                  column.title,
+                  style: NexusTypography.bodyLg.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(width: NexusSpacing.xs),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -283,8 +286,10 @@ class _KanbanColumn extends StatelessWidget {
                 ),
                 const Spacer(),
                 PopupMenuButton<String>(
+                  padding: const EdgeInsets.all(6),
                   icon: Icon(
                     Icons.more_horiz,
+                    size: 18,
                     color: colorScheme.onSurfaceVariant,
                   ),
                   tooltip: 'List options',
@@ -310,7 +315,7 @@ class _KanbanColumn extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: NexusSpacing.md),
+          const SizedBox(height: NexusSpacing.sm),
           // Cards area (drag target + scrollable list)
           Expanded(
             child: DragTarget<TaskModel>(
@@ -326,7 +331,7 @@ class _KanbanColumn extends StatelessWidget {
                         : colorScheme.surfaceContainerLow.withValues(
                             alpha: 0.4,
                           ),
-                    borderRadius: NexusRadii.xlRadius,
+                    borderRadius: NexusRadii.lgRadius,
                     border: isHovering
                         ? Border.all(
                             color: colorScheme.secondary.withValues(alpha: 0.5),
@@ -335,13 +340,11 @@ class _KanbanColumn extends StatelessWidget {
                         : null,
                   ),
                   child: ListView(
-                    padding: const EdgeInsets.all(NexusSpacing.sm),
+                    padding: const EdgeInsets.all(6),
                     children: [
                       ...tasks.map(
                         (task) => Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: NexusSpacing.sm,
-                          ),
+                          padding: const EdgeInsets.only(bottom: 6),
                           child: _DraggableTaskCard(
                             task: task,
                             onDelete: () => onDeleteTask(task),
@@ -375,15 +378,14 @@ class _DraggableTaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return LongPressDraggable<TaskModel>(
       data: task,
       feedback: Material(
         color: Colors.transparent,
         elevation: 8,
-        borderRadius: NexusRadii.xlRadius,
+        borderRadius: NexusRadii.lgRadius,
         child: SizedBox(
-          width: 288,
+          width: 276,
           child: _TaskCard(task: task, dragging: true, onTap: onTap),
         ),
       ),
@@ -425,12 +427,12 @@ class _TaskCard extends StatelessWidget {
     final tagColor = _tagColor(colorScheme, task.tag);
     return InkWell(
       onTap: onTap,
-      borderRadius: NexusRadii.xlRadius,
+      borderRadius: NexusRadii.lgRadius,
       child: Container(
-        padding: const EdgeInsets.all(NexusSpacing.md),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerLowest,
-          borderRadius: NexusRadii.xlRadius,
+          borderRadius: NexusRadii.lgRadius,
           border: Border.all(
             color: colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
@@ -462,11 +464,11 @@ class _TaskCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: NexusSpacing.sm),
+              const SizedBox(height: 6),
             ],
             Text(
               task.title,
-              style: NexusTypography.bodyLg.copyWith(
+              style: NexusTypography.bodyMd.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -481,7 +483,7 @@ class _TaskCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-            const SizedBox(height: NexusSpacing.md),
+            const SizedBox(height: NexusSpacing.sm),
             Row(
               children: [
                 if (task.priority.isNotEmpty)
@@ -533,20 +535,20 @@ class _AddTaskButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: NexusRadii.xlRadius,
+        borderRadius: NexusRadii.lgRadius,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: NexusSpacing.md),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             border: Border.all(
               color: colorScheme.outlineVariant,
               style: BorderStyle.solid,
             ),
-            borderRadius: NexusRadii.xlRadius,
+            borderRadius: NexusRadii.lgRadius,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.add, size: 18),
+              const Icon(Icons.add, size: 16),
               const SizedBox(width: NexusSpacing.xs),
               Text('Add Task', style: NexusTypography.labelMd),
             ],
@@ -566,33 +568,33 @@ class _AddColumnButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
-      width: 320,
+      width: 300,
       child: Align(
         alignment: Alignment.topLeft,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: onAdd,
-            borderRadius: NexusRadii.xlRadius,
+            borderRadius: NexusRadii.lgRadius,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: NexusSpacing.md),
+              padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 border: Border.all(
                   color: colorScheme.outlineVariant,
                   style: BorderStyle.solid,
                 ),
-                borderRadius: NexusRadii.xlRadius,
+                borderRadius: NexusRadii.lgRadius,
                 color: colorScheme.surfaceContainerLow.withValues(alpha: 0.3),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.add, size: 20),
+                  const Icon(Icons.add, size: 18),
                   const SizedBox(width: NexusSpacing.xs),
                   Text(
                     'Add another list',
-                    style: NexusTypography.bodyLg.copyWith(
+                    style: NexusTypography.bodyMd.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -643,34 +645,34 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
       shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Text('New Task', style: NexusTypography.headlineSm),
       content: SizedBox(
-        width: 520,
+        width: 480,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               NexusInput(labelText: 'Title', controller: _title),
-              const SizedBox(height: NexusSpacing.md),
+              const SizedBox(height: NexusSpacing.sm),
               Text(
                 'Description',
                 style: NexusTypography.labelMd.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: NexusSpacing.sm),
+              const SizedBox(height: NexusSpacing.xs),
               SizedBox(
-                height: 240,
+                height: 200,
                 child: NexusRichTextEditor(
                   onChanged: (value) => _descriptionDelta = value,
                 ),
               ),
-              const SizedBox(height: NexusSpacing.md),
+              const SizedBox(height: NexusSpacing.sm),
               Row(
                 children: [
                   Expanded(
                     child: NexusInput(labelText: 'Tag', controller: _tag),
                   ),
-                  const SizedBox(width: NexusSpacing.md),
+                  const SizedBox(width: NexusSpacing.sm),
                   Expanded(
                     child: NexusInput(
                       labelText: 'Priority',
@@ -679,7 +681,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: NexusSpacing.md),
+              const SizedBox(height: NexusSpacing.sm),
               DropdownButtonFormField<String>(
                 initialValue: _status,
                 decoration: InputDecoration(

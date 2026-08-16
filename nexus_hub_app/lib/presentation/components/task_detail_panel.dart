@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:signals_flutter/signals_flutter.dart';
@@ -101,7 +103,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
               ),
             },
             child: Container(
-              width: 420,
+              width: 380,
               color: NexusColors.surfaceContainerLowest,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -109,7 +111,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
                   _buildHeader(task),
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(NexusSpacing.md),
+                      padding: const EdgeInsets.all(12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -120,16 +122,16 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
                             )
                           else
                             Text(task.title, style: NexusTypography.headlineSm),
-                          const SizedBox(height: NexusSpacing.md),
+                          const SizedBox(height: NexusSpacing.sm),
                           _buildMetaRow(),
-                          const SizedBox(height: NexusSpacing.lg),
+                          const SizedBox(height: 12),
                           Text(
                             'Description',
                             style: NexusTypography.labelMd.copyWith(
                               color: NexusColors.onSurfaceVariant,
                             ),
                           ),
-                          const SizedBox(height: NexusSpacing.sm),
+                          const SizedBox(height: NexusSpacing.xs),
                           SizedBox(
                             height: 320,
                             child: NexusRichTextEditor(
@@ -154,7 +156,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
 
   Widget _buildHeader(TaskModel task) {
     return Padding(
-      padding: const EdgeInsets.all(NexusSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
           Expanded(
@@ -184,7 +186,8 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
           ],
           const SizedBox(width: NexusSpacing.sm),
           IconButton(
-            icon: const Icon(Icons.close),
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.close, size: 20),
             tooltip: 'Close',
             onPressed: _close,
           ),
@@ -196,7 +199,12 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
   Widget _buildMetaRow() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final itemWidth = (constraints.maxWidth - NexusSpacing.md) / 2;
+        // The panel animates its width in from 0, so during the transition
+        // maxWidth can be smaller than the gutter; keep widths non-negative.
+        final itemWidth = math.max(
+          0.0,
+          (constraints.maxWidth - NexusSpacing.sm) / 2,
+        );
         return Row(
           children: [
             SizedBox(
@@ -205,7 +213,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
                   ? NexusInput(labelText: 'Tag', controller: _tagController)
                   : _MetaChip(label: 'Tag', value: _tagController.text),
             ),
-            const SizedBox(width: NexusSpacing.md),
+            const SizedBox(width: NexusSpacing.sm),
             SizedBox(
               width: itemWidth,
               child: _isEditing
@@ -234,7 +242,7 @@ class _MetaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(NexusSpacing.sm),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: NexusColors.surfaceContainer,
         borderRadius: NexusRadii.mdRadius,
@@ -250,7 +258,7 @@ class _MetaChip extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
           ),
-          const SizedBox(height: NexusSpacing.xs),
+          const SizedBox(height: 2),
           Text(
             value.isNotEmpty ? value : '-',
             style: NexusTypography.bodyMd,
