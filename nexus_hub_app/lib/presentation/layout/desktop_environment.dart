@@ -33,6 +33,7 @@ import '../pages/tasks_page.dart';
 import '../pages/terminal/terminal_page.dart';
 import '../pages/trending_page.dart';
 import '../pages/video/video_player_page.dart';
+import '../pages/zhihu/zhihu_hot_page.dart';
 import '../states/desktop_state.dart';
 import '../states/pomodoro_state.dart';
 import '../states/terminal_state.dart';
@@ -310,6 +311,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const VideoPlayerPage(),
       gradientStart: const Color(0xFFE50914),
       gradientEnd: const Color(0xFF7A0005),
+    ),
+    DesktopAppItem(
+      label: '知乎',
+      icon: Icons.local_fire_department_outlined,
+      route: '/zhihu',
+      pageBuilder: (_) => const ZhihuHotPage(),
+      gradientStart: const Color(0xFF38A3FF),
+      gradientEnd: const Color(0xFF0066FF),
     ),
   ];
 

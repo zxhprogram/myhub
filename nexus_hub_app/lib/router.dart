@@ -17,6 +17,7 @@ import 'presentation/pages/rss_reader_page.dart';
 import 'presentation/pages/stocks_page.dart';
 import 'presentation/pages/tasks_page.dart';
 import 'presentation/pages/trending_page.dart';
+import 'presentation/pages/zhihu/zhihu_hot_page.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -86,6 +87,10 @@ class AppRouter {
           GoRoute(
             path: '/camera',
             builder: (context, state) => const CameraCapturePage(),
+          ),
+          GoRoute(
+            path: '/zhihu',
+            builder: (context, state) => const ZhihuHotPage(),
           ),
         ],
       ),
