@@ -30,10 +30,11 @@ import '../pages/pomodoro_page.dart';
 import '../pages/rss_reader_page.dart';
 import '../pages/stocks_page.dart';
 import '../pages/tasks_page.dart';
-import '../pages/terminal_page.dart';
+import '../pages/terminal/terminal_page.dart';
 import '../pages/trending_page.dart';
 import '../states/desktop_state.dart';
 import '../states/pomodoro_state.dart';
+import '../states/terminal_state.dart';
 import '../states/theme_state.dart';
 import '../states/wallpaper_state.dart';
 
@@ -318,6 +319,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ThemeState.instance.init();
     WallpaperState.instance.init();
     PomodoroState.instance.init();
+    TerminalState.instance.init();
     DesktopState.instance.init(
       defaults: _appItems
           .map(
