@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/models/zhihu_models.dart';
+import '../../../data/services/zhihu_auth_store.dart';
 import '../../../data/services/zhihu_service.dart';
 import '../../../theme/radii.dart';
 import '../../../theme/spacing.dart';
@@ -11,15 +12,19 @@ import '../../components/nexus_card.dart';
 import '../../components/nexus_empty_state.dart';
 import '../../layout/page_scaffold.dart';
 import 'zhihu_article_page.dart';
+import 'zhihu_feed_pane.dart';
+import 'zhihu_login_page.dart';
 import 'zhihu_question_page.dart';
 
-/// Zhihu (知乎) hot list — anonymous browsing only.
+enum _ZhihuTab { hot, feed }
+
+/// Zhihu (知乎) sub-app entry: hot list (热榜) and, after a WebView-based
+/// login (see [ZhihuLoginPage]), the personal recommend feed.
 ///
-/// Login is intentionally out of scope: Zhihu sign-in requires QR scans or
-/// rotating captchas that cannot be automated here, so the sub-app only
-/// surfaces the hot list (热榜), which is reachable without credentials.
-/// Tapping an entry opens the question's answers (rendered natively, no
-/// WebView) or the linked article.
+/// Tapping a hot-list entry opens the question's answers or the linked
+/// article, rendered natively (no WebView); login itself embeds the real
+/// sign-in page so the user clears the QR/captcha checks by hand and the
+/// resulting session cookies are captured for API access.
 class ZhihuHotPage extends StatefulWidget {
   const ZhihuHotPage({super.key});
 
@@ -29,10 +34,13 @@ class ZhihuHotPage extends StatefulWidget {
 
 class _ZhihuHotPageState extends State<ZhihuHotPage> {
   final ZhihuService _service = ZhihuService();
+  final GlobalKey<ZhihuFeedPaneState> _feedKey = GlobalKey<ZhihuFeedPaneState>();
 
+  _ZhihuTab _tab = _ZhihuTab.hot;
   List<ZhihuHotItem> _items = const [];
   bool _isLoading = true;
   bool _hasError = false;
+  bool _authReady = false;
 
   /// Monotonic request counter; completions of superseded loads never
   /// update the state.
@@ -41,6 +49,9 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
   @override
   void initState() {
     super.initState();
+    ZhihuAuthStore.load().then((_) {
+      if (mounted) setState(() => _authReady = true);
+    });
     _load();
   }
 
@@ -67,6 +78,10 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
   }
 
   Future<void> _refresh() async {
+    if (_tab == _ZhihuTab.feed) {
+      _feedKey.currentState?.refresh();
+      return;
+    }
     final seq = ++_requestSeq;
     setState(() {
       _isLoading = true;
@@ -88,6 +103,31 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
     }
   }
 
+  void _selectTab(_ZhihuTab tab) {
+    if (_tab == tab) return;
+    setState(() => _tab = tab);
+  }
+
+  /// Opens the WebView login page; on success reloads the feed pane so it
+  /// picks up the captured session right away.
+  Future<void> _openLogin() async {
+    final succeeded = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => const ZhihuLoginPage()),
+    );
+    if (!mounted) return;
+    setState(() => _authReady = true);
+    if (succeeded == true) {
+      _feedKey.currentState?.reload();
+    }
+  }
+
+  Future<void> _logout() async {
+    await ZhihuAuthStore.logout();
+    if (!mounted) return;
+    setState(() => _authReady = true);
+    _feedKey.currentState?.reload();
+  }
+
   void _openItem(ZhihuHotItem item) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -106,32 +146,114 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('知乎热榜', style: NexusTypography.headlineXl),
-              const SizedBox(height: NexusSpacing.xs),
-              Text(
-                '匿名浏览 · 登录需要扫码与验证码，暂不支持',
-                style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('知乎', style: NexusTypography.headlineXl),
+                const SizedBox(height: NexusSpacing.xs),
+                Text(
+                  ZhihuAuthStore.isLoggedIn ? '已登录，可浏览热榜与推荐 Feed' : '匿名可浏览热榜，登录后可查看推荐 Feed',
+                  style: NexusTypography.bodyMd.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(width: NexusSpacing.md),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_authReady) _buildAuthControl(context),
+              const SizedBox(width: NexusSpacing.sm),
+              NexusButton(
+                label: '刷新',
+                icon: Icons.refresh,
+                variant: NexusButtonVariant.outlined,
+                onPressed: _refresh,
               ),
             ],
           ),
-          NexusButton(
-            label: '刷新',
-            icon: Icons.refresh,
-            variant: NexusButtonVariant.outlined,
-            onPressed: _refresh,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTabSelector(context),
+          const SizedBox(height: NexusSpacing.md),
+          Expanded(
+            child: _tab == _ZhihuTab.hot
+                ? _buildHotPane(context)
+                : ZhihuFeedPane(key: _feedKey, onLoginRequested: _openLogin),
           ),
         ],
       ),
-      child: _buildBody(context),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  /// Small user chip with logout when logged in, a login button otherwise.
+  Widget _buildAuthControl(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final user = ZhihuAuthStore.user;
+    if (ZhihuAuthStore.isLoggedIn) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipOval(
+            child: SizedBox(
+              width: 26,
+              height: 26,
+              child: Image.network(
+                user?.avatarUrl ?? '',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: colorScheme.surfaceContainerHigh,
+                  child: Icon(
+                    Icons.person_outline,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: NexusSpacing.sm),
+          Text(
+            user?.name.isEmpty == false ? user!.name : '已登录',
+            style: NexusTypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, size: 18),
+            tooltip: '退出登录',
+            onPressed: _logout,
+          ),
+        ],
+      );
+    }
+    return NexusButton(label: '登录', icon: Icons.login, onPressed: _openLogin);
+  }
+
+  Widget _buildTabSelector(BuildContext context) {
+    return Row(
+      children: [
+        for (final tab in _ZhihuTab.values)
+          Padding(
+            padding: const EdgeInsets.only(right: NexusSpacing.sm),
+            child: _ZhihuTabChip(
+              label: switch (tab) {
+                _ZhihuTab.hot => '热榜',
+                _ZhihuTab.feed => '推荐 Feed',
+              },
+              isSelected: _tab == tab,
+              onTap: () => _selectTab(tab),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHotPane(BuildContext context) {
     if (_isLoading) return _buildLoading(context);
     if (_hasError) return _buildError();
     if (_items.isEmpty) {
@@ -149,7 +271,19 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
         ),
       );
     }
-    return _buildList();
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView.separated(
+        padding: const EdgeInsets.only(bottom: NexusSpacing.xl),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: _items.length,
+        separatorBuilder: (_, _) => const SizedBox(height: NexusSpacing.sm),
+        itemBuilder: (context, index) {
+          final item = _items[index];
+          return _HotCard(item: item, onTap: () => _openItem(item));
+        },
+      ),
+    );
   }
 
   Widget _buildLoading(BuildContext context) {
@@ -175,22 +309,6 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
         title: '加载失败',
         subtitle: '无法连接知乎，请检查网络后重试。',
         action: NexusButton(label: '重试', icon: Icons.refresh, onPressed: _load),
-      ),
-    );
-  }
-
-  Widget _buildList() {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: ListView.separated(
-        padding: const EdgeInsets.only(bottom: NexusSpacing.xl),
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: _items.length,
-        separatorBuilder: (_, _) => const SizedBox(height: NexusSpacing.sm),
-        itemBuilder: (context, index) {
-          final item = _items[index];
-          return _HotCard(item: item, onTap: () => _openItem(item));
-        },
       ),
     );
   }
@@ -314,6 +432,58 @@ class _HotThumbnail extends StatelessWidget {
               Icons.image_outlined,
               size: 20,
               color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pill-style selectable chip used for the 热榜 / 推荐 Feed tab selector.
+class _ZhihuTabChip extends StatelessWidget {
+  const _ZhihuTabChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: isSelected ? colorScheme.primary : Colors.transparent,
+      borderRadius: NexusRadii.fullRadius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: NexusRadii.fullRadius,
+        hoverColor: isSelected
+            ? null
+            : colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: NexusSpacing.sm,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: NexusRadii.fullRadius,
+            border: Border.all(
+              color: isSelected
+                  ? Colors.transparent
+                  : colorScheme.outlineVariant.withValues(alpha: 0.6),
+            ),
+          ),
+          child: Text(
+            label,
+            style: NexusTypography.labelSm.copyWith(
+              color: isSelected
+                  ? colorScheme.onPrimary
+                  : colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),

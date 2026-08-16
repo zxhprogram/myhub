@@ -25,6 +25,8 @@ class LocalDatabase {
     'network_traffic',
     'trending_repos',
     'google_news',
+    'fx678_news',
+    'finance_calendar',
   ];
 
   /// Use a temporary Hive directory for unit testing.

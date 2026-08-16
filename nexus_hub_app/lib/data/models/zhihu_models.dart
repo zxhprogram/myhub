@@ -181,6 +181,128 @@ class ZhihuArticle {
   String get webUrl => 'https://zhuanlan.zhihu.com/p/$id';
 }
 
+/// The signed-in Zhihu user profile (from `www.zhihu.com/api/v4/me`).
+class ZhihuUser {
+  const ZhihuUser({
+    required this.id,
+    required this.name,
+    required this.headline,
+    required this.avatarUrl,
+    required this.urlToken,
+  });
+
+  factory ZhihuUser.fromJson(Map<String, dynamic> json) {
+    return ZhihuUser(
+      id: _asString(json['id']),
+      name: _asString(json['name']),
+      headline: _asString(json['headline']),
+      avatarUrl: _asString(json['avatar_url']),
+      urlToken: _asString(json['url_token']),
+    );
+  }
+
+  final String id;
+  final String name;
+  final String headline;
+  final String avatarUrl;
+  final String urlToken;
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'headline': headline,
+      'avatar_url': avatarUrl,
+      'url_token': urlToken,
+    };
+  }
+
+  factory ZhihuUser.fromMap(Map<String, dynamic> map) {
+    return ZhihuUser.fromJson(map);
+  }
+}
+
+/// One entry of the personal recommend feed (登录后的首页推荐流).
+class ZhihuFeedItem {
+  const ZhihuFeedItem({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.excerpt,
+    required this.contentHtml,
+    required this.authorName,
+    required this.authorHeadline,
+    required this.authorAvatarUrl,
+    required this.voteupCount,
+    required this.commentCount,
+    required this.questionId,
+    required this.thumbnail,
+  });
+
+  final String id;
+
+  /// Discriminator of the linked target: `answer`, `article`, `pin`, ...
+  final String type;
+
+  /// Question title for answers, article title otherwise; may be empty.
+  final String title;
+
+  final String excerpt;
+
+  /// Rich-text body when the feed payload carried it (answers, articles,
+  /// flattened pin nodes); empty otherwise.
+  final String contentHtml;
+
+  final String authorName;
+  final String authorHeadline;
+  final String authorAvatarUrl;
+  final int voteupCount;
+  final int commentCount;
+
+  /// Question id for answer entries; empty for other types.
+  final String questionId;
+
+  final String thumbnail;
+
+  bool get isArticle => type == 'article';
+
+  bool get hasContent => contentHtml.isNotEmpty;
+
+  String get webUrl {
+    switch (type) {
+      case 'article':
+        return 'https://zhuanlan.zhihu.com/p/$id';
+      case 'pin':
+        return 'https://www.zhihu.com/pin/$id';
+      default:
+        if (questionId.isNotEmpty && id.isNotEmpty) {
+          return 'https://www.zhihu.com/question/$questionId/answer/$id';
+        }
+        if (questionId.isNotEmpty) {
+          return 'https://www.zhihu.com/question/$questionId';
+        }
+        return 'https://www.zhihu.com';
+    }
+  }
+}
+
+/// One page of the personal recommend feed.
+class ZhihuFeedPage {
+  const ZhihuFeedPage({
+    required this.items,
+    required this.hasMore,
+    this.nextAfterId,
+  });
+
+  final List<ZhihuFeedItem> items;
+
+  /// Whether another page can be requested after this one.
+  final bool hasMore;
+
+  /// Cursor for the next page (`after_id`), when the source provides one.
+  final String? nextAfterId;
+}
+
 Map<String, dynamic> _asMap(dynamic value) {
   if (value is Map<String, dynamic>) return value;
   if (value is Map) return Map<String, dynamic>.from(value);

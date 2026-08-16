@@ -7,9 +7,12 @@ import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import '../components/global_index_carousel.dart';
-import '../components/nexus_badge.dart';
 import '../components/nexus_card.dart';
 import '../layout/page_scaffold.dart';
+import 'stocks/finance_calendar_pane.dart';
+import 'stocks/fx678_news_pane.dart';
+
+enum _StocksTab { markets, news, calendar }
 
 class StocksPage extends StatefulWidget {
   const StocksPage({super.key});
@@ -23,6 +26,8 @@ class _StocksPageState extends State<StocksPage> {
   List<GlobalIndex> _globalIndices = [];
   bool _isLoadingIndices = true;
   String? _indexError;
+
+  _StocksTab _tab = _StocksTab.markets;
 
   @override
   void initState() {
@@ -141,7 +146,53 @@ class _StocksPageState extends State<StocksPage> {
           ),
         ],
       ),
-      child: SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTabSelector(context),
+          const SizedBox(height: NexusSpacing.md),
+          Expanded(
+            child: switch (_tab) {
+              _StocksTab.markets => _buildMarketsPane(context),
+              _StocksTab.news => const Fx678NewsPane(),
+              _StocksTab.calendar => const FinanceCalendarPane(),
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabSelector(BuildContext context) {
+    return Row(
+      children: [
+        _StocksTabChip(
+          label: '市场行情',
+          icon: Icons.show_chart,
+          isSelected: _tab == _StocksTab.markets,
+          onTap: () => setState(() => _tab = _StocksTab.markets),
+        ),
+        const SizedBox(width: NexusSpacing.sm),
+        _StocksTabChip(
+          label: '24小时快讯',
+          icon: Icons.flash_on,
+          isSelected: _tab == _StocksTab.news,
+          onTap: () => setState(() => _tab = _StocksTab.news),
+        ),
+        const SizedBox(width: NexusSpacing.sm),
+        _StocksTabChip(
+          label: '财经周历',
+          icon: Icons.event_note,
+          isSelected: _tab == _StocksTab.calendar,
+          onTap: () => setState(() => _tab = _StocksTab.calendar),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMarketsPane(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SingleChildScrollView(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isWide = constraints.maxWidth > 1000;
@@ -228,8 +279,7 @@ class _StocksPageState extends State<StocksPage> {
             );
           },
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -613,6 +663,73 @@ class _TableHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
       child: Text(label.toUpperCase(), style: NexusTypography.labelSm),
+    );
+  }
+}
+
+/// Pill-style selectable chip for the 市场行情 / 24小时快讯 / 财经周历 tabs.
+class _StocksTabChip extends StatelessWidget {
+  const _StocksTabChip({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: isSelected ? colorScheme.primary : Colors.transparent,
+      borderRadius: NexusRadii.fullRadius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: NexusRadii.fullRadius,
+        hoverColor: isSelected
+            ? null
+            : colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: NexusSpacing.sm,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: NexusRadii.fullRadius,
+            border: Border.all(
+              color: isSelected
+                  ? Colors.transparent
+                  : colorScheme.outlineVariant.withValues(alpha: 0.6),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: NexusTypography.labelSm.copyWith(
+                  color: isSelected
+                      ? colorScheme.onPrimary
+                      : colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

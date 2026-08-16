@@ -1,10 +1,14 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../models/zhihu_models.dart';
 import 'local_database.dart';
+import 'zhihu_auth_store.dart';
 import 'zhihu_exception.dart';
 
-/// Anonymous Zhihu (知乎) reader: hot list, question answers and articles.
+/// Zhihu (知乎) reader: hot list, question answers, articles — plus the
+/// personal recommend feed when a web session is stored.
 ///
 /// Zhihu offers no public API, so the service calls the same endpoints the
 /// website and the mobile app use, each with the User-Agent it expects.
@@ -20,9 +24,12 @@ import 'zhihu_exception.dart';
 /// * Articles — `www.zhihu.com/api/v4/articles/<id>`, falling back to
 ///   `api.zhihu.com/articles/<id>`.
 ///
-/// Login is intentionally not supported: Zhihu sign-in requires QR scans
-/// or rotating captchas, so the sub-app is anonymous-only (hot list) by
-/// design.
+/// Login goes through the WebView sign-in page (see [ZhihuLoginPage]):
+/// once the user completes the QR scan / captcha there, the captured
+/// cookie jar is stored in [ZhihuAuthStore] and replayed here as a
+/// `Cookie` header on the web-origin requests. That unlocks the personal
+/// recommend feed and typically also lifts the anonymous risk control on
+/// the answer/article endpoints.
 class ZhihuService {
   ZhihuService({Dio? dio})
     : _dio =
@@ -62,6 +69,23 @@ class ZhihuService {
 
   static const _answerPageSize = 5;
 
+  static const _feedPageSize = 8;
+
+  /// Browser headers for `www.zhihu.com` endpoints, replaying the stored
+  /// session cookies when the user is logged in.
+  Map<String, String> _webHeaders({String? referer}) {
+    final headers = <String, String>{
+      'User-Agent': _browserUserAgent,
+      'Referer': ?referer,
+      'x-requested-with': 'fetch',
+    };
+    final cookie = ZhihuAuthStore.cookieHeader;
+    if (cookie != null && cookie.isNotEmpty) {
+      headers['Cookie'] = cookie;
+    }
+    return headers;
+  }
+
   /// Returns the cached hot list when fresh, otherwise fetches it.
   Future<List<ZhihuHotItem>> fetchHotList() async {
     final cached = await _loadCachedHotList();
@@ -78,6 +102,7 @@ class ZhihuService {
   }
 
   Future<List<ZhihuHotItem>> _fetchHotListLive() async {
+    await ZhihuAuthStore.load();
     Object? firstError;
     try {
       final response = await _dio.get<dynamic>(
@@ -98,11 +123,7 @@ class ZhihuService {
         queryParameters: {'limit': 50, 'desktop': true},
         options: Options(
           responseType: ResponseType.json,
-          headers: {
-            'User-Agent': _browserUserAgent,
-            'Referer': 'https://www.zhihu.com/hot',
-            'x-requested-with': 'fetch',
-          },
+          headers: _webHeaders(referer: 'https://www.zhihu.com/hot'),
         ),
       );
       return _parseHotList(_asJsonMap(response.data));
@@ -118,6 +139,7 @@ class ZhihuService {
     int offset = 0,
     int limit = _answerPageSize,
   }) async {
+    await ZhihuAuthStore.load();
     Object? webError;
     try {
       final response = await _dio.get<dynamic>(
@@ -131,11 +153,9 @@ class ZhihuService {
         },
         options: Options(
           responseType: ResponseType.json,
-          headers: {
-            'User-Agent': _browserUserAgent,
-            'Referer': 'https://www.zhihu.com/question/$questionId',
-            'x-requested-with': 'fetch',
-          },
+          headers: _webHeaders(
+            referer: 'https://www.zhihu.com/question/$questionId',
+          ),
         ),
       );
       return _parseAnswerPage(
@@ -169,17 +189,16 @@ class ZhihuService {
 
   /// Loads a hot-list article (专栏) by id.
   Future<ZhihuArticle> fetchArticle(String articleId) async {
+    await ZhihuAuthStore.load();
     Object? webError;
     try {
       final response = await _dio.get<dynamic>(
         'https://www.zhihu.com/api/v4/articles/$articleId',
         options: Options(
           responseType: ResponseType.json,
-          headers: {
-            'User-Agent': _browserUserAgent,
-            'Referer': 'https://zhuanlan.zhihu.com/p/$articleId',
-            'x-requested-with': 'fetch',
-          },
+          headers: _webHeaders(
+            referer: 'https://zhuanlan.zhihu.com/p/$articleId',
+          ),
         ),
       );
       return _parseArticle(_asJsonMap(response.data));
@@ -201,9 +220,89 @@ class ZhihuService {
     );
   }
 
+  /// Fetches the signed-in user's profile (`/api/v4/me`).
+  Future<ZhihuUser> fetchMe() async {
+    await ZhihuAuthStore.load();
+    if (!ZhihuAuthStore.isLoggedIn) {
+      throw const ZhihuException('尚未登录');
+    }
+    final response = await _dio.get<dynamic>(
+      'https://www.zhihu.com/api/v4/me',
+      options: Options(
+        responseType: ResponseType.json,
+        headers: _webHeaders(referer: 'https://www.zhihu.com/'),
+      ),
+    );
+    final data = _asJsonMap(response.data);
+    _ensureNoApiError(data);
+    if (data['id'] == null) {
+      throw const ZhihuException('用户信息解析失败');
+    }
+    return ZhihuUser.fromJson(data);
+  }
+
+  /// Loads one page of the personal recommend feed (首页推荐流).
+  ///
+  /// Primary source is the website's own feed API; when it rejects the
+  /// request (signature rotation, rate limits, ...), the server-rendered
+  /// homepage is scraped instead — the fallback only yields the first
+  /// page, so pagination cursors are ignored there.
+  Future<ZhihuFeedPage> fetchRecommendFeed({String? afterId}) async {
+    await ZhihuAuthStore.load();
+    if (!ZhihuAuthStore.isLoggedIn) {
+      throw const ZhihuException('登录后才能查看推荐 Feed');
+    }
+    try {
+      final response = await _dio.post<dynamic>(
+        'https://www.zhihu.com/api/v3/feed/topstory/recommend',
+        data: {
+          'desktop': true,
+          'limit': _feedPageSize,
+          if (afterId != null && afterId.isNotEmpty) 'after_id': afterId,
+        },
+        options: Options(
+          responseType: ResponseType.json,
+          headers: _webHeaders(referer: 'https://www.zhihu.com/'),
+        ),
+      );
+      return _parseRecommendApi(_asJsonMap(response.data));
+    } catch (_) {/* fall through to the homepage fallback */}
+    if (afterId == null) {
+      try {
+        final html = await _fetchHomepageHtml();
+        return _parseHomepageFeed(html);
+      } catch (_) {}
+    }
+    throw const ZhihuException(
+      '无法加载推荐 Feed，登录状态可能已过期，请退出后重新登录',
+    );
+  }
+
+  Future<String> _fetchHomepageHtml() async {
+    final response = await _dio.get<String>(
+      'https://www.zhihu.com/',
+      options: Options(
+        responseType: ResponseType.plain,
+        headers: _webHeaders(referer: 'https://www.zhihu.com/'),
+      ),
+    );
+    final html = response.data ?? '';
+    if (html.isEmpty) {
+      throw const ZhihuException('首页内容为空');
+    }
+    return html;
+  }
+
   static Map<String, dynamic> _asJsonMap(dynamic data) {
     if (data is Map<String, dynamic>) return data;
     if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is String && data.isNotEmpty) {
+      // Some responses arrive as a JSON-encoded string.
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    }
     throw const ZhihuException('接口返回的数据格式异常');
   }
 
@@ -212,9 +311,7 @@ class ZhihuService {
   static void _ensureNoApiError(Map<String, dynamic> data) {
     final error = data['error'];
     if (error is Map) {
-      throw ZhihuException(
-        error['message']?.toString() ?? '接口返回错误',
-      );
+      throw ZhihuException(error['message']?.toString() ?? '接口返回错误');
     }
   }
 
@@ -276,6 +373,201 @@ class ZhihuService {
       throw const ZhihuException('文章数据解析失败');
     }
     return ZhihuArticle.fromJson(data);
+  }
+
+  /// Parses the v3 recommend feed API response.
+  static ZhihuFeedPage _parseRecommendApi(Map<String, dynamic> data) {
+    _ensureNoApiError(data);
+    final list = data['data'];
+    if (list is! List) {
+      throw const ZhihuException('Feed 数据解析失败');
+    }
+    final items = <ZhihuFeedItem>[];
+    for (final entry in list) {
+      if (entry is! Map) continue;
+      final item = _feedItemFromNode(
+        _str(entry['type']),
+        _feedNode(entry),
+        const {},
+      );
+      if (item != null) {
+        items.add(item);
+      }
+    }
+    if (items.isEmpty) {
+      throw const ZhihuException('Feed 数据解析失败');
+    }
+    final paging = data['paging'];
+    var hasMore = false;
+    String? nextAfterId;
+    if (paging is Map) {
+      final isEnd = paging['is_end'] == true;
+      final next = _str(paging['next']);
+      final nextUri = next.isEmpty ? null : Uri.tryParse(next);
+      final cursor = nextUri?.queryParameters['after_id'];
+      hasMore = !isEnd && cursor != null && cursor.isNotEmpty;
+      nextAfterId = hasMore ? cursor : null;
+    }
+    return ZhihuFeedPage(
+      items: items,
+      hasMore: hasMore,
+      nextAfterId: nextAfterId,
+    );
+  }
+
+  /// Parses the server-rendered homepage feed (`js-initialData`) — the
+  /// cookie-only fallback when the feed API rejects the request.
+  static ZhihuFeedPage _parseHomepageFeed(String html) {
+    final match = RegExp(
+      r'<script id="js-initialData" type="text/json">([\s\S]*?)</script>',
+    ).firstMatch(html);
+    if (match == null) {
+      throw const ZhihuException('首页数据解析失败');
+    }
+    final Map<String, dynamic> data;
+    try {
+      data = Map<String, dynamic>.from(jsonDecode(match.group(1)!) as Map);
+    } catch (_) {
+      throw const ZhihuException('首页数据解析失败');
+    }
+    final root = data['initialState'] is Map
+        ? Map<String, dynamic>.from(data['initialState']! as Map)
+        : data;
+    final entities = root['entities'] is Map
+        ? Map<String, dynamic>.from(root['entities']! as Map)
+        : const <String, dynamic>{};
+    final topstory = root['topstory'] is Map
+        ? Map<String, dynamic>.from(root['topstory']! as Map)
+        : const <String, dynamic>{};
+    final feed =
+        topstory['firstPage'] ??
+        topstory['recommendFeed'] ??
+        topstory['feed'];
+    if (feed is! List) {
+      throw const ZhihuException('首页数据解析失败');
+    }
+    final items = <ZhihuFeedItem>[];
+    for (final entry in feed) {
+      if (entry is! Map) continue;
+      final item = _feedItemFromNode(_str(entry['type']), _feedNode(entry), entities);
+      if (item != null) {
+        items.add(item);
+      }
+    }
+    if (items.isEmpty) {
+      throw const ZhihuException('首页数据解析失败');
+    }
+    // The SSR payload carries only the first page.
+    return ZhihuFeedPage(items: items, hasMore: false);
+  }
+
+  /// Normalises the per-source payload node of a feed entry: the v3 API
+  /// wraps it in `target`, the SSR first page in `data`.
+  static Map<String, dynamic> _feedNode(Map entry) {
+    final node = entry['target'] ?? entry['data'];
+    if (node is Map) return Map<String, dynamic>.from(node);
+    return Map<String, dynamic>.from(entry);
+  }
+
+  /// Builds a [ZhihuFeedItem] from a normalised payload node; returns
+  /// null when the node has no usable id. [entities] resolves SSR nodes
+  /// whose `question`/`author` fields are bare ids instead of objects.
+  static ZhihuFeedItem? _feedItemFromNode(
+    String type,
+    Map<String, dynamic> node,
+    Map<String, dynamic> entities,
+  ) {
+    final id = _str(node['id']);
+    if (id.isEmpty) return null;
+
+    var questionId = '';
+    var title = '';
+    final question = node['question'];
+    if (question is Map) {
+      questionId = _str(question['id']);
+      title = _str(question['title']);
+    } else if (question != null) {
+      questionId = question.toString();
+      title = _str(_entity(entities, 'questions', questionId)['title']);
+    }
+    if (title.isEmpty) title = _str(node['title']);
+
+    final authorRaw = node['author'];
+    final author = authorRaw is Map
+        ? Map<String, dynamic>.from(authorRaw)
+        : authorRaw != null
+        ? _entity(entities, 'users', authorRaw.toString())
+        : const <String, dynamic>{};
+
+    final content = node['content'];
+    final contentHtml = content is String
+        ? content
+        : content is List
+        ? _pinContentToHtml(content)
+        : '';
+
+    return ZhihuFeedItem(
+      id: id,
+      type: type,
+      title: title,
+      excerpt: _str(node['excerpt']),
+      contentHtml: contentHtml,
+      authorName: _str(author['name']),
+      authorHeadline: _str(author['headline']),
+      authorAvatarUrl: _str(author['avatar_url']),
+      voteupCount: _int(node['voteup_count'] ?? node['voteupCount']),
+      commentCount: _int(node['comment_count'] ?? node['commentCount']),
+      questionId: questionId,
+      thumbnail: _str(node['thumbnail'] ?? node['titleImage']),
+    );
+  }
+
+  /// Flattens a pin's rich-text node list into simple HTML paragraphs.
+  static String _pinContentToHtml(List content) {
+    final buffer = StringBuffer();
+    for (final part in content) {
+      if (part is! Map) continue;
+      final type = part['type'];
+      if (type == 'text') {
+        buffer.write('<p>${_escape(part['content'])}</p>');
+      } else if (type == 'image') {
+        final url = _str(part['url']);
+        if (url.isNotEmpty) buffer.write('<img src="$url"/>');
+      }
+    }
+    return buffer.toString();
+  }
+
+  static Map<String, dynamic> _entity(
+    Map<String, dynamic> entities,
+    String kind,
+    String id,
+  ) {
+    final bucket = entities[kind];
+    if (bucket is Map && bucket[id] is Map) {
+      return Map<String, dynamic>.from(bucket[id]! as Map);
+    }
+    return const {};
+  }
+
+  static String _escape(dynamic value) {
+    return _str(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+  }
+
+  static String _str(dynamic value) {
+    if (value is String) return value;
+    if (value is num) return value.toInt().toString();
+    return '';
+  }
+
+  static int _int(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
   }
 
   static String _describeError(Object? error) {
