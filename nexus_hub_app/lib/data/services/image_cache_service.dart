@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 
 import '../../utils/system_proxy.dart';
-import 'video_site_service.dart' show StateException;
+import 'video_site_exception.dart';
 
 /// Disk cache for remote images (video sub-app posters / covers).
 ///

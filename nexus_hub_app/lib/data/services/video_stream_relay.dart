@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'dart:convert';
 
 import '../../utils/system_proxy.dart';
-import 'video_site_service.dart' show StateException;
+import 'video_site_exception.dart';
 
 /// Local HLS relay: moves all stream networking away from libmpv.
 ///

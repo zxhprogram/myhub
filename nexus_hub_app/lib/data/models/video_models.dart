@@ -1,8 +1,9 @@
 // Data models for the video streaming sub-app.
 //
-// Data is scraped from netflixgc.com, a MacCMS V10 video site. The browse
-// list comes from the site's JSON endpoint; detail and play pages are
-// parsed out of the server-rendered HTML (see VideoSiteService).
+// Data is scraped from MacCMS V10 video sites (see VideoProtocol): the
+// browse list comes from a JSON endpoint or channel page of the active
+// protocol; detail and play pages are parsed out of the server-rendered
+// HTML (see VideoSiteService and Movie555SiteService).
 
 /// Top-level browse categories of the video site, one per vodshow channel
 /// (`/vodshow/{typeId}-----------.html`).

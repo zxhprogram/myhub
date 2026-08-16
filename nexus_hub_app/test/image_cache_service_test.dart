@@ -2,8 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexus_hub_app/data/services/image_cache_service.dart';
-import 'package:nexus_hub_app/data/services/video_site_service.dart'
-    show StateException;
+import 'package:nexus_hub_app/data/services/video_site_exception.dart';
 
 void main() {
   late Directory baseDir;

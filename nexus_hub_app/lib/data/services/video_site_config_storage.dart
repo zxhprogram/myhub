@@ -113,7 +113,10 @@ class VideoSiteConfigStorage {
   /// supported, keeping any customized domains.
   static Future<void> _migrateLegacy(SharedPreferences prefs) async {
     final raw = prefs.getString(_legacyKey);
-    _sources = [VideoSiteConfig.defaultConfig];
+    _sources = [
+      VideoSiteConfig.defaultConfig,
+      VideoSiteConfig.movie555DefaultConfig,
+    ];
     _activeId = VideoSiteConfig.defaultId;
     if (raw != null && raw.isNotEmpty) {
       try {
@@ -125,6 +128,7 @@ class VideoSiteConfigStorage {
         if (customized) {
           _sources = [
             VideoSiteConfig.defaultConfig,
+            VideoSiteConfig.movie555DefaultConfig,
             legacy.copyWith(
               id: VideoSiteConfig.generateId(),
               name: '导入的数据源',
@@ -133,7 +137,7 @@ class VideoSiteConfigStorage {
           _activeId = _sources.last.id;
         }
       } catch (_) {
-        // Unreadable legacy data leaves the default source in place.
+        // Unreadable legacy data leaves the default sources in place.
       }
     }
     await _persist();

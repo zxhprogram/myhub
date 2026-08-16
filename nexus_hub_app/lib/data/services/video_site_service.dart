@@ -5,18 +5,21 @@ import 'package:pointycastle/export.dart';
 
 import '../models/video_models.dart';
 import '../models/video_site_config.dart';
+import 'movie555_site_service.dart';
 import 'video_site_config_storage.dart';
+import 'video_site_exception.dart';
 
-/// Scrapes a netflixgc-protocol site (a MacCMS V10 deployment, by default
-/// www.netflixgc.com) for the video sub-app.
+/// Scrapes a configured video site for the video sub-app, dispatching on
+/// the source's protocol.
 ///
-/// The extraction rules below make up the netflixgc protocol; the two hosts
-/// it talks to — the site itself and the cloud parse endpoint — come from
-/// the [VideoSiteConfig] passed in (or the persisted one), because the
-/// domains a deployment lives on change over time while the URL layout
+/// The netflixgc protocol (a MacCMS V10 deployment, by default
+/// www.netflixgc.com) is implemented in this class; every other protocol
+/// lives in its own service and is delegated to below. The hosts a
+/// deployment lives on come from the [VideoSiteConfig] passed in (or the
+/// persisted one), because domains change over time while the URL layout
 /// does not.
 ///
-/// Four data paths are used:
+/// netflixgc's four data paths:
 ///  * Browse list — the site's own JSON endpoint `POST /index.php/ds_api/vod`
 ///    that the web list page loads its grid from.
 ///  * Search — `GET /index.php/ajax/suggest?mid=1&wd=...`, the JSON
@@ -32,7 +35,7 @@ import 'video_site_config_storage.dart';
 ///    per-request `uid`, mirroring the site player's `uic()` routine).
 class VideoSiteService {
   /// Creates a scraper for the site described by [config], defaulting to
-  /// the persisted configuration (see [VideoSiteConfigStorage]).
+  /// the persisted configuration (see [VideoSiteConfigStorage])
   VideoSiteService({Dio? dio, VideoSiteConfig? config})
     : _config = config ?? VideoSiteConfigStorage.current,
       _dio =
@@ -54,6 +57,13 @@ class VideoSiteService {
   final VideoSiteConfig _config;
 
   final Dio _dio;
+
+  /// Service implementing the movie555 protocol when the configured
+  /// source uses it; null otherwise (netflixgc is implemented here).
+  late final Movie555SiteService? _movie555 =
+      _config.protocol == VideoProtocol.movie555
+          ? Movie555SiteService(config: _config)
+          : null;
 
   /// Cloud parse endpoint every playback source on the site resolves
   /// through (see the site's `playerconfig.js`). It must be requested with
@@ -90,6 +100,10 @@ class VideoSiteService {
     VideoCategory category = VideoCategory.series,
     int page = 1,
   }) async {
+    final movie555 = _movie555;
+    if (movie555 != null) {
+      return movie555.fetchSeries(category: category, page: page);
+    }
     final response = await _dio.post<Map<String, dynamic>>(
       '/index.php/ds_api/vod',
       data: {
@@ -133,6 +147,10 @@ class VideoSiteService {
 
   /// Searches by title through the site's suggest API (max 20 hits).
   Future<List<VideoSeries>> search(String keyword) async {
+    final movie555 = _movie555;
+    if (movie555 != null) {
+      return movie555.search(keyword);
+    }
     final trimmed = keyword.trim();
     if (trimmed.isEmpty) return const [];
     final response = await _dio.get<Map<String, dynamic>>(
@@ -162,6 +180,10 @@ class VideoSiteService {
   /// Scrapes a series detail page (`/voddetail/{id}.html`), including the
   /// playback sources and their episode lists.
   Future<VideoDetail> fetchDetail(int vodId) async {
+    final movie555 = _movie555;
+    if (movie555 != null) {
+      return movie555.fetchDetail(vodId);
+    }
     final html = await _getHtml('/voddetail/$vodId.html');
     final detail = VideoSiteDetailParser.parse(html, vodId);
     if (detail.title.isEmpty && detail.sources.isEmpty) {
@@ -189,6 +211,13 @@ class VideoSiteService {
     required String playPath,
     required String episodeLabel,
   }) async {
+    final movie555 = _movie555;
+    if (movie555 != null) {
+      return movie555.resolvePlay(
+        playPath: playPath,
+        episodeLabel: episodeLabel,
+      );
+    }
     final html = await _getHtml(playPath);
     final match = RegExp(
       r'player_aaaa\s*=\s*(\{[\s\S]*?\})\s*;?\s*</script>',
@@ -351,16 +380,6 @@ class VideoSiteService {
       return input;
     }
   }
-}
-
-/// Exception thrown when a scraped page does not contain the expected data.
-class StateException implements Exception {
-  StateException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
 }
 
 /// Parses a `/voddetail/{id}.html` page into a [VideoDetail].

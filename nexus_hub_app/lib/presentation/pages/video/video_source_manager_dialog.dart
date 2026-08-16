@@ -261,10 +261,10 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
     text: widget.initial?.name ?? '',
   );
   late final _domainController = TextEditingController(
-    text: widget.initial?.domain ?? VideoSiteConfig.defaultDomain,
+    text: widget.initial?.domain ?? _protocol.defaultDomain,
   );
   late final _parseDomainController = TextEditingController(
-    text: widget.initial?.parseDomain ?? VideoSiteConfig.defaultParseDomain,
+    text: widget.initial?.parseDomain ?? _protocol.defaultParseDomain,
   );
 
   @override
@@ -274,6 +274,10 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
     _parseDomainController.dispose();
     super.dispose();
   }
+
+  /// Whether the selected protocol resolves playback through a separate
+  /// cloud parse endpoint (and therefore needs its domain configured).
+  bool get _needsParseDomain => _protocol.defaultParseDomain.isNotEmpty;
 
   String? _validateName(String? value) {
     if (value == null || value.trim().isEmpty) return '必填项';
@@ -287,11 +291,21 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
     return null;
   }
 
+  /// Switching protocols makes the old domains meaningless, so both fields
+  /// prefill with the new protocol's deployment defaults.
+  void _onProtocolChanged(VideoProtocol? value) {
+    if (value == null || value == _protocol) return;
+    setState(() {
+      _protocol = value;
+      _domainController.text = value.defaultDomain;
+      _parseDomainController.text = value.defaultParseDomain;
+    });
+  }
+
   void _reset() {
     setState(() {
-      _protocol = VideoProtocol.netflixgc;
-      _domainController.text = VideoSiteConfig.defaultDomain;
-      _parseDomainController.text = VideoSiteConfig.defaultParseDomain;
+      _domainController.text = _protocol.defaultDomain;
+      _parseDomainController.text = _protocol.defaultParseDomain;
     });
   }
 
@@ -303,9 +317,9 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
         name: _nameController.text.trim(),
         protocol: _protocol,
         domain: VideoSiteConfig.normalizeDomain(_domainController.text),
-        parseDomain: VideoSiteConfig.normalizeDomain(
-          _parseDomainController.text,
-        ),
+        parseDomain: _needsParseDomain
+            ? VideoSiteConfig.normalizeDomain(_parseDomainController.text)
+            : '',
       ),
     );
   }
@@ -370,8 +384,7 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
                       ),
                     ),
                 ],
-                onChanged: (value) =>
-                    setState(() => _protocol = value ?? _protocol),
+                onChanged: _onProtocolChanged,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: colorScheme.surfaceContainerLow,
@@ -391,9 +404,7 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
               ),
               const SizedBox(height: NexusSpacing.xs),
               Text(
-                'NetflixGC 协议：按现有规则解析（列表/搜索 JSON 接口、详情页 '
-                'HTML、播放页双重加密与云端解析）。站点域名变更时无需改动协议，'
-                '只需更新下方域名。',
+                _protocol.description,
                 style: NexusTypography.labelSm.copyWith(
                   color: colorScheme.onSurfaceVariant,
                   height: 1.5,
@@ -403,29 +414,31 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
               NexusInput(
                 controller: _domainController,
                 labelText: '站点域名',
-                hintText: VideoSiteConfig.defaultDomain,
+                hintText: _protocol.defaultDomain,
                 prefixIcon: const Icon(Icons.language, size: 18),
                 validator: _validateDomain,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 onSubmitted: (_) => _submit(),
               ),
-              const SizedBox(height: NexusSpacing.md),
-              NexusInput(
-                controller: _parseDomainController,
-                labelText: '解析接口域名',
-                hintText: VideoSiteConfig.defaultParseDomain,
-                prefixIcon: const Icon(Icons.play_circle_outline, size: 18),
-                validator: _validateDomain,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                onSubmitted: (_) => _submit(),
-              ),
-              const SizedBox(height: NexusSpacing.xs),
-              Text(
-                '播放源云端解析接口所在的域名，与站点域名通常不同。',
-                style: NexusTypography.labelSm.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+              if (_needsParseDomain) ...[
+                const SizedBox(height: NexusSpacing.md),
+                NexusInput(
+                  controller: _parseDomainController,
+                  labelText: '解析接口域名',
+                  hintText: _protocol.defaultParseDomain,
+                  prefixIcon: const Icon(Icons.play_circle_outline, size: 18),
+                  validator: _validateDomain,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  onSubmitted: (_) => _submit(),
                 ),
-              ),
+                const SizedBox(height: NexusSpacing.xs),
+                Text(
+                  '播放源云端解析接口所在的域名，与站点域名通常不同。',
+                  style: NexusTypography.labelSm.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
