@@ -23,6 +23,7 @@ import '../pages/dashboard_page.dart';
 import '../pages/dev_tools_page.dart';
 import '../pages/google_news_page.dart';
 import '../pages/mail_page.dart';
+import '../pages/music_player_page.dart';
 import '../pages/my_computer_page.dart';
 import '../pages/pomodoro_page.dart';
 import '../pages/rss_reader_page.dart';
@@ -282,6 +283,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const CalendarPage(),
       gradientStart: const Color(0xFFFF453A),
       gradientEnd: const Color(0xFFC60E0E),
+    ),
+    DesktopAppItem(
+      label: 'Music',
+      icon: Icons.music_note,
+      route: '/music',
+      pageBuilder: (_) => const MusicPlayerPage(),
+      gradientStart: const Color(0xFFFB5C74),
+      gradientEnd: const Color(0xFFFA233B),
     ),
   ];
 
