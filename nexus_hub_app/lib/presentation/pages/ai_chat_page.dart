@@ -1,24 +1,23 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as material;
 import 'package:flutter/services.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/ai_chat_message.dart';
 import '../../data/models/ai_provider_config.dart';
 import '../../data/repositories/ai_chat_repository.dart';
-import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
-import '../../theme/typography.dart';
-import '../components/nexus_avatar.dart';
-import '../components/nexus_button.dart';
-import '../components/nexus_card.dart';
-import '../components/nexus_chip.dart';
-import '../components/nexus_empty_state.dart';
-import '../components/nexus_input.dart';
-import '../layout/page_scaffold.dart';
 import '../states/ai_chat_state.dart';
 
+/// AI Chat page built entirely from shadcn_flutter components.
+///
+/// The page can be hosted in two environments: desktop windows (already
+/// inside a [ShadcnLayer]) and the mobile app-shell route (Material only).
+/// [build] therefore installs the shadcn infrastructure itself when it is
+/// missing, and always overrides the shadcn color scheme to follow the
+/// ambient Material brightness so the page matches the app theme.
 class AiChatPage extends StatefulWidget {
   const AiChatPage({super.key});
 
@@ -29,13 +28,6 @@ class AiChatPage extends StatefulWidget {
 class _AiChatPageState extends State<AiChatPage> {
   final _state = AiChatState.instance;
   final _controller = TextEditingController();
-
-  static const _quickPrompts = [
-    'Summarize selected text',
-    'Generate Dart function',
-    'Explain a design pattern',
-    'Translate to Chinese',
-  ];
 
   @override
   void initState() {
@@ -59,46 +51,32 @@ class _AiChatPageState extends State<AiChatPage> {
   Future<void> _copyMessage(String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Copied to clipboard', style: NexusTypography.bodyMd),
-        duration: const Duration(seconds: 1),
-      ),
+    showToast(
+      context: context,
+      showDuration: const Duration(seconds: 2),
+      builder: (context, overlay) => const _InfoToast(message: 'Copied to clipboard'),
     );
   }
 
-  Future<void> _openSettings() {
-    return showDialog(
-      context: context,
-      builder: (_) => const _ProviderSettingsDialog(),
+  void _openSettings() {
+    showOverlay(
+      context,
+      DialogConfiguration(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) => const _ProviderSettingsDialog(),
+      ),
     );
   }
 
   Future<void> _confirmClear() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Clear conversation?', style: NexusTypography.headlineSm),
-        content: Text(
-          'This removes the whole transcript from this device.',
-          style: NexusTypography.bodyMd.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        actions: [
-          NexusButton(
-            label: 'Cancel',
-            variant: NexusButtonVariant.text,
-            onPressed: () => Navigator.of(context).pop(false),
-          ),
-          NexusButton(
-            label: 'Clear',
-            icon: Icons.delete_sweep_outlined,
-            onPressed: () => Navigator.of(context).pop(true),
-          ),
-        ],
+    final completer = showOverlay<bool>(
+      context,
+      DialogConfiguration<bool>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) => const _ClearConversationDialog(),
       ),
     );
+    final confirmed = await completer.future;
     if (confirmed == true) {
       await _state.clearConversation();
     }
@@ -106,262 +84,208 @@ class _AiChatPageState extends State<AiChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return PageScaffold(
-      header: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('AI Chat', style: NexusTypography.headlineXl),
-                const SizedBox(height: NexusSpacing.xs),
-                Text(
-                  'Ask anything, summarize text, or generate code',
-                  style: NexusTypography.bodyMd.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: NexusSpacing.sm),
-          Watch((_) {
-            final providers = _state.providers.value;
-            final active = _state.activeProvider;
-            final hasMessages = _state.messages.value.isNotEmpty;
-            final isStreaming = _state.isStreaming.value;
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (providers.isNotEmpty) ...[
-                  _MenuButton<String>(
-                    icon: Icons.dns_outlined,
-                    label: active?.name ?? 'No provider',
-                    itemBuilder: (_) => [
-                      for (final provider in providers)
-                        PopupMenuItem(
-                          value: provider.id,
-                          child: Row(
-                            children: [
-                              if (provider.id == active?.id)
-                                Icon(
-                                  Icons.check,
-                                  size: 16,
-                                  color: colorScheme.primary,
-                                )
-                              else
-                                const SizedBox(width: 16),
-                              const SizedBox(width: NexusSpacing.sm),
-                              Flexible(
-                                child: Text(
-                                  provider.name,
-                                  style: NexusTypography.bodyMd,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: _kManageProviders,
-                        child: Row(
-                          children: [
-                            Icon(Icons.tune, size: 16),
-                            SizedBox(width: NexusSpacing.sm),
-                            Text('Manage providers…'),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onSelected: (value) {
-                      if (value == _kManageProviders) {
-                        _openSettings();
-                      } else {
-                        _state.setActiveProvider(value);
-                      }
-                    },
-                  ),
-                  const SizedBox(width: NexusSpacing.sm),
-                  _MenuButton<String>(
-                    icon: Icons.model_training_outlined,
-                    label: active?.selectedModel ?? 'No model',
-                    itemBuilder: (_) => [
-                      for (final model in active?.models ?? const <String>[])
-                        PopupMenuItem(
-                          value: model,
-                          child: Row(
-                            children: [
-                              if (model == active?.selectedModel)
-                                Icon(
-                                  Icons.check,
-                                  size: 16,
-                                  color: colorScheme.primary,
-                                )
-                              else
-                                const SizedBox(width: 16),
-                              const SizedBox(width: NexusSpacing.sm),
-                              Flexible(
-                                child: Text(
-                                  model,
-                                  style: NexusTypography.bodyMd,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: _kManageProviders,
-                        child: Row(
-                          children: [
-                            Icon(Icons.tune, size: 16),
-                            SizedBox(width: NexusSpacing.sm),
-                            Text('Manage models in settings…'),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onSelected: (value) {
-                      if (value == _kManageProviders) {
-                        _openSettings();
-                      } else if (active != null) {
-                        _state.setSelectedModel(active.id, value);
-                      }
-                    },
-                  ),
-                  const SizedBox(width: NexusSpacing.sm),
-                ],
-                IconButton(
-                  tooltip: 'Provider settings',
-                  icon: const Icon(Icons.tune, size: 20),
-                  onPressed: _openSettings,
-                ),
-                IconButton(
-                  tooltip: 'Clear conversation',
-                  icon: const Icon(Icons.delete_sweep_outlined, size: 20),
-                  onPressed:
-                      hasMessages && !isStreaming ? _confirmClear : null,
-                ),
-              ],
-            );
-          }),
-        ],
-      ),
+    final dark = material.Theme.of(context).brightness == Brightness.dark;
+    final scheme = dark ? ColorSchemes.darkSlate : ColorSchemes.lightSlate;
+    Widget content = _AiChatView(
+      state: _state,
+      controller: _controller,
+      onSend: _send,
+      onCopyMessage: _copyMessage,
+      onOpenSettings: _openSettings,
+      onConfirmClear: _confirmClear,
+    );
+    final ambientShadcnTheme = context.getInheritedWidgetOfExactType<Theme>();
+    if (ambientShadcnTheme != null) {
+      // Recolor the desktop layer's shadcn theme to follow the app theme.
+      return Theme(
+        data: ambientShadcnTheme.data.copyWith(colorScheme: () => scheme),
+        child: content,
+      );
+    }
+    return ShadcnLayer(
+      theme: dark
+          ? const ThemeData.dark(radius: 0.5, scaling: 1)
+          : const ThemeData(radius: 0.5, scaling: 1),
+      child: content,
+    );
+  }
+}
+
+class _AiChatView extends StatelessWidget {
+  const _AiChatView({
+    required this.state,
+    required this.controller,
+    required this.onSend,
+    required this.onCopyMessage,
+    required this.onOpenSettings,
+    required this.onConfirmClear,
+  });
+
+  final AiChatState state;
+  final TextEditingController controller;
+  final VoidCallback onSend;
+  final void Function(String) onCopyMessage;
+  final VoidCallback onOpenSettings;
+  final VoidCallback onConfirmClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Container(
+      color: colorScheme.background,
+      padding: const EdgeInsets.all(NexusSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('AI Chat').large().semiBold(),
+                    const SizedBox(height: NexusSpacing.xs),
+                    Text(
+                      'Ask anything, summarize text, or generate code',
+                    ).small().muted(),
+                  ],
+                ),
+              ),
+              const SizedBox(width: NexusSpacing.sm),
+              Watch((_) {
+                final providers = state.providers.value;
+                final active = state.activeProvider;
+                final hasMessages = state.messages.value.isNotEmpty;
+                final isStreaming = state.isStreaming.value;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (providers.isNotEmpty) ...[
+                      _ProviderSelect(
+                        providers: providers,
+                        active: active,
+                        onChanged: (value) {
+                          if (value == null) return;
+                          if (value == _kManageProviders) {
+                            onOpenSettings();
+                          } else {
+                            state.setActiveProvider(value);
+                          }
+                        },
+                      ),
+                      const SizedBox(width: NexusSpacing.sm),
+                      _ModelSelect(
+                        active: active,
+                        onChanged: (value) {
+                          if (value == null) return;
+                          if (value == _kManageProviders) {
+                            onOpenSettings();
+                          } else if (active != null) {
+                            state.setSelectedModel(active.id, value);
+                          }
+                        },
+                      ),
+                      const SizedBox(width: NexusSpacing.sm),
+                    ],
+                    Tooltip(
+                      tooltip: (context) => const Text('Provider settings'),
+                      child: IconButton.ghost(
+                        icon: const Icon(LucideIcons.settings2, size: 18),
+                        onPressed: onOpenSettings,
+                      ),
+                    ),
+                    Tooltip(
+                      tooltip: (context) => const Text('Clear conversation'),
+                      child: IconButton.ghost(
+                        icon: const Icon(LucideIcons.trash2, size: 18),
+                        onPressed: hasMessages && !isStreaming
+                            ? onConfirmClear
+                            : null,
+                      ),
+                    ),
+                  ],
+                );
+              }),
+            ],
+          ),
+          const SizedBox(height: NexusSpacing.md),
           Expanded(
             child: Watch((_) {
-              if (_state.providers.value.isEmpty) {
-                return NexusCard(
-                  child: NexusEmptyState(
-                    icon: Icons.smart_toy_outlined,
-                    title: 'No provider configured',
-                    subtitle:
-                        'Add an OpenAI-compatible provider (OpenAI, DeepSeek, '
-                        'Kimi, Ollama, …) to start chatting.',
-                    action: NexusButton(
-                      label: 'Configure providers',
-                      icon: Icons.tune,
-                      onPressed: _openSettings,
-                    ),
+              if (state.providers.value.isEmpty) {
+                return _EmptyState(
+                  icon: LucideIcons.bot,
+                  title: 'No provider configured',
+                  subtitle:
+                      'Add an OpenAI-compatible provider (OpenAI, DeepSeek, '
+                      'Kimi, Ollama, …) to start chatting.',
+                  action: Button.primary(
+                    leading: const Icon(LucideIcons.settings2),
+                    onPressed: onOpenSettings,
+                    child: const Text('Configure providers'),
                   ),
                 );
               }
-              return NexusCard(
-                padding: const EdgeInsets.all(0),
-                child: Watch((_) {
-                  final messages = _state.messages.value;
-                  final isStreaming = _state.isStreaming.value;
-                  if (messages.isEmpty && !isStreaming) {
-                    return NexusEmptyState(
-                      icon: Icons.forum_outlined,
-                      title: 'Ask anything',
-                      subtitle:
-                          'Replies stream in live and render as rich '
-                          'Markdown with code blocks and tables.',
-                    );
+              final messages = state.messages.value;
+              final isStreaming = state.isStreaming.value;
+              if (messages.isEmpty && !isStreaming) {
+                return _EmptyState(
+                  icon: LucideIcons.messageCircle,
+                  title: 'Ask anything',
+                  subtitle: 'Replies stream in live and render as rich '
+                      'Markdown with code blocks and tables.',
+                );
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.all(NexusSpacing.md),
+                reverse: true,
+                itemCount: messages.length + (isStreaming ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (isStreaming && index == 0) {
+                    return const _StreamingBubble();
                   }
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(NexusSpacing.md),
-                    reverse: true,
-                    itemCount: messages.length + (isStreaming ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (isStreaming && index == 0) {
-                        return const _StreamingBubble();
-                      }
-                      final message =
-                          messages[messages.length - 1 - index + (isStreaming ? 1 : 0)];
-                      return _ChatBubble(
-                        message: message,
-                        onCopy: _copyMessage,
-                      );
-                    },
+                  final message = messages[messages.length - 1 - index + (isStreaming ? 1 : 0)];
+                  return _ChatBubble(
+                    message: message,
+                    onCopy: onCopyMessage,
                   );
-                }),
+                },
               );
             }),
           ),
           const SizedBox(height: NexusSpacing.md),
           Watch((_) {
-            final error = _state.error.value;
+            final error = state.error.value;
             if (error == null) return const SizedBox.shrink();
             return Padding(
               padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
-              child: Material(
-                color: colorScheme.errorContainer,
-                borderRadius: NexusRadii.mdRadius,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: NexusSpacing.md,
-                    vertical: NexusSpacing.xs,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 18,
-                        color: colorScheme.onErrorContainer,
-                      ),
-                      const SizedBox(width: NexusSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          error,
-                          style: NexusTypography.bodyMd.copyWith(
-                            color: colorScheme.onErrorContainer,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        icon: const Icon(Icons.close, size: 16),
-                        color: colorScheme.onErrorContainer,
-                        onPressed: () => _state.error.value = null,
-                      ),
-                    ],
-                  ),
+              child: Alert.destructive(
+                leading: const Icon(LucideIcons.circleAlert, size: 18),
+                title: Text(error).small(),
+                trailing: IconButton.ghost(
+                  icon: const Icon(LucideIcons.x, size: 14),
+                  size: ButtonSize.small,
+                  onPressed: () => state.error.value = null,
                 ),
               ),
             );
           }),
           Watch((_) {
-            final isStreaming = _state.isStreaming.value;
-            final messages = _state.messages.value;
-            final canRegenerate =
-                !isStreaming &&
+            final isStreaming = state.isStreaming.value;
+            final messages = state.messages.value;
+            final canRegenerate = !isStreaming &&
                 messages.isNotEmpty &&
                 messages.last.role == AiChatRole.assistant;
             return Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                IconButton(
-                  tooltip: 'Regenerate reply',
-                  icon: const Icon(Icons.refresh, size: 20),
-                  onPressed: canRegenerate ? () => _state.regenerate() : null,
+                Tooltip(
+                  tooltip: (context) => const Text('Regenerate reply'),
+                  child: IconButton.outline(
+                    icon: const Icon(LucideIcons.refreshCw, size: 18),
+                    onPressed: canRegenerate ? () => state.regenerate() : null,
+                  ),
                 ),
                 const SizedBox(width: NexusSpacing.sm),
                 Expanded(
@@ -376,34 +300,35 @@ class _AiChatPageState extends State<AiChatPage> {
                       actions: <Type, Action<Intent>>{
                         _SendIntent: CallbackAction<_SendIntent>(
                           onInvoke: (_) {
-                            _send();
+                            onSend();
                             return null;
                           },
                         ),
                       },
-                      child: NexusInput(
-                        controller: _controller,
-                        hintText:
-                            'Type your message… (Enter to send, Shift+Enter '
-                            'for a new line)',
+                      child: TextField(
+                        controller: controller,
+                        placeholder: const Text(
+                          'Type your message… (Enter to send, Shift+Enter '
+                          'for a new line)',
+                        ),
                         maxLines: 5,
+                        minLines: 1,
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: NexusSpacing.sm),
                 if (isStreaming)
-                  NexusButton(
-                    label: 'Stop',
-                    icon: Icons.stop_circle_outlined,
-                    variant: NexusButtonVariant.tonal,
-                    onPressed: _state.stopStreaming,
+                  Button.secondary(
+                    leading: const Icon(LucideIcons.circleStop),
+                    onPressed: state.stopStreaming,
+                    child: const Text('Stop'),
                   )
                 else
-                  NexusButton(
-                    label: 'Send',
-                    icon: Icons.send,
-                    onPressed: _send,
+                  Button.primary(
+                    leading: const Icon(LucideIcons.send),
+                    onPressed: onSend,
+                    child: const Text('Send'),
                   ),
               ],
             );
@@ -412,16 +337,13 @@ class _AiChatPageState extends State<AiChatPage> {
           Wrap(
             spacing: NexusSpacing.sm,
             runSpacing: NexusSpacing.sm,
-            children: _quickPrompts
-                .map(
-                  (prompt) => ActionChip(
-                    label: Text(prompt, style: NexusTypography.labelMd),
-                    onPressed: () {
-                      _controller.text = prompt;
-                    },
-                  ),
-                )
-                .toList(),
+            children: [
+              for (final prompt in _quickPrompts)
+                Chip(
+                  onPressed: () => controller.text = prompt,
+                  child: Text(prompt).small(),
+                ),
+            ],
           ),
         ],
       ),
@@ -431,65 +353,150 @@ class _AiChatPageState extends State<AiChatPage> {
 
 const _kManageProviders = '__manage_providers__';
 
+const _quickPrompts = [
+  'Summarize selected text',
+  'Generate Dart function',
+  'Explain a design pattern',
+  'Translate to Chinese',
+];
+
 class _SendIntent extends Intent {
   const _SendIntent();
 }
 
-/// Compact dropdown used for the provider and model pickers in the header.
-class _MenuButton<T> extends StatelessWidget {
-  const _MenuButton({
-    required this.icon,
-    required this.label,
-    required this.itemBuilder,
-    this.onSelected,
+/// Dropdown picking the active provider, with a manage entry at the end.
+class _ProviderSelect extends StatelessWidget {
+  const _ProviderSelect({
+    required this.providers,
+    required this.active,
+    required this.onChanged,
   });
 
-  final IconData icon;
-  final String label;
-  final List<PopupMenuEntry<T>> Function(BuildContext) itemBuilder;
-  final ValueChanged<T>? onSelected;
+  final List<AiProviderConfig> providers;
+  final AiProviderConfig? active;
+  final ValueChanged<String?> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return PopupMenuButton<T>(
-      tooltip: label,
-      position: PopupMenuPosition.under,
-      constraints: const BoxConstraints(minWidth: 220),
-      itemBuilder: itemBuilder,
-      onSelected: onSelected,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: NexusSpacing.sm,
-          vertical: 6,
-        ),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLow,
-          borderRadius: NexusRadii.mdRadius,
-          border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+    return Select<String>(
+      value: active?.id,
+      constraints: const BoxConstraints(maxWidth: 180),
+      // SelectPopup implements SelectPopupBuilder via its `call` method.
+      popup: SelectPopup(
+        items: SelectItemList(
           children: [
-            Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
-            const SizedBox(width: 4),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 160),
-              child: Text(
-                label,
-                style: NexusTypography.labelMd.copyWith(
-                  color: colorScheme.onSurface,
+            for (final provider in providers)
+              SelectItemButton(
+                value: provider.id,
+                child: Text(provider.name).small(),
+              ),
+            SelectItemButton(
+              value: _kManageProviders,
+              child: Text('Manage providers…').small(),
+            ),
+          ],
+        ),
+      ).call,
+      itemBuilder: (context, value) {
+        final provider = providers.where((p) => p.id == value).firstOrNull;
+        return Text(provider?.name ?? 'No provider').small();
+      },
+      onChanged: onChanged,
+    );
+  }
+}
+
+/// Dropdown picking the model of the active provider; searchable because
+/// providers often expose long model lists.
+class _ModelSelect extends StatelessWidget {
+  const _ModelSelect({required this.active, required this.onChanged});
+
+  final AiProviderConfig? active;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final models = active?.models ?? const <String>[];
+    return Select<String>(
+      value: active?.selectedModel,
+      constraints: const BoxConstraints(maxWidth: 200),
+      popup: SelectPopup.builder(
+        enableSearch: true,
+        searchPlaceholder: const Text('Search models…'),
+        builder: (context, searchQuery) => SelectItemList(
+          children: [
+            if (searchQuery == null)
+              SelectItemButton(
+                value: _kManageProviders,
+                child: Text('Manage models in settings…').small(),
+              ),
+            for (final model in models)
+              if (searchQuery == null ||
+                  model.toLowerCase().contains(searchQuery.toLowerCase()))
+                SelectItemButton(
+                  value: model,
+                  child: Text(model).small(),
                 ),
-                overflow: TextOverflow.ellipsis,
+          ],
+        ),
+      ).call,
+      itemBuilder: (context, value) => Text(
+        value,
+        overflow: TextOverflow.ellipsis,
+      ).small(),
+      onChanged: onChanged,
+    );
+  }
+}
+
+/// Centered placeholder used for the empty transcript / no-provider states.
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.muted,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 24,
+                color: theme.colorScheme.mutedForeground,
               ),
             ),
-            Icon(
-              Icons.arrow_drop_down,
-              size: 18,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            const SizedBox(height: NexusSpacing.md),
+            Text(title).base().semiBold(),
+            const SizedBox(height: NexusSpacing.xs),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+            ).small().muted(),
+            if (action != null) ...[
+              const SizedBox(height: NexusSpacing.md),
+              action!,
+            ],
           ],
         ),
       ),
@@ -504,7 +511,8 @@ class _StreamingBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -512,16 +520,20 @@ class _StreamingBubble extends StatelessWidget {
         padding: const EdgeInsets.all(NexusSpacing.md),
         constraints: const BoxConstraints(maxWidth: 640),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainer,
-          borderRadius: NexusRadii.lgRadius,
+          color: colorScheme.muted,
+          borderRadius: theme.borderRadiusLg,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.only(right: NexusSpacing.sm),
-              child: NexusAvatar(label: 'AI'),
+            Padding(
+              padding: const EdgeInsets.only(right: NexusSpacing.sm),
+              child: Avatar(
+                initials: 'AI',
+                size: 28,
+                backgroundColor: colorScheme.secondary,
+              ),
             ),
             Flexible(
               child: Column(
@@ -534,8 +546,8 @@ class _StreamingBubble extends StatelessWidget {
                     if (text.isNotEmpty) {
                       return GptMarkdown(
                         text,
-                        style: NexusTypography.bodyMd.copyWith(
-                          color: colorScheme.onSurface,
+                        style: theme.typography.base.copyWith(
+                          color: colorScheme.foreground,
                         ),
                       );
                     }
@@ -547,13 +559,8 @@ class _StreamingBubble extends StatelessWidget {
                         const _PulsingDot(),
                         const SizedBox(width: NexusSpacing.sm),
                         Text(
-                          reasoning.isEmpty
-                              ? 'Connecting…'
-                              : 'Thinking…',
-                          style: NexusTypography.labelMd.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                          reasoning.isEmpty ? 'Connecting…' : 'Thinking…',
+                        ).small().muted(),
                       ],
                     );
                   }),
@@ -568,12 +575,7 @@ class _StreamingBubble extends StatelessWidget {
                       children: [
                         const _PulsingDot(),
                         const SizedBox(width: NexusSpacing.sm),
-                        Text(
-                          'Generating…',
-                          style: NexusTypography.labelMd.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                        Text('Generating…').small().muted(),
                       ],
                     );
                   }),
@@ -603,31 +605,21 @@ class _ReasoningDisclosureState extends State<_ReasoningDisclosure> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        InkWell(
-          borderRadius: NexusRadii.smRadius,
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _expanded ? Icons.expand_less : Icons.expand_more,
-                size: 16,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: NexusSpacing.xs),
-              Text(
-                _expanded ? 'Hide thinking' : 'Show thinking',
-                style: NexusTypography.labelMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+        Button.ghost(
+          alignment: Alignment.centerLeft,
+          onPressed: () => setState(() => _expanded = !_expanded),
+          leading: Icon(
+            _expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+            size: 14,
           ),
+          child: Text(
+            _expanded ? 'Hide thinking' : 'Show thinking',
+          ).small().muted(),
         ),
         if (_expanded)
           Padding(
@@ -636,15 +628,13 @@ class _ReasoningDisclosureState extends State<_ReasoningDisclosure> {
               width: double.infinity,
               padding: const EdgeInsets.all(NexusSpacing.sm),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.4,
-                ),
-                borderRadius: NexusRadii.mdRadius,
+                color: theme.colorScheme.muted,
+                borderRadius: theme.borderRadiusMd,
               ),
               child: SelectableText(
                 widget.reasoning,
-                style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                style: theme.typography.small.copyWith(
+                  color: theme.colorScheme.mutedForeground,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -699,7 +689,8 @@ class _ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final isUser = message.role == AiChatRole.user;
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -709,44 +700,50 @@ class _ChatBubble extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 640),
         decoration: BoxDecoration(
           color: message.isError
-              ? colorScheme.errorContainer
+              ? colorScheme.destructive
               : isUser
-              ? colorScheme.primary
-              : colorScheme.surfaceContainer,
-          borderRadius: NexusRadii.lgRadius,
+                  ? colorScheme.primary
+                  : colorScheme.muted,
+          borderRadius: theme.borderRadiusLg,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (!isUser)
-              const Padding(
-                padding: EdgeInsets.only(right: NexusSpacing.sm),
-                child: NexusAvatar(label: 'AI'),
+              Padding(
+                padding: const EdgeInsets.only(right: NexusSpacing.sm),
+                child: Avatar(
+                  initials: 'AI',
+                  size: 28,
+                  backgroundColor: colorScheme.secondary,
+                ),
               ),
             Flexible(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (!isUser && !message.isError && message.reasoning.isNotEmpty)
+                  if (!isUser &&
+                      !message.isError &&
+                      message.reasoning.isNotEmpty)
                     _ReasoningDisclosure(reasoning: message.reasoning),
-                  if (!isUser && !message.isError && message.reasoning.isNotEmpty)
+                  if (!isUser &&
+                      !message.isError &&
+                      message.reasoning.isNotEmpty)
                     const SizedBox(height: NexusSpacing.xs),
                   if (isUser || message.isError)
                     SelectableText(
                       message.content,
-                      style: NexusTypography.bodyMd.copyWith(
-                        color: message.isError
-                            ? colorScheme.onErrorContainer
-                            : colorScheme.onPrimary,
+                      style: theme.typography.base.copyWith(
+                        color: Colors.white,
                       ),
                     )
                   else
                     GptMarkdown(
                       message.content,
-                      style: NexusTypography.bodyMd.copyWith(
-                        color: colorScheme.onSurface,
+                      style: theme.typography.base.copyWith(
+                        color: colorScheme.foreground,
                       ),
                       onLinkTap: (url, _) => launchUrl(
                         Uri.parse(url),
@@ -755,21 +752,19 @@ class _ChatBubble extends StatelessWidget {
                     ),
                   if (!isUser) ...[
                     const SizedBox(height: NexusSpacing.xs),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
+                    Tooltip(
+                      tooltip: (context) => const Text('Copy'),
+                      child: IconButton.ghost(
+                        icon: Icon(
+                          LucideIcons.copy,
+                          size: 14,
+                          color: colorScheme.mutedForeground,
+                        ),
+                        size: ButtonSize.small,
+                        onPressed: onCopy != null
+                            ? () => onCopy!(message.content)
+                            : null,
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      tooltip: 'Copy',
-                      icon: Icon(
-                        Icons.copy_outlined,
-                        size: 14,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      onPressed:
-                          onCopy != null ? () => onCopy!(message.content) : null,
                     ),
                   ],
                 ],
@@ -782,6 +777,68 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
+/// Minimal toast card shown by [showToast] (e.g. copy feedback).
+class _InfoToast extends StatelessWidget {
+  const _InfoToast({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return OutlinedContainer(
+      backgroundColor: theme.colorScheme.popover,
+      borderRadius: theme.borderRadiusMd,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: NexusSpacing.md,
+          vertical: NexusSpacing.sm,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.check,
+              size: 16,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: NexusSpacing.sm),
+            Text(message).small(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Confirmation dialog for clearing the transcript.
+class _ClearConversationDialog extends StatelessWidget {
+  const _ClearConversationDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return _DialogShell(
+      title: 'Clear conversation?',
+      children: [
+        Text(
+          'This removes the whole transcript from this device.',
+        ).small().muted(),
+      ],
+      actions: (context) => [
+        Button.ghost(
+          onPressed: () => closeOverlay<bool>(context, false),
+          child: const Text('Cancel'),
+        ),
+        Button.destructive(
+          leading: const Icon(LucideIcons.trash2),
+          onPressed: () => closeOverlay<bool>(context, true),
+          child: const Text('Clear'),
+        ),
+      ],
+    );
+  }
+}
+
 /// Lists all configured providers; lets the user activate, edit, or delete
 /// them and open the add/edit form.
 class _ProviderSettingsDialog extends StatelessWidget {
@@ -790,11 +847,22 @@ class _ProviderSettingsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = AiChatState.instance;
-    return AlertDialog(
-      title: Text('AI Providers', style: NexusTypography.headlineSm),
-      content: SizedBox(
-        width: 560,
-        child: Watch((_) {
+    return _DialogShell(
+      title: 'AI Providers',
+      width: 560,
+      actions: (context) => [
+        Button.secondary(
+          leading: const Icon(LucideIcons.plus),
+          onPressed: () => _openEditor(context, null),
+          child: const Text('Add provider'),
+        ),
+        Button.ghost(
+          onPressed: () => closeOverlay(context),
+          child: const Text('Close'),
+        ),
+      ],
+      children: [
+        Watch((_) {
           final providers = state.providers.value;
           final activeId = state.activeProviderId.value;
           if (providers.isEmpty) {
@@ -803,49 +871,34 @@ class _ProviderSettingsDialog extends StatelessWidget {
               child: Text(
                 'No providers yet. Add an OpenAI-compatible provider to '
                 'start chatting.',
-                style: NexusTypography.bodyMd.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
+              ).small().muted(),
             );
           }
-          return SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final provider in providers) ...[
-                  if (provider != providers.first)
-                    const SizedBox(height: NexusSpacing.sm),
-                  _ProviderListTile(
-                    provider: provider,
-                    selected: provider.id == activeId,
-                  ),
-                ],
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final provider in providers) ...[
+                if (provider != providers.first)
+                  const SizedBox(height: NexusSpacing.sm),
+                _ProviderListTile(
+                  provider: provider,
+                  selected: provider.id == activeId,
+                ),
               ],
-            ),
+            ],
           );
         }),
-      ),
-      actions: [
-        NexusButton(
-          label: 'Add provider',
-          icon: Icons.add,
-          variant: NexusButtonVariant.tonal,
-          onPressed: () => _openEditor(context, null),
-        ),
-        NexusButton(
-          label: 'Close',
-          variant: NexusButtonVariant.text,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
       ],
     );
   }
 
   static void _openEditor(BuildContext context, AiProviderConfig? initial) {
-    showDialog(
-      context: context,
-      builder: (_) => _ProviderEditDialog(initial: initial),
+    showOverlay(
+      context,
+      DialogConfiguration(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) => _ProviderEditDialog(initial: initial),
+      ),
     );
   }
 }
@@ -858,65 +911,64 @@ class _ProviderListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = AiChatState.instance;
-    final colorScheme = Theme.of(context).colorScheme;
-    return NexusCard(
-      highlight: selected,
-      onTap: () => state.setActiveProvider(provider.id),
-      child: Row(
-        children: [
-          Icon(
-            selected
-                ? Icons.radio_button_checked
-                : Icons.radio_button_off,
-            size: 18,
-            color: selected
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: NexusSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  provider.name,
-                  style: NexusTypography.labelMd.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${provider.baseUrl}  ·  ${provider.selectedModel ?? 'no model'}',
-                  style: NexusTypography.bodyMd.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+    return OutlinedContainer(
+      borderColor:
+          selected ? theme.colorScheme.primary : theme.colorScheme.border,
+      borderRadius: theme.borderRadiusMd,
+      child: Button.card(
+        alignment: Alignment.centerLeft,
+        onPressed: () => state.setActiveProvider(provider.id),
+        child: Row(
+          children: [
+            Icon(
+              selected ? LucideIcons.circleCheck : LucideIcons.circle,
+              size: 18,
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.mutedForeground,
             ),
-          ),
-          IconButton(
-            tooltip: 'Edit',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            onPressed: () =>
-                _ProviderSettingsDialog._openEditor(context, provider),
-          ),
-          IconButton(
-            tooltip: 'Delete',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.delete_outline, size: 18),
-            onPressed: () {
-              if (state.isStreaming.value &&
-                  state.activeProviderId.value == provider.id) {
-                state.stopStreaming();
-              }
-              state.deleteProvider(provider.id);
-            },
-          ),
-        ],
+            const SizedBox(width: NexusSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(provider.name).small().semiBold(),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${provider.baseUrl}  ·  '
+                    '${provider.selectedModel ?? 'no model'}',
+                    overflow: TextOverflow.ellipsis,
+                  ).xSmall().muted(),
+                ],
+              ),
+            ),
+            Tooltip(
+              tooltip: (context) => const Text('Edit'),
+              child: IconButton.ghost(
+                icon: const Icon(LucideIcons.pencil, size: 16),
+                size: ButtonSize.small,
+                onPressed: () =>
+                    _ProviderSettingsDialog._openEditor(context, provider),
+              ),
+            ),
+            Tooltip(
+              tooltip: (context) => const Text('Delete'),
+              child: IconButton.ghost(
+                icon: const Icon(LucideIcons.trash2, size: 16),
+                size: ButtonSize.small,
+                onPressed: () {
+                  if (state.isStreaming.value &&
+                      state.activeProviderId.value == provider.id) {
+                    state.stopStreaming();
+                  }
+                  state.deleteProvider(provider.id);
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -933,7 +985,6 @@ class _ProviderEditDialog extends StatefulWidget {
 }
 
 class _ProviderEditDialogState extends State<_ProviderEditDialog> {
-  final _formKey = GlobalKey<FormState>();
   final _repository = AiChatRepository();
   late final _name = TextEditingController(text: widget.initial?.name ?? '');
   late final _baseUrl = TextEditingController(
@@ -952,6 +1003,8 @@ class _ProviderEditDialogState extends State<_ProviderEditDialog> {
 
   bool _fetching = false;
   String? _error;
+  String? _nameError;
+  String? _baseUrlError;
 
   static const _presets = <(String, String)>[
     ('OpenAI', 'https://api.openai.com/v1'),
@@ -1029,7 +1082,13 @@ class _ProviderEditDialogState extends State<_ProviderEditDialog> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _nameError =
+          _name.text.trim().isEmpty ? 'Required' : null;
+      _baseUrlError =
+          _baseUrl.text.trim().isEmpty ? 'Required' : null;
+    });
+    if (_nameError != null || _baseUrlError != null) return;
     final config = AiProviderConfig(
       id: widget.initial?.id ?? AiChatState.generateId(),
       name: _name.text.trim(),
@@ -1046,153 +1105,231 @@ class _ProviderEditDialogState extends State<_ProviderEditDialog> {
       await state.updateProvider(config);
     }
     if (mounted) {
-      Navigator.of(context).pop();
+      closeOverlay(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return AlertDialog(
-      title: Text(
-        widget.initial == null ? 'Add provider' : 'Edit provider',
-        style: NexusTypography.headlineSm,
-      ),
-      content: SizedBox(
-        width: 560,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Wrap(
-                  spacing: NexusSpacing.xs,
-                  runSpacing: NexusSpacing.xs,
-                  children: [
-                    for (final (name, url) in _presets)
-                      ActionChip(
-                        label: Text(name, style: NexusTypography.labelMd),
-                        onPressed: () => _applyPreset(name, url),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: NexusSpacing.md),
-                NexusInput(
-                  controller: _name,
-                  labelText: 'Name',
-                  hintText: 'e.g. My DeepSeek',
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: NexusSpacing.sm),
-                NexusInput(
-                  controller: _baseUrl,
-                  labelText: 'Base URL',
-                  hintText: 'https://api.openai.com/v1',
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: NexusSpacing.sm),
-                NexusInput(
-                  controller: _apiKey,
-                  labelText: 'API key (optional)',
-                  hintText: 'sk-…',
-                  obscureText: true,
-                ),
-                const SizedBox(height: NexusSpacing.sm),
-                NexusInput(
-                  controller: _systemPrompt,
-                  labelText: 'System prompt (optional)',
-                  hintText: 'You are a helpful assistant…',
-                  maxLines: 3,
-                ),
-                const SizedBox(height: NexusSpacing.md),
-                Text(
-                  'Models',
-                  style: NexusTypography.labelMd.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: NexusSpacing.xs),
-                Row(
-                  children: [
-                    Expanded(
-                      child: NexusInput(
-                        controller: _newModel,
-                        hintText: 'Model id, e.g. gpt-4o-mini',
-                        onSubmitted: (_) => _addManualModel(),
-                      ),
-                    ),
-                    const SizedBox(width: NexusSpacing.sm),
-                    NexusButton(
-                      label: 'Add',
-                      icon: Icons.add,
-                      variant: NexusButtonVariant.tonal,
-                      onPressed: _addManualModel,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: NexusSpacing.sm),
-                if (_models.isEmpty)
-                  Text(
-                    'No models yet — add one manually or fetch the list from '
-                    'the provider.',
-                    style: NexusTypography.bodyMd.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  )
-                else
-                  Wrap(
-                    spacing: NexusSpacing.xs,
-                    runSpacing: NexusSpacing.xs,
-                    children: [
-                      for (final model in _models)
-                        NexusChip(
-                          label: model,
-                          selected: model == _selectedModel,
-                          onTap: () =>
-                              setState(() => _selectedModel = model),
-                          onDeleted: () => _removeModel(model),
-                        ),
-                    ],
-                  ),
-                const SizedBox(height: NexusSpacing.sm),
-                NexusButton(
-                  label: 'Fetch from API',
-                  icon: Icons.cloud_download_outlined,
-                  variant: NexusButtonVariant.outlined,
-                  isLoading: _fetching,
-                  onPressed: _fetching ? null : _fetchModels,
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: NexusSpacing.sm),
-                  Text(
-                    _error!,
-                    style: NexusTypography.bodyMd.copyWith(
-                      color: colorScheme.error,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+    final theme = Theme.of(context);
+    return _DialogShell(
+      title: widget.initial == null ? 'Add provider' : 'Edit provider',
+      width: 560,
+      scrollable: true,
+      actions: (context) => [
+        Button.ghost(
+          onPressed: () => closeOverlay(context),
+          child: const Text('Cancel'),
         ),
-      ),
-      actions: [
-        NexusButton(
-          label: 'Cancel',
-          variant: NexusButtonVariant.text,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        NexusButton(
-          label: 'Save',
-          icon: Icons.check,
+        Button.primary(
+          leading: const Icon(LucideIcons.check),
           onPressed: _save,
+          child: const Text('Save'),
         ),
       ],
+      children: [
+        Wrap(
+          spacing: NexusSpacing.xs,
+          runSpacing: NexusSpacing.xs,
+          children: [
+            for (final (name, url) in _presets)
+              Chip(
+                onPressed: () => _applyPreset(name, url),
+                child: Text(name).small(),
+              ),
+          ],
+        ),
+        const SizedBox(height: NexusSpacing.md),
+        _LabeledField(
+          label: 'Name',
+          error: _nameError,
+          child: TextField(
+            controller: _name,
+            placeholder: const Text('e.g. My DeepSeek'),
+          ),
+        ),
+        const SizedBox(height: NexusSpacing.sm),
+        _LabeledField(
+          label: 'Base URL',
+          error: _baseUrlError,
+          child: TextField(
+            controller: _baseUrl,
+            placeholder: const Text('https://api.openai.com/v1'),
+          ),
+        ),
+        const SizedBox(height: NexusSpacing.sm),
+        _LabeledField(
+          label: 'API key (optional)',
+          child: TextField(
+            controller: _apiKey,
+            placeholder: const Text('sk-…'),
+            obscureText: true,
+          ),
+        ),
+        const SizedBox(height: NexusSpacing.sm),
+        _LabeledField(
+          label: 'System prompt (optional)',
+          child: TextField(
+            controller: _systemPrompt,
+            placeholder: const Text('You are a helpful assistant…'),
+            maxLines: 3,
+            minLines: 2,
+          ),
+        ),
+        const SizedBox(height: NexusSpacing.md),
+        Text('Models').small().semiBold(),
+        const SizedBox(height: NexusSpacing.xs),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _newModel,
+                placeholder: const Text('Model id, e.g. gpt-4o-mini'),
+                onSubmitted: (_) => _addManualModel(),
+              ),
+            ),
+            const SizedBox(width: NexusSpacing.sm),
+            Button.outline(
+              leading: const Icon(LucideIcons.plus),
+              onPressed: _addManualModel,
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+        const SizedBox(height: NexusSpacing.sm),
+        if (_models.isEmpty)
+          Text(
+            'No models yet — add one manually or fetch the list from '
+            'the provider.',
+          ).small().muted()
+        else
+          Wrap(
+            spacing: NexusSpacing.xs,
+            runSpacing: NexusSpacing.xs,
+            children: [
+              for (final model in _models)
+                Chip(
+                  onPressed: () =>
+                      setState(() => _selectedModel = model),
+                  style: model == _selectedModel
+                      ? const ButtonStyle.primary()
+                      : const ButtonStyle.secondary(),
+                  trailing: ChipButton(
+                    onPressed: () => _removeModel(model),
+                    child: const Icon(LucideIcons.x, size: 12),
+                  ),
+                  child: Text(model).small(),
+                ),
+            ],
+          ),
+        const SizedBox(height: NexusSpacing.sm),
+        Button.outline(
+          leading: _fetching
+              ? const CircularProgressIndicator(size: 14)
+              : const Icon(LucideIcons.cloudDownload),
+          onPressed: _fetching ? null : _fetchModels,
+          child: const Text('Fetch from API'),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: NexusSpacing.sm),
+          Text(
+            _error!,
+            style: theme.typography.small.copyWith(
+              color: theme.colorScheme.destructive,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Label + field + inline validation error, mirroring the shadcn form look.
+class _LabeledField extends StatelessWidget {
+  const _LabeledField({
+    required this.label,
+    required this.child,
+    this.error,
+  });
+
+  final String label;
+  final Widget child;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label).small().semiBold(),
+        const SizedBox(height: NexusSpacing.xs),
+        child,
+        if (error != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            error!,
+            style: theme.typography.xSmall.copyWith(
+              color: theme.colorScheme.destructive,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Shared modal layout for the page's dialogs: title, body, action row.
+class _DialogShell extends StatelessWidget {
+  const _DialogShell({
+    required this.title,
+    required this.children,
+    required this.actions,
+    this.width,
+    this.scrollable = false,
+  });
+
+  final String title;
+  final List<Widget> children;
+  final List<Widget> Function(BuildContext) actions;
+  final double? width;
+  final bool scrollable;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Widget body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
+    if (scrollable) {
+      body = SingleChildScrollView(child: body);
+    }
+    return ModalContainer(
+      filled: true,
+      padding: EdgeInsets.all(
+        theme.density.baseContainerPadding * theme.scaling,
+      ),
+      borderRadius: theme.borderRadiusLg,
+      child: SizedBox(
+        width: width,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title).large().semiBold(),
+            const SizedBox(height: NexusSpacing.md),
+            Flexible(child: body),
+            const SizedBox(height: NexusSpacing.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: actions(context),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
