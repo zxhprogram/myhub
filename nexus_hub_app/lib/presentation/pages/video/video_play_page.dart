@@ -6,10 +6,10 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../data/models/video_models.dart';
 import '../../../data/services/video_site_service.dart';
+import '../../../data/services/video_stream_relay.dart';
 import '../../../theme/radii.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/typography.dart';
-import '../../../utils/system_proxy.dart';
 import '../../components/nexus_button.dart';
 import '../../components/nexus_empty_state.dart';
 
@@ -17,8 +17,10 @@ import '../../components/nexus_empty_state.dart';
 ///
 /// Each episode's play page on the data source hides its resource reference
 /// behind two layers of encryption; [VideoSiteService.resolvePlay] decrypts
-/// both natively and returns a direct stream URL, which is played by the
-/// libmpv-backed [Player] — no WebView involved.
+/// both natively and returns a direct stream URL. That URL is served through
+/// a local [VideoStreamRelay] — libmpv only ever plays from 127.0.0.1, which
+/// keeps the HLS stream seamless (full duration, no per-segment reloads)
+/// while the relay handles CDN routing (direct with proxy fallback).
 class VideoPlayPage extends StatefulWidget {
   const VideoPlayPage({
     super.key,
@@ -53,9 +55,8 @@ class _VideoPlayPageState extends State<VideoPlayPage> {
   StreamSubscription<bool>? _completedSub;
   StreamSubscription<String>? _errorSub;
 
-  /// Network options (proxy, timeouts) applied to mpv before the first
-  /// stream is opened.
-  late final Future<void> _networkReady = _applyNetworkSettings();
+  /// Relay serving the current episode's stream to the player.
+  VideoStreamRelay? _relay;
 
   VideoEpisode get _episode => widget.episodes[_current];
 
@@ -96,33 +97,9 @@ class _VideoPlayPageState extends State<VideoPlayPage> {
   void dispose() {
     _completedSub?.cancel();
     _errorSub?.cancel();
+    unawaited(_relay?.stop());
     _player.dispose();
     super.dispose();
-  }
-
-  /// Streams on this data source may live behind CDNs whose DNS answers
-  /// are polluted on the default resolver; the browser reaches them via
-  /// the system proxy, so mpv has to as well. A browser User-Agent and a
-  /// shorter network timeout help with the CDNs' WAF and make dead hosts
-  /// fail into the retry UI instead of hanging.
-  Future<void> _applyNetworkSettings() async {
-    final platform = _player.platform;
-    if (platform is! NativePlayer) return;
-    try {
-      await platform.setProperty(
-        'user-agent',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            'AppleWebKit/537.36 (KHTML, like Gecko) '
-            'Chrome/125.0.0.0 Safari/537.36',
-      );
-      final proxy = await SystemProxy.httpProxy();
-      if (proxy != null) {
-        await platform.setProperty('http-proxy', 'http://$proxy');
-      }
-      await platform.setProperty('network-timeout', '20');
-    } catch (_) {
-      // Best-effort configuration; direct playback still works without it.
-    }
   }
 
   Future<void> _resolve() async {
@@ -135,17 +112,26 @@ class _VideoPlayPageState extends State<VideoPlayPage> {
         playPath: _episode.playPath,
         episodeLabel: _episode.label,
       );
-      if (!mounted) return;
+      // Bring the stream up through the local relay before handing it to
+      // the player; the playlist fetch itself validates the URL.
+      final relay = VideoStreamRelay();
+      final localUrl = await relay.serve(info.streamUrl);
+      final previous = _relay;
+      _relay = relay;
+      unawaited(previous?.stop());
+      if (!mounted) {
+        unawaited(relay.stop());
+        return;
+      }
       setState(() {
         _playInfo = info;
         _loading = false;
       });
-      await _networkReady;
-      await _player.open(Media(info.streamUrl));
+      await _player.open(Media(localUrl));
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '解析播放地址失败：$e';
+        _error = '加载播放地址失败：$e';
         _loading = false;
       });
     }
