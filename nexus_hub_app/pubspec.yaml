@@ -47,6 +47,7 @@ dependencies:
   media_kit_libs_video: ^1.0.4
   # AES-CBC decryption of the stream URL embedded in the cloud player page.
   pointycastle: ^4.0.0
+  gpt_markdown: ^1.1.8
 
 dev_dependencies:
   flutter_test:
