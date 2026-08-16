@@ -22,6 +22,11 @@ class ZhihuAuthStore {
   static int _loginAtMs = 0;
   static Future<void>? _loading;
 
+  /// Set by [logout] so the next login page opening clears the parked
+  /// WebView's zhihu cookies — otherwise its still-valid session would
+  /// auto-login instantly with the previous account.
+  static bool _webSessionInvalidated = false;
+
   /// Cookie header of the stored web session (`name=value; ...`), or null
   /// when logged out.
   static String? get cookieHeader => _cookieHeader;
@@ -83,12 +88,21 @@ class ZhihuAuthStore {
     _cookieHeader = null;
     _user = null;
     _loginAtMs = 0;
+    _webSessionInvalidated = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_key);
     } catch (_) {
       // Ignore persistence failures.
     }
+  }
+
+  /// Reads and resets the logout flag; consumed by the login page before
+  /// it loads the sign-in URL.
+  static bool consumeWebSessionInvalidated() {
+    final value = _webSessionInvalidated;
+    _webSessionInvalidated = false;
+    return value;
   }
 
   static Future<void> _persist() async {

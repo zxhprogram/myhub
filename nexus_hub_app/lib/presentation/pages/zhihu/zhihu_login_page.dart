@@ -22,6 +22,23 @@ import '../../components/nexus_empty_state.dart';
 /// Once seen, the whole cookie jar is captured into [ZhihuAuthStore] and
 /// replayed by [ZhihuService] as a `Cookie` header. Pops with `true` when
 /// the session was captured, `null`/`false` on cancel.
+///
+/// ## Why the WebView is parked, never destroyed
+///
+/// Closing this page used to take the whole process down with it: the
+/// widget's `dispose` invokes the plugin's native `dispose`, which erases
+/// the WebView synchronously inside the method-call handler —
+/// `UnregisterTexture` → texture-bridge teardown → `DestroyWindow` +
+/// `ICoreWebView2Controller::Close()` — and that teardown chain crashes
+/// the app without any error (the vendored plugin already carries two
+/// local patches for related teardown landmines; see the pubspec notes).
+///
+/// The fix uses the plugin's own escape hatch: with a [keepAlive] handle,
+/// the native side stores the WebView under `keepAliveWebViews`, and the
+/// `dispose` handler only looks in `webViews` — so widget disposal is a
+/// no-op natively. The WebView is parked on `about:blank` and reused by
+/// the next login ([_keepAlive] is app-lifetime). [disposeKeepAlive] is
+/// deliberately never called: it would re-enter the crashing path.
 class ZhihuLoginPage extends StatefulWidget {
   const ZhihuLoginPage({super.key});
 
@@ -30,6 +47,16 @@ class ZhihuLoginPage extends StatefulWidget {
 }
 
 class _ZhihuLoginPageState extends State<ZhihuLoginPage> {
+  static const _signInUrl = 'https://www.zhihu.com/signin?next=%2F';
+
+  /// App-lifetime keep-alive handle parking the login WebView between
+  /// logins (see the class documentation for why it must never be
+  /// disposed).
+  static InAppWebViewKeepAlive? _keepAlive;
+
+  /// Controller of the currently attached WebView; null while parked.
+  InAppWebViewController? _webController;
+
   /// Polled alongside navigation callbacks in case the login completes
   /// without a full page navigation (QR scan inside the same document).
   Timer? _pollTimer;
@@ -40,9 +67,16 @@ class _ZhihuLoginPageState extends State<ZhihuLoginPage> {
   bool _checking = false;
   bool _webviewFailed = false;
 
+  /// Set when the store flagged the parked session as stale (logout), so
+  /// the WebView's cookies get cleared before the sign-in page loads —
+  /// otherwise the still-valid zhihu session would auto-login instantly
+  /// with the previous account.
+  bool _clearWebviewSession = false;
+
   @override
   void initState() {
     super.initState();
+    _clearWebviewSession = ZhihuAuthStore.consumeWebSessionInvalidated();
     _ensureWebViewAvailable();
     _pollTimer = Timer.periodic(
       const Duration(seconds: 2),
@@ -93,6 +127,9 @@ class _ZhihuLoginPageState extends State<ZhihuLoginPage> {
           if (cookie.value.isNotEmpty) '${cookie.name}=${cookie.value}',
       ].join('; ');
       await ZhihuAuthStore.save(header);
+      // Park the WebView before leaving so the kept-alive instance stops
+      // running the logged-in page in the background.
+      unawaited(_parkWebView());
       // Best-effort profile fetch; the session works without it.
       try {
         final me = await ZhihuService().fetchMe();
@@ -113,6 +150,50 @@ class _ZhihuLoginPageState extends State<ZhihuLoginPage> {
       // the WebView is still initialising.
     } finally {
       _checking = false;
+    }
+  }
+
+  /// Navigates the parked WebView to a blank document. The WebView keeps
+  /// living after this page closes (keep-alive), and `about:blank` costs
+  /// nothing to render.
+  Future<void> _parkWebView() async {
+    final controller = _webController;
+    _webController = null;
+    if (controller == null) return;
+    try {
+      await controller.loadUrl(
+        urlRequest: URLRequest(url: WebUri('about:blank')),
+      );
+    } catch (_) {
+      // Parking is best-effort; a failed navigation changes nothing for
+      // the already-captured session.
+    }
+  }
+
+  /// Prepares a freshly attached WebView: optionally clears the stale
+  /// zhihu cookies, then (re)loads the sign-in page. The explicit
+  /// navigation matters for re-attachments, where `initialUrlRequest` is
+  /// ignored by the native side.
+  Future<void> _prepareSession() async {
+    final controller = _webController;
+    if (controller == null) return;
+    if (_clearWebviewSession) {
+      _clearWebviewSession = false;
+      try {
+        await CookieManager.instance().deleteCookies(
+          url: WebUri('https://www.zhihu.com'),
+        );
+      } catch (_) {
+        // If clearing fails the page may auto-login with the old session;
+        // the user can sign out on the page itself.
+      }
+    }
+    try {
+      await controller.loadUrl(
+        urlRequest: URLRequest(url: WebUri(_signInUrl)),
+      );
+    } catch (_) {
+      // initialUrlRequest already covers the fresh-creation path.
     }
   }
 
@@ -153,13 +234,16 @@ class _ZhihuLoginPageState extends State<ZhihuLoginPage> {
 
   Widget _buildWebView() {
     return InAppWebView(
-      initialUrlRequest: URLRequest(
-        url: WebUri('https://www.zhihu.com/signin?next=%2F'),
-      ),
+      keepAlive: _keepAlive ??= InAppWebViewKeepAlive(),
+      initialUrlRequest: URLRequest(url: WebUri(_signInUrl)),
       initialSettings: InAppWebViewSettings(
         javaScriptEnabled: true,
         transparentBackground: false,
       ),
+      onWebViewCreated: (controller) {
+        _webController = controller;
+        unawaited(_prepareSession());
+      },
       onLoadStop: (_, _) => _checkLogin(),
       onUpdateVisitedHistory: (_, _, _) => _checkLogin(),
     );
