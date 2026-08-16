@@ -48,8 +48,9 @@ enum VideoProtocol {
       'NetflixGC 协议：列表/搜索走 JSON 接口，详情页解析 HTML，播放页双重加密'
       '后经云端解析接口取流。站点域名变更时无需改动协议，只需更新下方域名。',
     movie555 =>
-      '555电影 协议：列表来自 /frim 分类页（单页展示，无分页），搜索走 suggest '
-      '接口，详情页解析播放源与剧集，播放页直接返回 m3u8 地址。仅需配置站点域名。',
+      '555电影 协议：列表来自 /haokanshow 筛选页（支持分页，首次浏览需完成'
+      '人机验证），搜索走 suggest 接口，详情页解析播放源与剧集，播放页直接'
+      '返回 m3u8 地址。仅需配置站点域名。',
   };
 
   static VideoProtocol fromName(String? value) {

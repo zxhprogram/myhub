@@ -1,12 +1,16 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../../data/models/video_models.dart';
 import '../../../data/models/video_site_config.dart';
 import '../../../data/services/video_site_config_storage.dart';
+import '../../../data/services/video_site_exception.dart';
 import '../../../data/services/video_site_service.dart';
 import '../../../theme/radii.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/typography.dart';
+import '../../components/nexus_button.dart';
 import '../../components/nexus_cached_image.dart';
 import '../../components/nexus_empty_state.dart';
 import '../../components/nexus_input.dart';
@@ -15,10 +19,14 @@ import 'video_detail_page.dart';
 import 'video_source_manager_dialog.dart';
 
 /// Video streaming sub-app: browses the movies / series / documentary /
-/// variety / anime lists of the active data source (a netflixgc-protocol
-/// site), with title search. The header offers a quick source switcher;
-/// the settings button beside it opens the source manager where sources
-/// can be created, edited and deleted.
+/// variety / anime lists of the active data source, with title search.
+/// The header offers a quick source switcher; the settings button beside
+/// it opens the source manager where sources can be created, edited and
+/// deleted.
+///
+/// Sources whose protocol gates the browse list behind a captcha (see
+/// [CaptchaRequiredException]) prompt an in-app challenge dialog and
+/// retry automatically once it is solved.
 ///
 /// Tapping a poster opens [VideoDetailPage] inside the desktop window's
 /// local navigator.
@@ -48,6 +56,10 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   VideoCategory _category = VideoCategory.series;
   bool _loading = false;
   String? _error;
+
+  /// True while the last error was a skipped captcha challenge, so the
+  /// error state can offer a "重新验证" action.
+  bool _captchaPending = false;
 
   /// Monotonic request counter; completions of superseded requests only
   /// update the cache, never the UI.
@@ -84,6 +96,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     _config = config;
     _service = VideoSiteService(config: config);
     _error = null;
+    _captchaPending = false;
     _searchKeyword = '';
     _searchResults = const [];
     _searchController.clear();
@@ -130,6 +143,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     setState(() {
       _loading = true;
       _error = null;
+      _captchaPending = false;
     });
     try {
       final result = await _service.fetchSeries(
@@ -141,6 +155,19 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         ..result = result;
       if (!mounted || seq != _requestSeq) return;
       setState(() => _loading = false);
+    } on CaptchaRequiredException {
+      if (!mounted) return;
+      final solved = await _handleCaptchaChallenge();
+      if (!mounted || seq != _requestSeq) return;
+      if (solved) {
+        _loadCategory(category, page: targetPage);
+        return;
+      }
+      setState(() {
+        _captchaPending = true;
+        _error = '该数据源需要完成人机验证后才能浏览列表';
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted || seq != _requestSeq) return;
       setState(() {
@@ -148,6 +175,24 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         _loading = false;
       });
     }
+  }
+
+  /// Opens the captcha challenge dialog of the active source (protocols
+  /// without one never get here — their pages do not throw
+  /// [CaptchaRequiredException]). True when the challenge was solved and
+  /// the failed request can be retried.
+  Future<bool> _handleCaptchaChallenge() async {
+    final movie555 = _service.movie555;
+    if (movie555 == null) return false;
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _CaptchaDialog(
+            fetchImage: movie555.fetchCaptchaImage,
+            submit: movie555.submitCaptcha,
+          ),
+        ) ??
+        false;
   }
 
   void _switchCategory(VideoCategory category) {
@@ -158,6 +203,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       _searchResults = const [];
       _searchController.clear();
       _error = null;
+      _captchaPending = false;
     });
     // Cached pages survive tab switches; only fetch what is missing.
     if (_tabs[category]!.result == null) {
@@ -172,6 +218,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     setState(() {
       _loading = true;
       _error = null;
+      _captchaPending = false;
       _searchKeyword = trimmed;
     });
     try {
@@ -290,6 +337,14 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         icon: Icons.cloud_off_outlined,
         title: '加载失败',
         subtitle: _error!,
+        action: _captchaPending
+            ? NexusButton(
+                label: '重新验证',
+                variant: NexusButtonVariant.tonal,
+                icon: Icons.verified_user_outlined,
+                onPressed: () => _loadCategory(_category),
+              )
+            : null,
       );
     }
 
@@ -693,6 +748,198 @@ class _PageBar extends StatelessWidget {
           icon: const Icon(Icons.chevron_right),
           tooltip: '下一页',
           onPressed: onNext,
+        ),
+      ],
+    );
+  }
+}
+
+/// Captcha challenge dialog for sites that gate their browse list behind
+/// an image captcha (555电影): loads the code image bound to the site
+/// session, submits the typed code and pops with `true` on success.
+///
+/// [fetchImage] and [submit] come straight from the active source's
+/// Movie555SiteService so the image and the check share its cookie jar.
+class _CaptchaDialog extends StatefulWidget {
+  const _CaptchaDialog({required this.fetchImage, required this.submit});
+
+  final Future<Uint8List> Function() fetchImage;
+  final Future<bool> Function(String code) submit;
+
+  @override
+  State<_CaptchaDialog> createState() => _CaptchaDialogState();
+}
+
+class _CaptchaDialogState extends State<_CaptchaDialog> {
+  final _codeController = TextEditingController();
+  Uint8List? _image;
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshImage();
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refreshImage() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final image = await widget.fetchImage();
+      if (mounted) {
+        setState(() {
+          _image = image;
+          _busy = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = '验证码加载失败：$e';
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _submit() async {
+    final code = _codeController.text.trim();
+    if (code.isEmpty || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final solved = await widget.submit(code);
+      if (!mounted) return;
+      if (solved) {
+        Navigator.of(context).pop(true);
+        return;
+      }
+      setState(() {
+        _error = '验证码不正确，请重试';
+        _busy = false;
+      });
+      _codeController.clear();
+      await _refreshImage();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = '提交失败：$e';
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      backgroundColor: colorScheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
+      title: Row(
+        children: [
+          Icon(Icons.verified_user_outlined, size: 24,
+              color: colorScheme.secondary),
+          const SizedBox(width: NexusSpacing.sm),
+          Text('人机验证', style: NexusTypography.headlineSm),
+        ],
+      ),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '该站点要求完成验证后才能浏览列表，输入图片中的字符即可，验证一次在本轮浏览中持续有效。',
+              style: NexusTypography.labelSm.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: NexusSpacing.md),
+            Center(
+              child: _busy && _image == null
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    )
+                  : _image == null
+                      ? Text(
+                          _error ?? '验证码不可用',
+                          style: NexusTypography.labelSm.copyWith(
+                            color: colorScheme.error,
+                          ),
+                        )
+                      : GestureDetector(
+                          onTap: _refreshImage,
+                          child: ClipRRect(
+                            borderRadius: NexusRadii.smRadius,
+                            child: Image.memory(
+                              _image!,
+                              height: 48,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+            ),
+            if (_image != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _busy ? null : _refreshImage,
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('换一张'),
+                ),
+              ),
+            NexusInput(
+              controller: _codeController,
+              labelText: '验证码',
+              hintText: '输入图片中的字符',
+              autofocus: true,
+              enabled: !_busy,
+              onSubmitted: (_) => _submit(),
+            ),
+            if (_error != null && _image != null) ...[
+              const SizedBox(height: NexusSpacing.sm),
+              Text(
+                _error!,
+                style: NexusTypography.labelSm.copyWith(
+                  color: colorScheme.error,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        NexusButton(
+          label: '取消',
+          variant: NexusButtonVariant.text,
+          onPressed: _busy ? null : () => Navigator.of(context).pop(false),
+        ),
+        const SizedBox(width: NexusSpacing.sm),
+        NexusButton(
+          label: '提交',
+          icon: Icons.check,
+          onPressed: _busy ? null : _submit,
         ),
       ],
     );

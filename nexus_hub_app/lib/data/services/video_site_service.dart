@@ -60,7 +60,9 @@ class VideoSiteService {
 
   /// Service implementing the movie555 protocol when the configured
   /// source uses it; null otherwise (netflixgc is implemented here).
-  late final Movie555SiteService? _movie555 =
+  /// Exposed for the protocol-specific extras the browse UI needs, e.g.
+  /// the captcha challenge flow.
+  late final Movie555SiteService? movie555 =
       _config.protocol == VideoProtocol.movie555
           ? Movie555SiteService(config: _config)
           : null;
@@ -100,7 +102,7 @@ class VideoSiteService {
     VideoCategory category = VideoCategory.series,
     int page = 1,
   }) async {
-    final movie555 = _movie555;
+    final movie555 = this.movie555;
     if (movie555 != null) {
       return movie555.fetchSeries(category: category, page: page);
     }
@@ -147,7 +149,7 @@ class VideoSiteService {
 
   /// Searches by title through the site's suggest API (max 20 hits).
   Future<List<VideoSeries>> search(String keyword) async {
-    final movie555 = _movie555;
+    final movie555 = this.movie555;
     if (movie555 != null) {
       return movie555.search(keyword);
     }
@@ -180,7 +182,7 @@ class VideoSiteService {
   /// Scrapes a series detail page (`/voddetail/{id}.html`), including the
   /// playback sources and their episode lists.
   Future<VideoDetail> fetchDetail(int vodId) async {
-    final movie555 = _movie555;
+    final movie555 = this.movie555;
     if (movie555 != null) {
       return movie555.fetchDetail(vodId);
     }
@@ -211,7 +213,7 @@ class VideoSiteService {
     required String playPath,
     required String episodeLabel,
   }) async {
-    final movie555 = _movie555;
+    final movie555 = this.movie555;
     if (movie555 != null) {
       return movie555.resolvePlay(
         playPath: playPath,

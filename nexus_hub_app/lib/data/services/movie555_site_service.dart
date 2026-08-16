@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -12,12 +13,14 @@ import 'video_site_exception.dart';
 /// Every page of the site sits behind an nginx challenge: the first
 /// request answers 403 and issues a short-lived cookie, and replaying the
 /// request with that cookie yields the real page (see [_challengeGet]).
+/// The browse pages additionally sit behind the site's own image captcha
+/// until it is solved once per PHP session (see [fetchCaptchaImage] /
+/// [submitCaptcha]); until then [fetchSeries] throws
+/// [CaptchaRequiredException] and every other path works normally.
 ///
 /// Four data paths are used:
-///  * Browse list — the `/frim/{typeId}.html` channel pages. They are
-///    showcase style ("新片上线" / "排行榜" / "最近更新" sections) with no
-///    pagination, so all sections are merged — deduplicated by detail
-///    link — into a single page.
+///  * Browse list — the `/haokanshow/{type}--------{page}---.html` filter
+///    pages (48 posters per page, true pagination).
 ///  * Search — `GET /index.php/ajax/suggest?mid=1&wd=...`, the JSON
 ///    autocomplete API behind the site's search box (the same endpoint
 ///    shape the netflixgc protocol uses).
@@ -53,42 +56,85 @@ class Movie555SiteService {
 
   final Dio _dio;
 
-  /// Cookie granted by the site's 403 challenge, echoed on every request
-  /// until it expires — at which point the challenge simply runs again.
+  /// Cookie jar of the WAF challenge plus the PHP session the captcha
+  /// unlock binds to; every response's Set-Cookie headers are merged in
+  /// (see [_absorbCookies]) and the jar is echoed on every request.
   String _challengeCookie = '';
 
-  /// Channel page of each browse category. The 555 deployment has no
-  /// documentary channel, so that tab falls back to the movie channel.
-  static const Map<VideoCategory, String> _categoryChannels = {
-    VideoCategory.movies: '/frim/1.html',
-    VideoCategory.series: '/frim/2.html',
-    VideoCategory.variety: '/frim/3.html',
-    VideoCategory.anime: '/frim/4.html',
-    VideoCategory.documentary: '/frim/1.html',
+  /// Vod type id of each browse category's `/haokanshow/{type}...` page.
+  /// The 555 deployment has no documentary channel, so that tab falls
+  /// back to the movie channel.
+  static const Map<VideoCategory, int> _categoryTypes = {
+    VideoCategory.movies: 1,
+    VideoCategory.series: 2,
+    VideoCategory.variety: 3,
+    VideoCategory.anime: 4,
+    VideoCategory.documentary: 1,
   };
+
+  /// Body text of the captcha interstitial the browse pages answer with
+  /// until the session is unlocked.
+  static const String _captchaMarker = '访问此数据需要输入验证码';
 
   // ------------------------------------------------------------------
   // Browse list
   // ------------------------------------------------------------------
 
-  /// Fetches the browse list of a category. Channel pages are single-page
-  /// showcases, so anything beyond [page] 1 is empty and [pageCount] is
-  /// always 1.
+  /// Fetches one page of a category's `/haokanshow/{type}--------{page}---.html`
+  /// filter page (48 posters per page).
+  ///
+  /// Throws [CaptchaRequiredException] while the site session still needs
+  /// its image captcha solved; call [fetchCaptchaImage] / [submitCaptcha]
+  /// and retry.
   Future<VideoSeriesPage> fetchSeries({
     VideoCategory category = VideoCategory.series,
     int page = 1,
   }) async {
-    if (page > 1) {
-      return VideoSeriesPage(items: const [], page: page, pageCount: 1, total: 0);
+    final type = _categoryTypes[category]!;
+    final html = await _getHtml('/haokanshow/$type--------$page---.html');
+    if (html.contains(_captchaMarker)) {
+      throw CaptchaRequiredException('站点需要完成人机验证后才能浏览列表');
     }
-    final html = await _getHtml(_categoryChannels[category]!);
     final items = Movie555ChannelParser.parseSeries(html);
+    final pageCount = Movie555ChannelParser.parsePageCount(html);
     return VideoSeriesPage(
       items: items,
-      page: 1,
-      pageCount: 1,
-      total: items.length,
+      page: page,
+      pageCount: pageCount,
+      // The pages carry no total count; the page size is constant, so
+      // pages × items is a close display estimate.
+      total: pageCount > 0 && items.isNotEmpty ? pageCount * items.length : 0,
     );
+  }
+
+  // ------------------------------------------------------------------
+  // Captcha
+  // ------------------------------------------------------------------
+
+  /// Fetches the captcha image tied to the current PHP session
+  /// (`/index.php/verify/index.html`). Only meaningful right after a
+  /// [CaptchaRequiredException].
+  Future<Uint8List> fetchCaptchaImage() async {
+    final response = await _challengeGet<List<int>>(
+      '/index.php/verify/index.html',
+      queryParameters: {
+        'r': '${DateTime.now().millisecondsSinceEpoch}',
+      },
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data ?? const []);
+  }
+
+  /// Submits a captcha [code] for the "show" page gate. True when the
+  /// session is unlocked and browse pages can be retried.
+  Future<bool> submitCaptcha(String code) async {
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) return false;
+    final body = await _postJson(
+      '/index.php/ajax/verify_check',
+      queryParameters: {'type': 'show', 'verify': trimmed},
+    );
+    return (body['code'] as num?)?.toInt() == 1;
   }
 
   // ------------------------------------------------------------------
@@ -223,27 +269,42 @@ class Movie555SiteService {
     }
   }
 
-  /// Runs a GET through the site's cookie challenge: a 403 answer hands
-  /// out the cookie via Set-Cookie, and one replay with it succeeds.
-  /// Responses other than 200 (after the retry) fail with a
-  /// [StateException].
-  Future<Response<T>> _challengeGet<T>(
+  /// Posts to a JSON ajax endpoint (fetched as plain text for the same
+  /// reason as [_getJson]).
+  Future<Map<String, dynamic>> _postJson(
     String path, {
     Map<String, dynamic>? queryParameters,
-    Options? options,
   }) async {
-    var response = await _dio.get<T>(
-      path,
-      queryParameters: queryParameters,
-      options: _withCookie(options),
-    );
-    if (response.statusCode == 403) {
-      _absorbChallengeCookie(response);
-      response = await _dio.get<T>(
+    final response = await _exchange(
+      () => _dio.post<String>(
         path,
         queryParameters: queryParameters,
-        options: _withCookie(options),
-      );
+        options: _withCookie(
+          Options(
+            responseType: ResponseType.plain,
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+          ),
+        ),
+      ),
+    );
+    try {
+      return Map<String, dynamic>.from(jsonDecode(response.data ?? '') as Map);
+    } on FormatException {
+      return const <String, dynamic>{};
+    }
+  }
+
+  /// Runs a request through the site's cookie challenge: every response's
+  /// Set-Cookie headers are merged into the jar (WAF challenge plus PHP
+  /// session), a 403 answer hands out a fresh WAF cookie whose replay
+  /// goes through, and anything still not 200 fails with a
+  /// [StateException].
+  Future<Response<T>> _exchange<T>(Future<Response<T>> Function() send) async {
+    var response = await send();
+    _absorbCookies(response);
+    if (response.statusCode == 403) {
+      response = await send();
+      _absorbCookies(response);
     }
     if (response.statusCode != 200) {
       throw StateException(
@@ -251,6 +312,20 @@ class Movie555SiteService {
       );
     }
     return response;
+  }
+
+  Future<Response<T>> _challengeGet<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) {
+    return _exchange(
+      () => _dio.get<T>(
+        path,
+        queryParameters: queryParameters,
+        options: _withCookie(options),
+      ),
+    );
   }
 
   Options? _withCookie(Options? options) {
@@ -261,9 +336,9 @@ class Movie555SiteService {
   }
 
   /// Merges the `name=value` pairs of the response's Set-Cookie headers
-  /// into [_challengeCookie]. The challenge cookie's name rotates, so the
-  /// pairs are kept in a map keyed by name.
-  void _absorbChallengeCookie(Response<dynamic> response) {
+  /// into the cookie jar. Cookie names rotate (WAF challenge, session
+  /// regeneration), so pairs are kept in a map keyed by name.
+  void _absorbCookies(Response<dynamic> response) {
     final pairs = <String, String>{};
     for (final pair in _challengeCookie.split(';')) {
       final eq = pair.indexOf('=');
@@ -300,13 +375,15 @@ class Movie555SiteService {
   }
 }
 
-/// Parses a `/frim/{typeId}.html` channel page into poster items.
+/// Parses a `/haokanshow/{type}--------{page}---.html` browse page into
+/// poster items and its page count.
 ///
-/// Layout notes (mxtheme MacCMS template): every section ("新片上线" /
-/// "排行榜" / "最近更新") renders the same `a.module-poster-item` cards —
-/// cover in `data-original`, broadcast state in `.module-item-note`,
-/// title in `.module-poster-item-title` — and the same series can appear
-/// in several sections, so items are deduplicated by detail link.
+/// Layout notes (mxtheme MacCMS template): every poster is an
+/// `a.module-poster-item` card — cover in `data-original`, broadcast
+/// state in `.module-item-note`, title in `.module-poster-item-title` —
+/// and the same series can be listed twice, so items are deduplicated by
+/// detail link. Pagination lives in the `#page` div whose 尾页 (last
+/// page) link carries the highest page number.
 abstract final class Movie555ChannelParser {
   static final RegExp _itemRe = RegExp(
     r'<a href="(/movie/\d+\.html)"[^>]*class="module-poster-item[^"]*">([\s\S]*?)</a>',
@@ -315,6 +392,9 @@ abstract final class Movie555ChannelParser {
   static final RegExp _coverRe = RegExp(r'data-original="([^"]+)"');
   static final RegExp _titleRe = RegExp(
     r'class="module-poster-item-title">([^<]*)<',
+  );
+  static final RegExp _pageLinkRe = RegExp(
+    r'/haokanshow/\d+--------(\d+)---\.html',
   );
 
   static List<VideoSeries> parseSeries(String html) {
@@ -344,6 +424,17 @@ abstract final class Movie555ChannelParser {
       );
     }
     return items;
+  }
+
+  /// Highest page number referenced by the pagination links; 1 when the
+  /// category fits on a single page.
+  static int parsePageCount(String html) {
+    var max = 0;
+    for (final match in _pageLinkRe.allMatches(html)) {
+      final n = int.tryParse(match.group(1) ?? '') ?? 0;
+      if (n > max) max = n;
+    }
+    return max > 0 ? max : 1;
   }
 
   /// Decodes the HTML entities emitted by this site (basic named entities
