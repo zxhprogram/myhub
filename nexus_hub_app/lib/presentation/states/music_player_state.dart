@@ -5,10 +5,15 @@ import 'dart:math' as math;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
+import '../../data/models/music_playlist_model.dart';
 import '../../data/models/music_track_model.dart';
+import '../../data/services/music_service.dart';
 
 /// Repeat behaviour of the playlist.
 enum MusicRepeatMode { off, all, one }
+
+/// High-level view mode shown in the playlist pane.
+enum MusicBrowseMode { playlists, search }
 
 /// Signals-backed singleton for the online music player.
 ///
@@ -18,85 +23,41 @@ enum MusicRepeatMode { off, all, one }
 /// The Dart side only sends control commands (play/pause/seek/volume) via
 /// `evaluateJavascript` and receives progress events back through a
 /// JavaScript handler.
+///
+/// Track data is sourced from the mu-jie.cc musicBox API.
 class MusicPlayerState {
   MusicPlayerState._();
 
   /// The singleton instance used across the app.
   static final MusicPlayerState instance = MusicPlayerState._();
 
-  /// Curated online playlist — royalty-free demo streams from SoundHelix.
-  static const List<MusicTrack> playlist = [
-    MusicTrack(
-      id: 'aurora-dawn',
-      title: 'Aurora Dawn',
-      artist: 'SoundHelix',
-      album: 'Nightfall Echoes',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    ),
-    MusicTrack(
-      id: 'neon-skyline',
-      title: 'Neon Skyline',
-      artist: 'SoundHelix',
-      album: 'Nightfall Echoes',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    ),
-    MusicTrack(
-      id: 'midnight-drive',
-      title: 'Midnight Drive',
-      artist: 'SoundHelix',
-      album: 'Chrome Highways',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    ),
-    MusicTrack(
-      id: 'emerald-tides',
-      title: 'Emerald Tides',
-      artist: 'SoundHelix',
-      album: 'Chrome Highways',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    ),
-    MusicTrack(
-      id: 'solar-winds',
-      title: 'Solar Winds',
-      artist: 'SoundHelix',
-      album: 'Distant Signals',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    ),
-    MusicTrack(
-      id: 'velvet-horizon',
-      title: 'Velvet Horizon',
-      artist: 'SoundHelix',
-      album: 'Distant Signals',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
-    ),
-    MusicTrack(
-      id: 'crimson-cascade',
-      title: 'Crimson Cascade',
-      artist: 'SoundHelix',
-      album: 'Painted Gravity',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3',
-    ),
-    MusicTrack(
-      id: 'lunar-drift',
-      title: 'Lunar Drift',
-      artist: 'SoundHelix',
-      album: 'Painted Gravity',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
-    ),
-    MusicTrack(
-      id: 'electric-bloom',
-      title: 'Electric Bloom',
-      artist: 'SoundHelix',
-      album: 'Painted Gravity',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3',
-    ),
-    MusicTrack(
-      id: 'amber-waves',
-      title: 'Amber Waves',
-      artist: 'SoundHelix',
-      album: 'Golden Hour',
-      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',
-    ),
-  ];
+  final MusicService _service = MusicService();
+
+  /// The currently loaded track list (empty until a playlist or search
+  /// result is loaded).
+  final playlist = signal<List<MusicTrack>>(const []);
+
+  /// Name of the currently loaded playlist or search result set.
+  final playlistTitle = signal<String>('');
+
+  /// Recommended playlists shown in the browse pane.
+  final recommendPlaylists = signal<List<MusicPlaylist>>(const []);
+
+  /// Whether the playlist pane is showing recommended playlists or
+  /// search results.
+  final browseMode = signal<MusicBrowseMode>(MusicBrowseMode.playlists);
+
+  /// Search results for playlists.
+  final searchPlaylistResults = signal<List<MusicPlaylist>>(const []);
+
+  /// Whether a browse-pane operation (load recommends / search) is running.
+  final isBrowseLoading = signal<bool>(false);
+
+  /// Whether a track-list load is in progress.
+  final isPlaylistLoading = signal<bool>(false);
+
+  /// Error message from the last failed operation, cleared on success.
+  final errorMessage = signal<String?>(null);
 
   /// Index of the loaded track in [playlist], `-1` before the first play.
   final currentIndex = signal<int>(-1);
@@ -122,8 +83,11 @@ class MusicPlayerState {
   /// Playlist repeat behaviour.
   final repeatMode = signal<MusicRepeatMode>(MusicRepeatMode.off);
 
-  MusicTrack? get currentTrack =>
-      currentIndex.value >= 0 ? playlist[currentIndex.value] : null;
+  MusicTrack? get currentTrack {
+    final idx = currentIndex.value;
+    final list = playlist.value;
+    return idx >= 0 && idx < list.length ? list[idx] : null;
+  }
 
   HeadlessInAppWebView? _webview;
   InAppWebViewController? _controller;
@@ -132,6 +96,81 @@ class MusicPlayerState {
   /// Boots the headless audio tab. Idempotent — the first call creates the
   /// WebView, later calls return the same future.
   Future<void> init() => _boot ??= _bootEngine();
+
+  /// Loads recommended playlists from the API. Called once when the music
+  /// page is first opened.
+  Future<void> loadRecommendPlaylists() async {
+    if (isBrowseLoading.value) return;
+    isBrowseLoading.value = true;
+    errorMessage.value = null;
+    try {
+      final result = await _service.getRecommendPlaylists();
+      recommendPlaylists.value = result;
+      browseMode.value = MusicBrowseMode.playlists;
+    } catch (e) {
+      errorMessage.value = '加载推荐歌单失败: $e';
+    } finally {
+      isBrowseLoading.value = false;
+    }
+  }
+
+  /// Searches for playlists by keyword.
+  Future<void> searchPlaylists(String keywords) async {
+    if (keywords.trim().isEmpty) return;
+    isBrowseLoading.value = true;
+    errorMessage.value = null;
+    try {
+      final result = await _service.searchPlaylists(keywords);
+      searchPlaylistResults.value = result;
+      browseMode.value = MusicBrowseMode.search;
+    } catch (e) {
+      errorMessage.value = '搜索歌单失败: $e';
+    } finally {
+      isBrowseLoading.value = false;
+    }
+  }
+
+  /// Searches for songs by keyword and loads the results as the active
+  /// playlist.
+  Future<void> searchSongs(String keywords) async {
+    if (keywords.trim().isEmpty) return;
+    isPlaylistLoading.value = true;
+    errorMessage.value = null;
+    try {
+      final result = await _service.searchSongs(keywords);
+      playlist.value = result;
+      playlistTitle.value = '搜索: $keywords';
+      currentIndex.value = -1;
+      isPlaying.value = false;
+      isBuffering.value = false;
+      positionSeconds.value = 0;
+      durationSeconds.value = 0;
+    } catch (e) {
+      errorMessage.value = '搜索歌曲失败: $e';
+    } finally {
+      isPlaylistLoading.value = false;
+    }
+  }
+
+  /// Loads a playlist's track list and makes it the active playlist.
+  Future<void> loadPlaylist(MusicPlaylist plist) async {
+    isPlaylistLoading.value = true;
+    errorMessage.value = null;
+    try {
+      final detail = await _service.getPlaylistDetail(plist.id);
+      playlist.value = detail.tracks;
+      playlistTitle.value = detail.name;
+      currentIndex.value = -1;
+      isPlaying.value = false;
+      isBuffering.value = false;
+      positionSeconds.value = 0;
+      durationSeconds.value = 0;
+    } catch (e) {
+      errorMessage.value = '加载歌单失败: $e';
+    } finally {
+      isPlaylistLoading.value = false;
+    }
+  }
 
   Future<void> _bootEngine() async {
     final pageReady = Completer<void>();
@@ -162,13 +201,14 @@ class MusicPlayerState {
 
   /// Starts streaming [index], replacing whatever was playing.
   Future<void> playTrack(int index) async {
-    if (index < 0 || index >= playlist.length) return;
+    final list = playlist.value;
+    if (index < 0 || index >= list.length) return;
     currentIndex.value = index;
     positionSeconds.value = 0;
     durationSeconds.value = 0;
     isBuffering.value = true;
     await init();
-    await _runJs("playerLoad('${playlist[index].url}')");
+    await _runJs("playerLoad('${list[index].url}')");
     await _runJs('playerSetVolume(${volume.value})');
   }
 
@@ -200,21 +240,22 @@ class MusicPlayerState {
   }
 
   void _skip(int delta) {
-    if (playlist.isEmpty) return;
-    if (shuffle.value && playlist.length > 1) {
+    final list = playlist.value;
+    if (list.isEmpty) return;
+    if (shuffle.value && list.length > 1) {
       final random = math.Random();
       var target = currentIndex.value;
       while (target == currentIndex.value) {
-        target = random.nextInt(playlist.length);
+        target = random.nextInt(list.length);
       }
       playTrack(target);
       return;
     }
     var target = currentIndex.value + delta;
     if (repeatMode.value == MusicRepeatMode.all) {
-      target = (target % playlist.length + playlist.length) % playlist.length;
+      target = (target % list.length + list.length) % list.length;
     } else {
-      target = target.clamp(0, playlist.length - 1).toInt();
+      target = target.clamp(0, list.length - 1).toInt();
       if (target == currentIndex.value) return; // already at the edge
     }
     playTrack(target);
@@ -253,6 +294,7 @@ class MusicPlayerState {
   }
 
   void _handleTrackEnded() {
+    final list = playlist.value;
     switch (repeatMode.value) {
       case MusicRepeatMode.one:
         positionSeconds.value = 0;
@@ -261,7 +303,7 @@ class MusicPlayerState {
       case MusicRepeatMode.all:
         next();
       case MusicRepeatMode.off:
-        if (currentIndex.value < playlist.length - 1) {
+        if (currentIndex.value < list.length - 1) {
           next();
         } else {
           isPlaying.value = false;

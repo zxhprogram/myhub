@@ -3,18 +3,22 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
+import '../../data/models/music_playlist_model.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
+import '../components/nexus_cached_image.dart';
 import '../layout/page_scaffold.dart';
 import '../states/music_player_state.dart';
 
 /// Online music player page.
 ///
-/// A macOS Music-style layout: a now-playing panel with generated artwork on
-/// the left, the streaming playlist on the right and a transport bar with
-/// seek/volume controls along the bottom. Audio keeps streaming while the
-/// desktop window is closed because the engine lives in [MusicPlayerState].
+/// A macOS Music-style layout: a now-playing panel with artwork on the
+/// left, the browse / track-list pane on the right and a transport bar
+/// with seek/volume controls along the bottom. Audio keeps streaming while
+/// the desktop window is closed because the engine lives in
+/// [MusicPlayerState]. Track data is sourced from the mu-jie.cc musicBox
+/// API.
 class MusicPlayerPage extends StatefulWidget {
   const MusicPlayerPage({super.key});
 
@@ -28,6 +32,8 @@ class _MusicPlayerPageState extends State<MusicPlayerPage> {
     super.initState();
     // Boots the headless browser tab that streams the audio. Idempotent.
     MusicPlayerState.instance.init();
+    // Load recommended playlists on first open.
+    MusicPlayerState.instance.loadRecommendPlaylists();
   }
 
   @override
@@ -44,7 +50,7 @@ class _MusicPlayerPageState extends State<MusicPlayerPage> {
               Text('Music', style: NexusTypography.headlineXl),
               const SizedBox(height: NexusSpacing.xs),
               Text(
-                'Stream the SoundHelix demo playlist online',
+                'mu-jie.cc musicBox · 在线音乐',
                 style: NexusTypography.bodyMd.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -90,7 +96,7 @@ class _MusicPlayerPageState extends State<MusicPlayerPage> {
                     ? Column(
                         children: const [
                           _CompactNowPlaying(),
-                          Expanded(child: _PlaylistView()),
+                          Expanded(child: _RightPane()),
                         ],
                       )
                     : Row(
@@ -98,7 +104,7 @@ class _MusicPlayerPageState extends State<MusicPlayerPage> {
                         children: const [
                           _NowPlayingPanel(),
                           _PlaylistDivider(),
-                          Expanded(child: _PlaylistView()),
+                          Expanded(child: _RightPane()),
                         ],
                       ),
               ),
@@ -126,36 +132,54 @@ class _PlaylistDivider extends StatelessWidget {
   }
 }
 
-/// Gradient artwork generated from the track position in the playlist.
+/// Artwork widget: shows the cover image when available, otherwise a
+/// generated gradient.
 class _Artwork extends StatelessWidget {
-  const _Artwork({required this.palette, this.iconSize = 44});
+  const _Artwork({
+    required this.palette,
+    this.imageUrl = '',
+    this.iconSize = 44,
+  });
 
   final List<Color> palette;
+  final String imageUrl;
   final double iconSize;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
+    if (imageUrl.isNotEmpty) {
+      return ClipRRect(
         borderRadius: NexusRadii.xlRadius,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: palette,
+        child: NexusCachedImage(
+          url: imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _) => _gradientArtwork,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: palette.last.withValues(alpha: 0.35),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Icon(Icons.music_note, color: Colors.white70, size: iconSize),
-      ),
-    );
+      );
+    }
+    return _gradientArtwork;
   }
+
+  Widget get _gradientArtwork => Container(
+        decoration: BoxDecoration(
+          borderRadius: NexusRadii.xlRadius,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: palette,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: palette.last.withValues(alpha: 0.35),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Icon(Icons.music_note, color: Colors.white70, size: iconSize),
+        ),
+      );
 }
 
 /// Full-height now-playing panel shown on wide layouts.
@@ -200,7 +224,10 @@ class _NowPlayingPanel extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 1,
-              child: _Artwork(palette: _paletteFor(state.currentIndex.value)),
+              child: _Artwork(
+                palette: _paletteFor(state.currentIndex.value),
+                imageUrl: track.pic,
+              ),
             ),
             const SizedBox(height: NexusSpacing.lg),
             Row(
@@ -228,7 +255,7 @@ class _NowPlayingPanel extends StatelessWidget {
             ),
             const SizedBox(height: NexusSpacing.xs),
             Text(
-              track.album,
+              track.album.isEmpty ? track.artist : track.album,
               style: NexusTypography.labelMd.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -293,6 +320,7 @@ class _CompactNowPlaying extends StatelessWidget {
             height: 56,
             child: _Artwork(
               palette: _paletteFor(state.currentIndex.value),
+              imageUrl: track.pic,
               iconSize: 24,
             ),
           ),
@@ -309,7 +337,7 @@ class _CompactNowPlaying extends StatelessWidget {
                 ),
                 const SizedBox(height: NexusSpacing.xs),
                 Text(
-                  '${track.artist} · ${track.album}',
+                  track.artist,
                   style: NexusTypography.bodyMd.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -327,13 +355,273 @@ class _CompactNowPlaying extends StatelessWidget {
   }
 }
 
-/// Scrollable list of the tracks in the playlist.
-class _PlaylistView extends StatelessWidget {
-  const _PlaylistView();
+/// Right pane: search bar + browse grid / track list.
+class _RightPane extends StatefulWidget {
+  const _RightPane();
+
+  @override
+  State<_RightPane> createState() => _RightPaneState();
+}
+
+class _RightPaneState extends State<_RightPane> {
+  final _searchController = TextEditingController();
+  bool _searchSongs = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _doSearch() async {
+    final keywords = _searchController.text.trim();
+    if (keywords.isEmpty) return;
+    final state = MusicPlayerState.instance;
+    if (_searchSongs) {
+      await state.searchSongs(keywords);
+    } else {
+      await state.searchPlaylists(keywords);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = MusicPlayerState.instance;
+    state.playlistTitle.watch(context);
+    state.isPlaylistLoading.watch(context);
+    state.isBrowseLoading.watch(context);
+    state.browseMode.watch(context);
+    state.errorMessage.watch(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final showBrowse = state.playlist.value.isEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            NexusSpacing.md,
+            NexusSpacing.sm,
+            NexusSpacing.md,
+            NexusSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: '搜索歌单或歌曲',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                          )
+                        : null,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: NexusSpacing.sm,
+                      vertical: NexusSpacing.xs,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: NexusRadii.mdRadius,
+                      borderSide: BorderSide(
+                        color: colorScheme.outlineVariant,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: NexusRadii.mdRadius,
+                      borderSide: BorderSide(
+                        color: colorScheme.outlineVariant,
+                      ),
+                    ),
+                  ),
+                  onSubmitted: (_) => _doSearch(),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: NexusSpacing.xs),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    label: Text('歌单', style: TextStyle(fontSize: 12)),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    label: Text('歌曲', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+                selected: {_searchSongs},
+                onSelectionChanged: (set) =>
+                    setState(() => _searchSongs = set.first),
+                showSelectedIcon: false,
+              ),
+            ],
+          ),
+        ),
+        // Error banner
+        if (state.errorMessage.value != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: NexusSpacing.md,
+            ),
+            child: Text(
+              state.errorMessage.value!,
+              style: NexusTypography.labelMd.copyWith(
+                color: colorScheme.error,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        // Content
+        Expanded(
+          child: showBrowse ? _BrowseContent() : _TrackListContent(),
+        ),
+      ],
+    );
+  }
+}
+
+/// Browse pane showing recommended playlists or search results.
+class _BrowseContent extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final state = MusicPlayerState.instance;
+    state.isBrowseLoading.watch(context);
+    state.browseMode.watch(context);
+    state.recommendPlaylists.watch(context);
+    state.searchPlaylistResults.watch(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (state.isBrowseLoading.value) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final playlists = state.browseMode.value == MusicBrowseMode.search
+        ? state.searchPlaylistResults.value
+        : state.recommendPlaylists.value;
+
+    if (playlists.isEmpty) {
+      return Center(
+        child: Text(
+          '暂无歌单',
+          style: NexusTypography.bodyMd.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(
+        NexusSpacing.md,
+        NexusSpacing.xs,
+        NexusSpacing.md,
+        NexusSpacing.sm,
+      ),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 160,
+        childAspectRatio: 0.72,
+        crossAxisSpacing: NexusSpacing.sm,
+        mainAxisSpacing: NexusSpacing.sm,
+      ),
+      itemCount: playlists.length,
+      itemBuilder: (context, index) =>
+          _PlaylistCard(playlist: playlists[index]),
+    );
+  }
+}
+
+/// A single playlist card in the browse grid.
+class _PlaylistCard extends StatelessWidget {
+  const _PlaylistCard({required this.playlist});
+
+  final MusicPlaylist playlist;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: NexusRadii.mdRadius,
+      onTap: () => MusicPlayerState.instance.loadPlaylist(playlist),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: NexusRadii.mdRadius,
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: playlist.coverImgUrl.isNotEmpty
+                    ? NexusCachedImage(
+                        url: playlist.coverImgUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _) => _placeholderCover(colorScheme),
+                      )
+                    : _placeholderCover(colorScheme),
+              ),
+            ),
+          ),
+          const SizedBox(height: NexusSpacing.xs),
+          Text(
+            playlist.name,
+            style: NexusTypography.labelMd.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (playlist.playCount > 0)
+            Text(
+              _formatPlayCount(playlist.playCount),
+              style: NexusTypography.labelMd.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 11,
+              ),
+              maxLines: 1,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _placeholderCover(ColorScheme colorScheme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: NexusRadii.mdRadius,
+      ),
+      child: Icon(
+        Icons.queue_music,
+        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+      ),
+    );
+  }
+}
+
+/// Track list content for the currently loaded playlist.
+class _TrackListContent extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final state = MusicPlayerState.instance;
+    state.playlist.watch(context);
+    state.isPlaylistLoading.watch(context);
+    state.playlistTitle.watch(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (state.isPlaylistLoading.value) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final tracks = state.playlist.value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -347,14 +635,52 @@ class _PlaylistView extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Up Next',
-                style: NexusTypography.labelMd.copyWith(
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  state.playlistTitle.value.isEmpty
+                      ? 'Up Next'
+                      : state.playlistTitle.value,
+                  style: NexusTypography.labelMd.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: NexusSpacing.sm),
+              InkWell(
+                onTap: () {
+                  state.playlist.value = const [];
+                  state.playlistTitle.value = '';
+                  state.currentIndex.value = -1;
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: NexusSpacing.xs,
+                    vertical: 2,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.arrow_back,
+                        size: 14,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        '歌单',
+                        style: NexusTypography.labelMd.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: NexusSpacing.sm),
               Text(
-                '${MusicPlayerState.playlist.length} tracks · online',
+                '${tracks.length} tracks',
                 style: NexusTypography.labelMd.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -365,7 +691,7 @@ class _PlaylistView extends StatelessWidget {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
-            itemCount: MusicPlayerState.playlist.length,
+            itemCount: tracks.length,
             itemBuilder: (context, index) => _TrackRow(index: index),
           ),
         ),
@@ -387,7 +713,7 @@ class _TrackRow extends StatelessWidget {
     state.isPlaying.watch(context);
     state.durationSeconds.watch(context);
     final colorScheme = Theme.of(context).colorScheme;
-    final track = MusicPlayerState.playlist[index];
+    final track = state.playlist.value[index];
     final isCurrent = state.currentIndex.value == index;
     return InkWell(
       onTap: () => state.playTrack(index),
@@ -419,6 +745,7 @@ class _TrackRow extends StatelessWidget {
               height: 34,
               child: _Artwork(
                 palette: _paletteFor(index),
+                imageUrl: track.pic,
                 iconSize: 16,
               ),
             ),
@@ -782,4 +1109,14 @@ String _formatDuration(double seconds) {
   final mm = minutes.toString().padLeft(2, '0');
   final ss = secs.toString().padLeft(2, '0');
   return hours > 0 ? '$hours:$mm:$ss' : '$mm:$ss';
+}
+
+String _formatPlayCount(int count) {
+  if (count >= 100000000) {
+    return '${(count / 100000000).toStringAsFixed(1)}亿';
+  }
+  if (count >= 10000) {
+    return '${(count / 10000).toStringAsFixed(1)}万';
+  }
+  return count.toString();
 }
