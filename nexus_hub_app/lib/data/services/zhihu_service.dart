@@ -71,13 +71,51 @@ class ZhihuService {
 
   static const _feedPageSize = 8;
 
-  /// Browser headers for `www.zhihu.com` endpoints, replaying the stored
-  /// session cookies when the user is logged in.
-  Map<String, String> _webHeaders({String? referer}) {
+  /// Browser headers for `www.zhihu.com` API endpoints, replaying the
+  /// stored session cookies when the user is logged in.
+  Map<String, String> _webHeaders({String? referer, String? origin}) {
     final headers = <String, String>{
       'User-Agent': _browserUserAgent,
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
       'Referer': ?referer,
       'x-requested-with': 'fetch',
+      'Origin': ?origin,
+    };
+    final cookie = ZhihuAuthStore.cookieHeader;
+    if (cookie != null && cookie.isNotEmpty) {
+      headers['Cookie'] = cookie;
+    }
+    return headers;
+  }
+
+  /// Browser headers for a page-navigation request to `www.zhihu.com`.
+  /// Deliberately omits `x-requested-with: fetch` — that header marks
+  /// AJAX calls and makes Zhihu return a non-SSR response for the
+  /// homepage, which breaks the feed fallback parser.
+  Map<String, String> _pageHeaders({String? referer}) {
+    final headers = <String, String>{
+      'User-Agent': _browserUserAgent,
+      'Accept':
+          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      'Referer': ?referer,
+    };
+    final cookie = ZhihuAuthStore.cookieHeader;
+    if (cookie != null && cookie.isNotEmpty) {
+      headers['Cookie'] = cookie;
+    }
+    return headers;
+  }
+
+  /// App headers for `api.zhihu.com` endpoints, replaying the stored
+  /// session cookie. The mobile app API does not require the web-only
+  /// `x-zse-96` signature header.
+  Map<String, String> _appAuthHeaders() {
+    final headers = <String, String>{
+      'User-Agent': _appUserAgent,
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'zh-CN,zh;q=0.9',
     };
     final cookie = ZhihuAuthStore.cookieHeader;
     if (cookie != null && cookie.isNotEmpty) {
@@ -252,6 +290,10 @@ class ZhihuService {
     if (!ZhihuAuthStore.isLoggedIn) {
       throw const ZhihuException('登录后才能查看推荐 Feed');
     }
+    Object? apiError;
+    // 1. Web feed API — the primary source, but Zhihu increasingly
+    //    requires a computed x-zse-96 signature header that we cannot
+    //    produce, so this may fail with 401 / error body.
     try {
       final response = await _dio.post<dynamic>(
         'https://www.zhihu.com/api/v3/feed/topstory/recommend',
@@ -262,19 +304,43 @@ class ZhihuService {
         },
         options: Options(
           responseType: ResponseType.json,
-          headers: _webHeaders(referer: 'https://www.zhihu.com/'),
+          headers: _webHeaders(
+            referer: 'https://www.zhihu.com/',
+            origin: 'https://www.zhihu.com',
+          ),
         ),
       );
       return _parseRecommendApi(_asJsonMap(response.data));
-    } catch (_) {/* fall through to the homepage fallback */}
+    } catch (e) {
+      apiError = e;
+    }
+    // 2. Mobile app API — uses the app User-Agent with the session
+    //    cookie and does not require the web signature header. Only
+    //    fetched for the first page (the pagination cursor differs).
+    if (afterId == null) {
+      try {
+        final response = await _dio.get<dynamic>(
+          'https://api.zhihu.com/topstory/recommend',
+          queryParameters: {'limit': _feedPageSize},
+          options: Options(
+            responseType: ResponseType.json,
+            headers: _appAuthHeaders(),
+          ),
+        );
+        return _parseRecommendApi(_asJsonMap(response.data));
+      } catch (_) {}
+    }
+    // 3. Server-rendered homepage — scrape the SSR feed payload as a
+    //    last resort (first page only).
     if (afterId == null) {
       try {
         final html = await _fetchHomepageHtml();
         return _parseHomepageFeed(html);
       } catch (_) {}
     }
-    throw const ZhihuException(
-      '无法加载推荐 Feed，登录状态可能已过期，请退出后重新登录',
+    throw ZhihuException(
+      '无法加载推荐 Feed（${_describeError(apiError)}）。'
+      '登录状态可能已过期，请退出后重新登录',
     );
   }
 
@@ -283,9 +349,13 @@ class ZhihuService {
       'https://www.zhihu.com/',
       options: Options(
         responseType: ResponseType.plain,
-        headers: _webHeaders(referer: 'https://www.zhihu.com/'),
+        headers: _pageHeaders(referer: 'https://www.zhihu.com/'),
       ),
     );
+    final status = response.statusCode;
+    if (status != null && status >= 400) {
+      throw ZhihuException('知乎首页返回 HTTP $status');
+    }
     final html = response.data ?? '';
     if (html.isEmpty) {
       throw const ZhihuException('首页内容为空');
@@ -312,6 +382,8 @@ class ZhihuService {
     final error = data['error'];
     if (error is Map) {
       throw ZhihuException(error['message']?.toString() ?? '接口返回错误');
+    } else if (error is String && error.isNotEmpty) {
+      throw ZhihuException(error);
     }
   }
 
@@ -404,7 +476,8 @@ class ZhihuService {
       final isEnd = paging['is_end'] == true;
       final next = _str(paging['next']);
       final nextUri = next.isEmpty ? null : Uri.tryParse(next);
-      final cursor = nextUri?.queryParameters['after_id'];
+      final cursor = nextUri?.queryParameters['after_id'] ??
+          nextUri?.queryParameters['before_id'];
       hasMore = !isEnd && cursor != null && cursor.isNotEmpty;
       nextAfterId = hasMore ? cursor : null;
     }
@@ -419,14 +492,24 @@ class ZhihuService {
   /// cookie-only fallback when the feed API rejects the request.
   static ZhihuFeedPage _parseHomepageFeed(String html) {
     final match = RegExp(
-      r'<script id="js-initialData" type="text/json">([\s\S]*?)</script>',
+      r'<script id="js-initialData"[^>]*>([\s\S]*?)</script>',
     ).firstMatch(html);
     if (match == null) {
       throw const ZhihuException('首页数据解析失败');
     }
     final Map<String, dynamic> data;
     try {
-      data = Map<String, dynamic>.from(jsonDecode(match.group(1)!) as Map);
+      final raw = match.group(1)!;
+      Map<String, dynamic> decoded;
+      try {
+        decoded = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      } catch (_) {
+        // Some payloads are HTML-entity-encoded.
+        decoded = Map<String, dynamic>.from(
+          jsonDecode(_decodeHtmlEntities(raw)) as Map,
+        );
+      }
+      data = decoded;
     } catch (_) {
       throw const ZhihuException('首页数据解析失败');
     }
@@ -439,10 +522,13 @@ class ZhihuService {
     final topstory = root['topstory'] is Map
         ? Map<String, dynamic>.from(root['topstory']! as Map)
         : const <String, dynamic>{};
-    final feed =
+    var feed =
         topstory['firstPage'] ??
         topstory['recommendFeed'] ??
         topstory['feed'];
+    if (feed is Map) {
+      feed = feed['firstPage'] ?? feed['data'] ?? feed['items'];
+    }
     if (feed is! List) {
       throw const ZhihuException('首页数据解析失败');
     }
@@ -555,6 +641,16 @@ class ZhihuService {
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;');
+  }
+
+  /// Decodes common HTML entities — some SSR payloads are entity-encoded.
+  static String _decodeHtmlEntities(String s) {
+    return s
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&amp;', '&');
   }
 
   static String _str(dynamic value) {
