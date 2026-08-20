@@ -17,10 +17,23 @@ import 'zhihu_question_page.dart' show ZhihuAuthorAvatar;
 /// into a login prompt delegating to [onLoginRequested] (the parent owns
 /// the login window and calls [reload] when it returns successfully).
 class ZhihuFeedPane extends StatefulWidget {
-  const ZhihuFeedPane({super.key, this.onLoginRequested});
+  const ZhihuFeedPane({
+    super.key,
+    this.onLoginRequested,
+    this.selectedItemId,
+    this.onItemSelected,
+  });
 
   /// Opens the WebView login page; invoked from the logged-out prompt.
   final Future<void> Function()? onLoginRequested;
+
+  /// Id of the entry currently selected in the wide two-column layout; the
+  /// matching card is visually highlighted. Null in the narrow layout.
+  final String? selectedItemId;
+
+  /// When non-null, tapping an entry reports it here instead of pushing a
+  /// full-screen detail page (used by the wide layout's reading pane).
+  final ValueChanged<ZhihuFeedItem>? onItemSelected;
 
   @override
   State<ZhihuFeedPane> createState() => ZhihuFeedPaneState();
@@ -186,7 +199,15 @@ class ZhihuFeedPaneState extends State<ZhihuFeedPane> {
             final item = _items[index];
             return _FeedCard(
               item: item,
-              onTap: () => _openItem(item),
+              selected: item.id == widget.selectedItemId,
+              onTap: () {
+                final onSelected = widget.onItemSelected;
+                if (onSelected != null) {
+                  onSelected(item);
+                } else {
+                  _openItem(item);
+                }
+              },
             );
           }
           return _buildFooter(context);
@@ -247,10 +268,17 @@ class ZhihuFeedPaneState extends State<ZhihuFeedPane> {
 /// A single feed card: author, question/article title, excerpt preview,
 /// metrics and an optional thumbnail.
 class _FeedCard extends StatelessWidget {
-  const _FeedCard({required this.item, required this.onTap});
+  const _FeedCard({
+    required this.item,
+    required this.onTap,
+    this.selected = false,
+  });
 
   final ZhihuFeedItem item;
   final VoidCallback onTap;
+
+  /// Highlights the card in the wide layout's list column.
+  final bool selected;
 
   String get _typeLabel => switch (item.type) {
     'answer' => '回答',
@@ -264,6 +292,7 @@ class _FeedCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       onTap: onTap,
+      highlight: selected,
       padding: const EdgeInsets.all(NexusSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

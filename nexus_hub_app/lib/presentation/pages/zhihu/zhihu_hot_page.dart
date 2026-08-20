@@ -10,8 +10,10 @@ import '../../components/nexus_badge.dart';
 import '../../components/nexus_button.dart';
 import '../../components/nexus_card.dart';
 import '../../components/nexus_empty_state.dart';
+import '../../components/zhihu_detail_pane.dart';
 import '../../layout/page_scaffold.dart';
 import 'zhihu_article_page.dart';
+import 'zhihu_feed_detail_page.dart';
 import 'zhihu_feed_pane.dart';
 import 'zhihu_login_page.dart';
 import 'zhihu_question_page.dart';
@@ -34,13 +36,18 @@ class ZhihuHotPage extends StatefulWidget {
 
 class _ZhihuHotPageState extends State<ZhihuHotPage> {
   final ZhihuService _service = ZhihuService();
-  final GlobalKey<ZhihuFeedPaneState> _feedKey = GlobalKey<ZhihuFeedPaneState>();
+  final GlobalKey<ZhihuFeedPaneState> _feedKey =
+      GlobalKey<ZhihuFeedPaneState>();
 
   _ZhihuTab _tab = _ZhihuTab.hot;
   List<ZhihuHotItem> _items = const [];
   bool _isLoading = true;
   bool _hasError = false;
   bool _authReady = false;
+
+  /// Currently selected detail, shown in the wide layout's right-hand pane.
+  /// Null while the layout is narrow.
+  _ZhihuDetailSelection? _selection;
 
   /// Monotonic request counter; completions of superseded loads never
   /// update the state.
@@ -105,7 +112,43 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
 
   void _selectTab(_ZhihuTab tab) {
     if (_tab == tab) return;
-    setState(() => _tab = tab);
+    setState(() {
+      _tab = tab;
+      // Switching list type never leaves a stale detail in the pane, both
+      // in the wide layout and after returning to the narrow one.
+      _selection = null;
+    });
+  }
+
+  void _clearSelection() {
+    setState(() => _selection = null);
+  }
+
+  /// Selects the entry into the wide layout's reading pane (see
+  /// [ZhihuDetailSelection]); the fallback is the list area's previous
+  /// full-screen navigation.
+  void _openHotItem(ZhihuHotItem item) {
+    if (_isWide) {
+      setState(() => _selection = _ZhihuDetailSelection.hot(item));
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => item.isArticle
+            ? ZhihuArticlePage(articleId: item.id, title: item.title)
+            : ZhihuQuestionPage(item: item),
+      ),
+    );
+  }
+
+  void _openFeedItem(ZhihuFeedItem item) {
+    if (_isWide) {
+      setState(() => _selection = _ZhihuDetailSelection.feed(item));
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => ZhihuFeedDetailPage(item: item)),
+    );
   }
 
   /// Opens the WebView login page; on success reloads the feed pane so it
@@ -128,16 +171,6 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
     _feedKey.currentState?.reload();
   }
 
-  void _openItem(ZhihuHotItem item) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => item.isArticle
-            ? ZhihuArticlePage(articleId: item.id, title: item.title)
-            : ZhihuQuestionPage(item: item),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -153,7 +186,9 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
                 Text('知乎', style: NexusTypography.headlineXl),
                 const SizedBox(height: NexusSpacing.xs),
                 Text(
-                  ZhihuAuthStore.isLoggedIn ? '已登录，可浏览热榜与推荐 Feed' : '匿名可浏览热榜，登录后可查看推荐 Feed',
+                  ZhihuAuthStore.isLoggedIn
+                      ? '已登录，可浏览热榜与推荐 Feed'
+                      : '匿名可浏览热榜，登录后可查看推荐 Feed',
                   style: NexusTypography.bodyMd.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -182,14 +217,101 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
         children: [
           _buildTabSelector(context),
           const SizedBox(height: NexusSpacing.md),
-          Expanded(
-            child: _tab == _ZhihuTab.hot
-                ? _buildHotPane(context)
-                : ZhihuFeedPane(key: _feedKey, onLoginRequested: _openLogin),
-          ),
+          Expanded(child: _buildContent(context)),
         ],
       ),
     );
+  }
+
+  /// Wide (two-column) layout flag. Deliberately computed from the available
+  /// width, so it follows window resizing and the same code path serves both
+  /// the embedded desktop window and the mobile routing shell.
+  bool get _isWide => MediaQuery.sizeOf(context).width >= _kWideBreakpoint;
+
+  Widget _buildContent(BuildContext context) {
+    if (!_isWide) {
+      return _tab == _ZhihuTab.hot
+          ? _buildHotPane(context)
+          : ZhihuFeedPane(key: _feedKey, onLoginRequested: _openLogin);
+    }
+
+    final selection = _selection;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: _kListPaneWidth,
+          child: _tab == _ZhihuTab.hot
+              ? _buildHotPane(context)
+              : ZhihuFeedPane(
+                  key: _feedKey,
+                  onLoginRequested: _openLogin,
+                  selectedItemId: selection?.itemKey,
+                  onItemSelected: _openFeedItem,
+                ),
+        ),
+        const SizedBox(width: NexusSpacing.md),
+        const VerticalDivider(width: 1),
+        Expanded(child: _buildReadingPane(context, selection)),
+      ],
+    );
+  }
+
+  Widget _buildReadingPane(
+    BuildContext context,
+    _ZhihuDetailSelection? selection,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (selection == null) {
+      return ZhihuDetailPane(
+        title: _tab == _ZhihuTab.hot ? '热榜详情' : '推荐 Feed 详情',
+        subtitle: '从左侧列表选择一条内容查看详情',
+        // The placeholder is a plain Center; give it bounded constraints so
+        // it centers instead of shrink-wrapping inside a scroll view.
+        enableScroll: false,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.article_outlined,
+                size: 48,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
+              ),
+              const SizedBox(height: NexusSpacing.md),
+              Text(
+                '尚未选择内容',
+                style: NexusTypography.bodyMd.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    // The detail pages render their own complete pane (header, actions and
+    // a self-scrolling body) when `pane: true`; they only need a parent
+    // with bounded height, which the wide layout's Expanded provides, and
+    // an onBack to clear the selection.
+    return switch (selection.kind) {
+      _ZhihuDetailKind.hotQuestion => ZhihuQuestionPage(
+        item: selection.hotItem!,
+        pane: true,
+        onBack: _clearSelection,
+      ),
+      _ZhihuDetailKind.hotArticle => ZhihuArticlePage(
+        articleId: selection.hotItem!.id,
+        title: selection.hotItem!.title,
+        pane: true,
+        onBack: _clearSelection,
+      ),
+      _ZhihuDetailKind.feed => ZhihuFeedDetailPage(
+        item: selection.feedItem!,
+        pane: true,
+        onBack: _clearSelection,
+      ),
+    };
   }
 
   /// Small user chip with logout when logged in, a login button otherwise.
@@ -280,7 +402,11 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
         separatorBuilder: (_, _) => const SizedBox(height: NexusSpacing.sm),
         itemBuilder: (context, index) {
           final item = _items[index];
-          return _HotCard(item: item, onTap: () => _openItem(item));
+          return _HotCard(
+            item: item,
+            selected: item.id == _selection?.itemKey,
+            onTap: () => _openHotItem(item),
+          );
         },
       ),
     );
@@ -317,10 +443,17 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
 /// A single hot-list card: rank, title, excerpt, heat badge and metrics,
 /// plus an optional thumbnail.
 class _HotCard extends StatelessWidget {
-  const _HotCard({required this.item, required this.onTap});
+  const _HotCard({
+    required this.item,
+    required this.onTap,
+    this.selected = false,
+  });
 
   final ZhihuHotItem item;
   final VoidCallback onTap;
+
+  /// Highlights the card in the wide layout's list column.
+  final bool selected;
 
   static const _topRankColor = Color(0xFFF56A00);
 
@@ -329,6 +462,7 @@ class _HotCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       onTap: onTap,
+      highlight: selected,
       padding: const EdgeInsets.all(NexusSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,7 +478,9 @@ class _HotCard extends StatelessWidget {
                   color: item.rank <= 3
                       ? _topRankColor
                       : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                  fontWeight: item.rank <= 3 ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: item.rank <= 3
+                      ? FontWeight.w700
+                      : FontWeight.w500,
                 ),
               ),
             ),
@@ -387,8 +523,7 @@ class _HotCard extends StatelessWidget {
                       ),
                     if (item.detailText.isNotEmpty)
                       NexusBadge(label: item.detailText),
-                    if (item.isArticle)
-                      const NexusBadge(label: '文章'),
+                    if (item.isArticle) const NexusBadge(label: '文章'),
                     if (!item.isArticle && item.answerCount > 0)
                       Text(
                         '${item.answerCount} 回答',
@@ -438,6 +573,61 @@ class _HotThumbnail extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The width above which the Zhihu sub-app switches to the wide two-column
+/// layout (list on the left, reading pane on the right).
+const double _kWideBreakpoint = 1000;
+
+/// Fixed width of the left-hand list column in the wide layout.
+const double _kListPaneWidth = 380;
+
+enum _ZhihuDetailKind {
+  /// A hot-list question opened in the reading pane.
+  hotQuestion,
+
+  /// A hot-list article opened in the reading pane.
+  hotArticle,
+
+  /// A recommend-feed entry opened in the reading pane.
+  feed,
+}
+
+/// What the wide layout's right-hand reading pane currently shows. `null`
+/// means "no selection"; the pane then displays the placeholder hint.
+class _ZhihuDetailSelection {
+  const _ZhihuDetailSelection._({
+    required this.kind,
+    this.hotItem,
+    this.feedItem,
+  });
+
+  factory _ZhihuDetailSelection.hot(ZhihuHotItem item) {
+    return _ZhihuDetailSelection._(
+      kind: item.isArticle
+          ? _ZhihuDetailKind.hotArticle
+          : _ZhihuDetailKind.hotQuestion,
+      hotItem: item,
+    );
+  }
+
+  factory _ZhihuDetailSelection.feed(ZhihuFeedItem item) {
+    return _ZhihuDetailSelection._(kind: _ZhihuDetailKind.feed, feedItem: item);
+  }
+
+  final _ZhihuDetailKind kind;
+
+  /// The originating hot-list entry for the hot kinds (`hotArticle` and
+  /// `hotQuestion`).
+  final ZhihuHotItem? hotItem;
+
+  /// The originating feed entry for the `feed` kind.
+  final ZhihuFeedItem? feedItem;
+
+  /// Key shared by the list card and the reading pane, so the card can be
+  /// visually highlighted while the pane shows the same entry. Ids are
+  /// unique per entry type.
+  String get itemKey => feedItem?.id ?? hotItem!.id;
 }
 
 /// Pill-style selectable chip used for the 热榜 / 推荐 Feed tab selector.

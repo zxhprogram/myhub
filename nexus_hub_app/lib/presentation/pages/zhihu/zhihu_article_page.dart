@@ -9,23 +9,37 @@ import '../../../theme/typography.dart';
 import '../../components/nexus_button.dart';
 import '../../components/nexus_card.dart';
 import '../../components/nexus_empty_state.dart';
+import '../../components/zhihu_detail_pane.dart';
 import 'zhihu_question_page.dart'
     show ZhihuAuthorAvatar, ZhihuMetricRow, zhihuOpenInBrowser;
 
 /// Article (专栏) detail for hot-list entries that link to a Zhihu article
 /// instead of a question. The body is rendered natively with
 /// `flutter_widget_from_html` — no WebView.
+///
+/// With [pane] the page renders inside a [ZhihuDetailPane] without its own
+/// Scaffold/app bar, so it can be embedded as the right-hand content of the
+/// sub-app's wide two-column layout.
 class ZhihuArticlePage extends StatefulWidget {
   const ZhihuArticlePage({
     super.key,
     required this.articleId,
     required this.title,
+    this.pane = false,
+    this.onBack,
   });
 
   final String articleId;
 
   /// Hot-list title used as placeholder while the article downloads.
   final String title;
+
+  /// Renders as an embedded pane (no Scaffold/app bar) when true.
+  final bool pane;
+
+  /// Shown in the pane header's back button in pane mode (e.g. clearing the
+  /// wide layout's selection). Null hides the back affordance.
+  final VoidCallback? onBack;
 
   @override
   State<ZhihuArticlePage> createState() => _ZhihuArticlePageState();
@@ -69,6 +83,33 @@ class _ZhihuArticlePageState extends State<ZhihuArticlePage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final article = _article;
+    final body = _buildBody(context);
+    if (widget.pane) {
+      return ZhihuDetailPane(
+        title: article?.title ?? widget.title,
+        onBack: widget.onBack,
+        // The body is a self-scrolling article list; expand it to the
+        // remaining pane height so the ListView gets a finite viewport.
+        enableScroll: false,
+        expandChild: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: '重新加载',
+            onPressed: _loading ? null : _load,
+          ),
+          IconButton(
+            icon: const Icon(Icons.open_in_browser),
+            tooltip: '在浏览器中打开',
+            onPressed: () => zhihuOpenInBrowser(
+              article?.webUrl ??
+                  'https://zhuanlan.zhihu.com/p/${widget.articleId}',
+            ),
+          ),
+        ],
+        child: body,
+      );
+    }
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
@@ -96,7 +137,7 @@ class _ZhihuArticlePageState extends State<ZhihuArticlePage> {
           ),
         ],
       ),
-      body: _buildBody(context),
+      body: body,
     );
   }
 
@@ -180,9 +221,15 @@ class _ZhihuArticlePageState extends State<ZhihuArticlePage> {
                   ),
                 ),
               if (article.voteupCount > 0)
-                ZhihuMetricRow(icon: Icons.thumb_up_outlined, label: '${article.voteupCount} 赞同'),
+                ZhihuMetricRow(
+                  icon: Icons.thumb_up_outlined,
+                  label: '${article.voteupCount} 赞同',
+                ),
               if (article.commentCount > 0)
-                ZhihuMetricRow(icon: Icons.mode_comment_outlined, label: '${article.commentCount} 评论'),
+                ZhihuMetricRow(
+                  icon: Icons.mode_comment_outlined,
+                  label: '${article.commentCount} 评论',
+                ),
               if (article.updatedAtMs > 0)
                 ZhihuMetricRow(
                   icon: Icons.schedule,

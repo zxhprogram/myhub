@@ -10,6 +10,7 @@ import '../../../theme/typography.dart';
 import '../../components/nexus_button.dart';
 import '../../components/nexus_card.dart';
 import '../../components/nexus_empty_state.dart';
+import '../../components/zhihu_detail_pane.dart';
 
 /// Question detail: the hot-list entry as header, followed by its answers
 /// loaded page by page.
@@ -17,12 +18,28 @@ import '../../components/nexus_empty_state.dart';
 /// Answer bodies are Zhihu rich text (HTML) and are rendered natively with
 /// `flutter_widget_from_html` — no WebView is involved, per the sub-app's
 /// requirement. Links inside the content open in the system browser.
+///
+/// With [pane] the page renders inside a [ZhihuDetailPane] without its own
+/// Scaffold/app bar, so it can be embedded as the right-hand content of the
+/// sub-app's wide two-column layout.
 class ZhihuQuestionPage extends StatefulWidget {
-  const ZhihuQuestionPage({super.key, required this.item});
+  const ZhihuQuestionPage({
+    super.key,
+    required this.item,
+    this.pane = false,
+    this.onBack,
+  });
 
   /// The hot-list entry this page was opened from; provides the title and
   /// stats while the answers download.
   final ZhihuHotItem item;
+
+  /// Renders as an embedded pane (no Scaffold/app bar) when true.
+  final bool pane;
+
+  /// Shown in the pane header's back button in pane mode (e.g. clearing the
+  /// wide layout's selection). Null hides the back affordance.
+  final VoidCallback? onBack;
 
   @override
   State<ZhihuQuestionPage> createState() => _ZhihuQuestionPageState();
@@ -127,6 +144,34 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final body = _buildBody(context);
+    if (widget.pane) {
+      return ZhihuDetailPane(
+        title: widget.item.title,
+        subtitle: widget.item.answerCount > 0
+            ? '${widget.item.answerCount} 回答'
+            : null,
+        onBack: widget.onBack,
+        // The body is a self-scrolling answer list; the pane header stays
+        // pinned while the list scrolls underneath it. Expand it to the
+        // remaining pane height so the ListView gets a finite viewport.
+        enableScroll: false,
+        expandChild: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: '重新加载',
+            onPressed: _loadingFirst ? null : _loadFirst,
+          ),
+          IconButton(
+            icon: const Icon(Icons.open_in_browser),
+            tooltip: '在浏览器中打开',
+            onPressed: () => zhihuOpenInBrowser(widget.item.webUrl),
+          ),
+        ],
+        child: body,
+      );
+    }
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
@@ -151,7 +196,7 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
           ),
         ],
       ),
-      body: _buildBody(context),
+      body: body,
     );
   }
 
@@ -164,7 +209,11 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
         icon: Icons.cloud_off_outlined,
         title: '加载失败',
         subtitle: _error!,
-        action: NexusButton(label: '重试', icon: Icons.refresh, onPressed: _loadFirst),
+        action: NexusButton(
+          label: '重试',
+          icon: Icons.refresh,
+          onPressed: _loadFirst,
+        ),
       );
     }
     return ListView.builder(
@@ -205,8 +254,7 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
               if (item.followerCount > 0) Text('${item.followerCount} 关注'),
             ],
           ),
-          if (item.excerpt.isNotEmpty &&
-              item.excerpt != '[视频]') ...[
+          if (item.excerpt.isNotEmpty && item.excerpt != '[视频]') ...[
             const SizedBox(height: NexusSpacing.sm),
             Text(
               item.excerpt,
@@ -311,9 +359,15 @@ class _AnswerCard extends StatelessWidget {
             runSpacing: NexusSpacing.xs,
             children: [
               if (answer.voteupCount > 0)
-                ZhihuMetricRow(icon: Icons.thumb_up_outlined, label: '${answer.voteupCount} 赞同'),
+                ZhihuMetricRow(
+                  icon: Icons.thumb_up_outlined,
+                  label: '${answer.voteupCount} 赞同',
+                ),
               if (answer.commentCount > 0)
-                ZhihuMetricRow(icon: Icons.mode_comment_outlined, label: '${answer.commentCount} 评论'),
+                ZhihuMetricRow(
+                  icon: Icons.mode_comment_outlined,
+                  label: '${answer.commentCount} 评论',
+                ),
               if (answer.updatedAtMs > 0)
                 ZhihuMetricRow(
                   icon: Icons.schedule,
