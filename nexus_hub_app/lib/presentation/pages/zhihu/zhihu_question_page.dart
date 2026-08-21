@@ -6,6 +6,7 @@ import '../../../data/models/zhihu_models.dart';
 import '../../../data/services/zhihu_service.dart';
 import '../../components/zhihu_detail_pane.dart';
 import '../../components/zhihu_ui.dart';
+import 'zhihu_comments_dialog.dart';
 
 /// Question detail: the hot-list entry as header, followed by its answers
 /// loaded page by page.
@@ -376,7 +377,8 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
 }
 
 /// A single answer card: author line, the rich-text body rendered natively
-/// with [HtmlWidget], and a compact metrics footer. [featured] marks the
+/// with [HtmlWidget], and a compact footer whose comment entry opens the
+/// comments browser ([zhihuShowCommentsDialog]). [featured] marks the
 /// recommend-feed answer the page was opened from.
 class _AnswerCard extends StatelessWidget {
   const _AnswerCard({required this.answer, this.featured = false});
@@ -489,9 +491,26 @@ class _AnswerCard extends StatelessWidget {
           ],
           if (answer.commentCount > 0) ...[
             const Gap(6),
-            ZhihuMetric(
-              icon: LucideIcons.messageCircle,
-              label: '${answer.commentCount} 条评论',
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Button.ghost(
+                leading: const Icon(LucideIcons.messageCircle, size: 13),
+                style: const ButtonStyle.ghost(
+                  size: ButtonSize.small,
+                  density: ButtonDensity.dense,
+                ),
+                onPressed: () => zhihuShowCommentsDialog(
+                  context,
+                  answerId: answer.id,
+                  commentCount: answer.commentCount,
+                ),
+                child: Text(
+                  '${answer.commentCount} 条评论',
+                  style: theme.typography.xSmall.copyWith(
+                    color: scheme.mutedForeground,
+                  ),
+                ),
+              ),
             ),
           ],
         ],

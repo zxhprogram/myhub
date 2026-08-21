@@ -8,8 +8,9 @@ import 'local_database.dart';
 import 'zhihu_auth_store.dart';
 import 'zhihu_exception.dart';
 
-/// Zhihu (知乎) reader: hot list, question answers, articles — plus the
-/// personal recommend feed when a web session is stored.
+/// Zhihu (知乎) reader: hot list, question answers, articles, answer
+/// comments — plus the personal recommend feed when a web session is
+/// stored.
 ///
 /// Zhihu offers no public API, so the service calls the same endpoints the
 /// website and the mobile app use, each with the User-Agent it expects.
@@ -24,6 +25,9 @@ import 'zhihu_exception.dart';
 ///   with the app User-Agent.
 /// * Articles — `www.zhihu.com/api/v4/articles/<id>`, falling back to
 ///   `api.zhihu.com/articles/<id>`.
+/// * Answer comments — `www.zhihu.com/api/v4/answers/<id>/root_comments`
+///   (embeds each comment's first page of replies), falling back to the
+///   legacy `www.zhihu.com/api/v4/answers/<id>/comments`.
 ///
 /// Login goes through the WebView sign-in page (see [ZhihuLoginPage]):
 /// once the user completes the QR scan / captcha there, the captured
@@ -74,6 +78,8 @@ class ZhihuService {
   static const _answerPageSize = 5;
 
   static const _feedPageSize = 8;
+
+  static const _commentPageSize = 20;
 
   /// Browser headers for `www.zhihu.com` API endpoints, replaying the
   /// stored session cookies when the user is logged in.
@@ -260,6 +266,93 @@ class ZhihuService {
     throw ZhihuException(
       '无法加载文章（${_describeError(webError)}），请稍后重试或在浏览器中打开',
     );
+  }
+
+  /// Loads one page of top-level comments below an answer.
+  ///
+  /// Primary source is the web client's `root_comments` endpoint, which
+  /// embeds each comment's first page of replies in `child_comments`;
+  /// the legacy `/comments` variant (no embedded replies) serves as the
+  /// fallback. Both need the browser headers; a stored session cookie
+  /// lifts the anonymous risk control like on the other endpoints.
+  Future<ZhihuCommentPage> fetchAnswerComments(
+    String answerId, {
+    int offset = 0,
+    int limit = _commentPageSize,
+  }) async {
+    await ZhihuAuthStore.load();
+    Object? rootError;
+    try {
+      final response = await _dio.get<dynamic>(
+        'https://www.zhihu.com/api/v4/answers/$answerId/root_comments',
+        queryParameters: {
+          'order': 'normal',
+          'limit': limit,
+          'offset': offset,
+          'status': 'open',
+        },
+        options: Options(
+          responseType: ResponseType.json,
+          headers: _webHeaders(
+            referer: 'https://www.zhihu.com/question/-/answer/$answerId',
+          ),
+        ),
+      );
+      return _parseCommentPage(
+        _asJsonMap(response.data),
+        requested: limit,
+      );
+    } catch (e) {
+      rootError = e;
+    }
+    try {
+      final response = await _dio.get<dynamic>(
+        'https://www.zhihu.com/api/v4/answers/$answerId/comments',
+        queryParameters: {
+          'order': 'normal',
+          'limit': limit,
+          'offset': offset,
+          'status': 'open',
+        },
+        options: Options(
+          responseType: ResponseType.json,
+          headers: _webHeaders(
+            referer: 'https://www.zhihu.com/question/-/answer/$answerId',
+          ),
+        ),
+      );
+      return _parseCommentPage(
+        _asJsonMap(response.data),
+        requested: limit,
+      );
+    } catch (_) {}
+    throw ZhihuException(
+      '无法加载评论（${_describeError(rootError)}）。'
+      '知乎可能正在限制匿名访问，请稍后重试或在浏览器中查看',
+    );
+  }
+
+  /// Loads one page of replies below a comment.
+  Future<ZhihuCommentPage> fetchCommentReplies(
+    String commentId, {
+    int offset = 0,
+    int limit = _commentPageSize,
+  }) async {
+    await ZhihuAuthStore.load();
+    final response = await _dio.get<dynamic>(
+      'https://www.zhihu.com/api/v4/comments/$commentId/replies',
+      queryParameters: {
+        'order': 'normal',
+        'limit': limit,
+        'offset': offset,
+        'status': 'open',
+      },
+      options: Options(
+        responseType: ResponseType.json,
+        headers: _webHeaders(referer: 'https://www.zhihu.com/'),
+      ),
+    );
+    return _parseCommentPage(_asJsonMap(response.data), requested: limit);
   }
 
   /// Fetches the signed-in user's profile (`/api/v4/me`).
@@ -463,6 +556,44 @@ class ZhihuService {
       throw const ZhihuException('文章数据解析失败');
     }
     return ZhihuArticle.fromJson(data);
+  }
+
+  static ZhihuCommentPage _parseCommentPage(
+    Map<String, dynamic> data, {
+    required int requested,
+  }) {
+    _ensureNoApiError(data);
+    final list = data['data'];
+    if (list is! List) {
+      throw const ZhihuException('评论数据解析失败');
+    }
+    final comments = <ZhihuComment>[];
+    for (final entry in list) {
+      if (entry is! Map) continue;
+      final node = Map<String, dynamic>.from(entry);
+      if (node['id'] == null) continue;
+      comments.add(ZhihuComment.fromJson(node));
+    }
+    // Unlike answers, an honestly-empty comment section is a valid state;
+    // only a malformed payload (missing / non-list `data`) fails above.
+    final paging = data['paging'];
+    final isEnd = paging is Map && paging['is_end'] == true;
+    return ZhihuCommentPage(
+      comments: comments,
+      hasMore: !isEnd && comments.length >= requested,
+      total: _int(data['count']),
+    );
+  }
+
+  /// Test-only seam exposing [_parseCommentPage]'s logic to unit tests
+  /// without requiring live network access (mirrors
+  /// [parseAnswerPageForTest]).
+  @visibleForTesting
+  static ZhihuCommentPage parseCommentPageForTest(
+    Map<String, dynamic> data, {
+    required int requested,
+  }) {
+    return _parseCommentPage(data, requested: requested);
   }
 
   /// Test-only seam: exposes [parseAnswerPageForTest]'s logic to unit tests

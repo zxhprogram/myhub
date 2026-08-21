@@ -136,6 +136,108 @@ class ZhihuAnswerPage {
   final bool hasMore;
 }
 
+/// One page of comments (or replies) below an answer.
+class ZhihuCommentPage {
+  const ZhihuCommentPage({
+    required this.comments,
+    required this.hasMore,
+    this.total = 0,
+  });
+
+  final List<ZhihuComment> comments;
+
+  /// Whether another page can be requested after this one.
+  final bool hasMore;
+
+  /// Server-reported total count of the thread, 0 when unknown.
+  final int total;
+}
+
+/// A comment below an answer, or a reply nested under a comment.
+///
+/// The comments endpoints come in two shapes: the web client's
+/// `root_comments` wraps the author in a `member` node and embeds the first
+/// page of replies in `child_comments`, while the legacy `comments`
+/// endpoint inlines the author and carries no replies. Both are accepted.
+class ZhihuComment {
+  const ZhihuComment({
+    required this.id,
+    required this.authorName,
+    required this.authorAvatarUrl,
+    required this.contentHtml,
+    required this.voteCount,
+    required this.replyCount,
+    required this.createdAtMs,
+    required this.isContentAuthor,
+    required this.replyTo,
+    required this.replies,
+  });
+
+  factory ZhihuComment.fromJson(Map<String, dynamic> json) {
+    var author = _asMap(json['author']);
+    final member = _asMap(author['member']);
+    if (member.isNotEmpty) author = member;
+    final replyToRaw = json['reply_to'];
+    return ZhihuComment(
+      id: _asString(json['id']),
+      authorName: _asString(author['name']),
+      authorAvatarUrl: _asString(author['avatar_url']),
+      // Comment bodies are plain text most of the time, but image stickers
+      // and pasted rich text arrive as HTML — sanitize like answer bodies
+      // so `<img>` / `<p>` render natively instead of as literal tags.
+      contentHtml: zhihuSanitizeContentHtml(_asString(json['content'])),
+      voteCount: _asInt(json['vote_count'] ?? json['likes_count']),
+      replyCount: _asInt(json['reply_count']),
+      createdAtMs: _asMs(_asInt(json['created_time'])),
+      isContentAuthor: json['is_author'] == true,
+      replyTo: replyToRaw is Map && replyToRaw['id'] != null
+          ? ZhihuComment.fromJson(Map<String, dynamic>.from(replyToRaw))
+          : null,
+      replies: _parseReplies(json['child_comments']),
+    );
+  }
+
+  /// Lifts the embedded first page of replies out of a `root_comments`
+  /// payload's `child_comments` node; empty for the legacy shape.
+  static List<ZhihuComment> _parseReplies(dynamic childComments) {
+    if (childComments is! Map) return const [];
+    final data = childComments['data'];
+    if (data is! List) return const [];
+    return [
+      for (final entry in data)
+        if (entry is Map && entry['id'] != null)
+          ZhihuComment.fromJson(Map<String, dynamic>.from(entry)),
+    ];
+  }
+
+  final String id;
+  final String authorName;
+  final String authorAvatarUrl;
+
+  /// Body of the comment / reply: plain text most of the time, but image
+  /// stickers and pasted rich text arrive as HTML — sanitized via
+  /// [zhihuSanitizeContentHtml] and rendered natively (no WebView).
+  final String contentHtml;
+
+  final int voteCount;
+
+  /// Total number of replies below this comment (top-level nodes only).
+  final int replyCount;
+
+  /// Creation time in milliseconds since epoch; 0 when unknown.
+  final int createdAtMs;
+
+  /// Whether the commenter is the answer's author (知乎「作者」标记).
+  final bool isContentAuthor;
+
+  /// For replies: the comment / reply this one answers; null for
+  /// top-level comments. Only [authorName] is rendered.
+  final ZhihuComment? replyTo;
+
+  /// First page of replies when the payload embedded them; empty otherwise.
+  final List<ZhihuComment> replies;
+}
+
 /// An answer under a Zhihu question.
 class ZhihuAnswer {
   const ZhihuAnswer({
