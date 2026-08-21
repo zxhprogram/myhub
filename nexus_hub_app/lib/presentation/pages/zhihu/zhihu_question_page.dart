@@ -14,6 +14,11 @@ import '../../components/zhihu_ui.dart';
 /// `flutter_widget_from_html` — no WebView is involved, per the sub-app's
 /// requirement. Links inside the content open in the system browser.
 ///
+/// [featuredAnswer] pins one answer above the loaded list — used when the
+/// page is opened from a recommend-feed entry, whose answer shows first
+/// while the rest of the question's answers load below it; answers with
+/// the same id arriving from the API are skipped so it never shows twice.
+///
 /// With [pane] the page renders inside a [ZhihuDetailPane] without its own
 /// page chrome, so it can be embedded as the right-hand content of the
 /// sub-app's wide two-column layout; standalone (narrow) mode wraps the
@@ -22,6 +27,7 @@ class ZhihuQuestionPage extends StatefulWidget {
   const ZhihuQuestionPage({
     super.key,
     required this.item,
+    this.featuredAnswer,
     this.pane = false,
     this.onBack,
   });
@@ -29,6 +35,10 @@ class ZhihuQuestionPage extends StatefulWidget {
   /// The hot-list entry this page was opened from; provides the title and
   /// stats while the answers download.
   final ZhihuHotItem item;
+
+  /// Answer to pin above the loaded list, e.g. the recommend-feed entry
+  /// the user tapped; null for the plain hot-list flow.
+  final ZhihuAnswer? featuredAnswer;
 
   /// Renders as an embedded pane when true.
   final bool pane;
@@ -181,11 +191,26 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
     );
   }
 
+  /// Answers in display order: the pinned featured answer first, then the
+  /// loaded ones minus any duplicate of the featured answer.
+  List<ZhihuAnswer> get _displayAnswers {
+    final featured = widget.featuredAnswer;
+    return [
+      ?featured,
+      for (final answer in _answers)
+        if (answer.id != featured?.id) answer,
+    ];
+  }
+
   Widget _buildBody(BuildContext context) {
-    if (_loadingFirst) {
+    final hasFeatured = widget.featuredAnswer != null;
+    // Without a pinned answer the pane shows a full-area loading/error
+    // state; with one it renders immediately and the remaining answers
+    // surface through the list footer instead.
+    if (_loadingFirst && !hasFeatured) {
       return const Center(child: CircularProgressIndicator(size: 18));
     }
-    if (_error != null && _answers.isEmpty) {
+    if (_error != null && _answers.isEmpty && !hasFeatured) {
       return ZhihuEmptyState(
         icon: LucideIcons.cloudOff,
         title: '加载失败',
@@ -201,10 +226,11 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
         ),
       );
     }
+    final answers = _displayAnswers;
     return ListView.builder(
       controller: _scrollController,
       padding: ZhihuDense.pagePadding,
-      itemCount: _answers.length + 2,
+      itemCount: answers.length + 2,
       itemBuilder: (context, index) {
         if (index == 0) {
           return Padding(
@@ -212,10 +238,13 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
             child: _buildQuestionHeader(context),
           );
         }
-        if (index <= _answers.length) {
+        if (index <= answers.length) {
           return Padding(
             padding: const EdgeInsets.only(top: ZhihuDense.listGap),
-            child: _AnswerCard(answer: _answers[index - 1]),
+            child: _AnswerCard(
+              answer: answers[index - 1],
+              featured: widget.featuredAnswer != null && index == 1,
+            ),
           );
         }
         return _buildFooter(context);
@@ -288,6 +317,28 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
 
   Widget _buildFooter(BuildContext context) {
     final theme = Theme.of(context);
+    if (_loadingFirst) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(child: CircularProgressIndicator(size: 16)),
+      );
+    }
+    if (_error != null && _answers.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Center(
+          child: Button.outline(
+            leading: const Icon(LucideIcons.refreshCw, size: 14),
+            style: const ButtonStyle.outline(
+              size: ButtonSize.small,
+              density: ButtonDensity.dense,
+            ),
+            onPressed: _loadFirst,
+            child: Text('其他回答加载失败，重试'),
+          ),
+        ),
+      );
+    }
     if (_loadingMore) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
@@ -325,11 +376,14 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
 }
 
 /// A single answer card: author line, the rich-text body rendered natively
-/// with [HtmlWidget], and a compact metrics footer.
+/// with [HtmlWidget], and a compact metrics footer. [featured] marks the
+/// recommend-feed answer the page was opened from.
 class _AnswerCard extends StatelessWidget {
-  const _AnswerCard({required this.answer});
+  const _AnswerCard({required this.answer, this.featured = false});
 
   final ZhihuAnswer answer;
+
+  final bool featured;
 
   @override
   Widget build(BuildContext context) {
@@ -401,6 +455,14 @@ class _AnswerCard extends StatelessWidget {
                 ),
               ),
               const Gap(8),
+              if (featured) ...[
+                ZhihuTag(
+                  '推荐',
+                  foreground: scheme.primary,
+                  background: scheme.primary.withValues(alpha: 0.1),
+                ),
+                const Gap(4),
+              ],
               SecondaryBadge(
                 child: Text(
                   '${answer.voteupCount} 赞同',

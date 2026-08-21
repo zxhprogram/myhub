@@ -600,6 +600,19 @@ class ZhihuService {
     final id = _str(node['id']);
     if (id.isEmpty) return null;
 
+    // The mobile recommend API types every entry 'feed'; the real kind
+    // (answer / article / pin) rides on the target's own `type` field.
+    // Normalise so labels, web URLs and the answer-browsing detail flow
+    // below all discriminate on the content type.
+    var effectiveType = type;
+    const contentTypes = {'answer', 'article', 'pin'};
+    if (!contentTypes.contains(effectiveType)) {
+      final targetType = _str(node['type']);
+      if (contentTypes.contains(targetType)) {
+        effectiveType = targetType;
+      }
+    }
+
     var questionId = '';
     var title = '';
     final question = node['question'];
@@ -628,7 +641,7 @@ class ZhihuService {
 
     return ZhihuFeedItem(
       id: id,
-      type: type,
+      type: effectiveType,
       title: title,
       excerpt: _str(node['excerpt']),
       contentHtml: contentHtml,

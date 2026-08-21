@@ -4,10 +4,14 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import '../../../data/models/zhihu_models.dart';
 import '../../components/zhihu_detail_pane.dart';
 import '../../components/zhihu_ui.dart';
+import 'zhihu_question_page.dart';
 
-/// Feed entry detail rendered straight from the payload the feed request
-/// already carried (body, author, metrics) — no follow-up request, no
-/// WebView. Entries without embedded content show the excerpt instead.
+/// Feed entry detail. Answer entries that carry their question id are
+/// rendered as the full question browsing view ([ZhihuQuestionPage]) — the
+/// recommended answer is pinned first and the question's other answers
+/// load below it — while articles, pins and payload-only entries render
+/// straight from the data the feed request already carried (no follow-up
+/// request, no WebView).
 ///
 /// With [pane] the page renders inside a [ZhihuDetailPane] without its own
 /// page chrome, so it can be embedded as the right-hand content of the
@@ -41,8 +45,70 @@ class ZhihuFeedDetailPage extends StatelessWidget {
     _ => item.type,
   };
 
+  /// Answer entries with a question id browse the whole question instead
+  /// of showing only the recommended answer.
+  bool get _browsesQuestion =>
+      item.type == 'answer' &&
+      item.questionId.isNotEmpty &&
+      item.id.isNotEmpty;
+
+  /// The recommended answer, pinned at the top of the question's answers.
+  ZhihuAnswer get _featuredAnswer => ZhihuAnswer(
+    id: item.id,
+    questionId: item.questionId,
+    authorName: item.authorName,
+    authorHeadline: item.authorHeadline,
+    authorAvatarUrl: item.authorAvatarUrl,
+    voteupCount: item.voteupCount,
+    commentCount: item.commentCount,
+    contentHtml: item.contentHtml,
+    updatedAtMs: 0,
+  );
+
+  /// Minimal question description assembled from the feed entry; the
+  /// browsing view fills in the rest from the answers API.
+  ZhihuHotItem get _questionItem => ZhihuHotItem(
+    id: item.questionId,
+    targetType: 'question',
+    title: item.title.isEmpty ? '问题' : item.title,
+    excerpt: '',
+    detailText: '',
+    cardLabel: '',
+    thumbnail: '',
+    answerCount: 0,
+    followerCount: 0,
+    commentCount: 0,
+    rank: 0,
+  );
+
   @override
   Widget build(BuildContext context) {
+    if (_browsesQuestion) {
+      // The browsing view brings its own pane header; in standalone mode
+      // the back button pops this route instead of the passed callback.
+      final browser = Builder(
+        builder: (context) => ZhihuQuestionPage(
+          item: _questionItem,
+          featuredAnswer: _featuredAnswer,
+          pane: true,
+          onBack: pane ? onBack : () => Navigator.of(context).maybePop(),
+        ),
+      );
+      if (pane) return browser;
+      return ZhihuShadcnHost(
+        builder: (context) {
+          final theme = Theme.of(context);
+          return Container(
+            color: theme.colorScheme.background,
+            child: SafeArea(child: browser),
+          );
+        },
+      );
+    }
+    return _buildSingleDetail(context);
+  }
+
+  Widget _buildSingleDetail(BuildContext context) {
     if (pane) {
       return _buildPane(context);
     }
