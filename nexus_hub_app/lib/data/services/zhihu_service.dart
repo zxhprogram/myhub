@@ -319,21 +319,24 @@ class ZhihuService {
       apiError = e;
     }
     // 2. Mobile app API — uses the app User-Agent with the session
-    //    cookie and does not require the web signature header. Only
-    //    fetched for the first page (the pagination cursor differs).
-    if (afterId == null) {
-      try {
-        final response = await _dio.get<dynamic>(
-          'https://api.zhihu.com/topstory/recommend',
-          queryParameters: {'limit': _feedPageSize},
-          options: Options(
-            responseType: ResponseType.json,
-            headers: _appAuthHeaders(),
-          ),
-        );
-        return _parseRecommendApi(_asJsonMap(response.data));
-      } catch (_) {}
-    }
+    //    cookie and does not require the web signature header. Paginates
+    //    with the same `after_id` cursor the parser lifts from
+    //    `paging.next`, so it serves follow-up pages too (verified: page
+    //    two returns fresh entries with no overlap).
+    try {
+      final response = await _dio.get<dynamic>(
+        'https://api.zhihu.com/topstory/recommend',
+        queryParameters: {
+          'limit': _feedPageSize,
+          if (afterId != null && afterId.isNotEmpty) 'after_id': afterId,
+        },
+        options: Options(
+          responseType: ResponseType.json,
+          headers: _appAuthHeaders(),
+        ),
+      );
+      return _parseRecommendApi(_asJsonMap(response.data));
+    } catch (_) {}
     // 3. Server-rendered homepage — scrape the SSR feed payload as a
     //    last resort (first page only).
     if (afterId == null) {
