@@ -9,6 +9,8 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/desktop_item.dart';
+import '../../data/models/weather_model.dart';
+import '../../data/services/weather_service.dart';
 
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -834,7 +836,9 @@ class _MenuBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          // Right: theme toggle + live clock
+          // Right: weather + theme toggle + live clock
+          const _WeatherWidget(),
+          const SizedBox(width: 8),
           _MenuIconButton(
             icon: isDark ? LucideIcons.moon : LucideIcons.sun,
             onTap: () => ThemeState.instance.toggle(),
@@ -949,6 +953,114 @@ class _ClockWidgetState extends State<_ClockWidget> {
         ),
       ],
     );
+  }
+}
+
+/// Weather summary for the menu bar: condition icon + description +
+/// temperature, followed by today's sunrise and sunset times. Data comes
+/// from [WeatherService] (cached; refreshes silently every 10 minutes).
+class _WeatherWidget extends StatefulWidget {
+  const _WeatherWidget();
+
+  @override
+  State<_WeatherWidget> createState() => _WeatherWidgetState();
+}
+
+class _WeatherWidgetState extends State<_WeatherWidget> {
+  final WeatherService _service = WeatherService();
+  WeatherInfo? _weather;
+
+  @override
+  void initState() {
+    super.initState();
+    _service.fetchWeather().then((weather) {
+      if (mounted) {
+        setState(() => _weather = weather);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final weather = _weather;
+    // Stay invisible until data arrives so the menu bar keeps its layout
+    // while loading or when the network is unavailable.
+    if (weather == null) return const SizedBox.shrink();
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
+    final Color foreground = isDark
+        ? const Color(0xFFFFFFFF).withValues(alpha: 0.8)
+        : const Color(0xFF000000).withValues(alpha: 0.75);
+
+    final timeStyle = TextStyle(
+      color: foreground,
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          _iconForCode(weather.weatherCode),
+          size: 14,
+          color: foreground,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '${_descriptionForCode(weather.weatherCode)} '
+          '${weather.temperature.round()}°',
+          style: TextStyle(
+            color: foreground,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Icon(LucideIcons.sunrise, size: 13, color: foreground),
+        const SizedBox(width: 3),
+        Text(DateFormat('HH:mm').format(weather.sunrise), style: timeStyle),
+        const SizedBox(width: 8),
+        Icon(LucideIcons.sunset, size: 13, color: foreground),
+        const SizedBox(width: 3),
+        Text(DateFormat('HH:mm').format(weather.sunset), style: timeStyle),
+      ],
+    );
+  }
+
+  /// Maps a WMO weather interpretation code to a menu bar icon.
+  static IconData _iconForCode(int code) {
+    if (code == 0 || code == 1) return LucideIcons.sun;
+    if (code == 2) return LucideIcons.cloudSun;
+    if (code == 3) return LucideIcons.cloud;
+    if (code == 45 || code == 48) return LucideIcons.cloudFog;
+    if (code >= 51 && code <= 57) return LucideIcons.cloudDrizzle;
+    if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) {
+      return LucideIcons.cloudRain;
+    }
+    if ((code >= 71 && code <= 77) || code == 85 || code == 86) {
+      return LucideIcons.cloudSnow;
+    }
+    if (code >= 95) return LucideIcons.cloudLightning;
+    return LucideIcons.cloud;
+  }
+
+  /// Maps a WMO weather interpretation code to a short Chinese description.
+  static String _descriptionForCode(int code) {
+    if (code == 0 || code == 1) return '晴';
+    if (code == 2) return '多云';
+    if (code == 3) return '阴';
+    if (code == 45 || code == 48) return '雾';
+    if (code >= 51 && code <= 57) return '毛毛雨';
+    if (code == 61 || code == 80) return '小雨';
+    if (code == 63 || code == 81) return '中雨';
+    if (code == 65 || code == 82 || code == 66 || code == 67) return '大雨';
+    if (code >= 71 && code <= 77) return '雪';
+    if (code == 85 || code == 86) return '阵雪';
+    if (code >= 95) return '雷阵雨';
+    return '多云';
   }
 }
 

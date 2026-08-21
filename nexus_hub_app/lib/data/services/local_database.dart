@@ -27,6 +27,7 @@ class LocalDatabase {
     'google_news',
     'fx678_news',
     'finance_calendar',
+    'weather',
   ];
 
   /// Use a temporary Hive directory for unit testing.
