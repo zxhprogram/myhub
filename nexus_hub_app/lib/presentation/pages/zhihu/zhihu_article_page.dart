@@ -221,15 +221,9 @@ class _ZhihuArticlePageState extends State<ZhihuArticlePage> {
                   ),
                 ),
               if (article.voteupCount > 0)
-                ZhihuMetricRow(
-                  icon: Icons.thumb_up_outlined,
-                  label: '${article.voteupCount} 赞同',
-                ),
+                ZhihuMetricRow(icon: Icons.thumb_up_outlined, label: '${article.voteupCount} 赞同'),
               if (article.commentCount > 0)
-                ZhihuMetricRow(
-                  icon: Icons.mode_comment_outlined,
-                  label: '${article.commentCount} 评论',
-                ),
+                ZhihuMetricRow(icon: Icons.mode_comment_outlined, label: '${article.commentCount} 评论'),
               if (article.updatedAtMs > 0)
                 ZhihuMetricRow(
                   icon: Icons.schedule,

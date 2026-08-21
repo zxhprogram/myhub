@@ -209,11 +209,7 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
         icon: Icons.cloud_off_outlined,
         title: '加载失败',
         subtitle: _error!,
-        action: NexusButton(
-          label: '重试',
-          icon: Icons.refresh,
-          onPressed: _loadFirst,
-        ),
+        action: NexusButton(label: '重试', icon: Icons.refresh, onPressed: _loadFirst),
       );
     }
     return ListView.builder(
@@ -254,7 +250,8 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
               if (item.followerCount > 0) Text('${item.followerCount} 关注'),
             ],
           ),
-          if (item.excerpt.isNotEmpty && item.excerpt != '[视频]') ...[
+          if (item.excerpt.isNotEmpty &&
+              item.excerpt != '[视频]') ...[
             const SizedBox(height: NexusSpacing.sm),
             Text(
               item.excerpt,
@@ -359,15 +356,9 @@ class _AnswerCard extends StatelessWidget {
             runSpacing: NexusSpacing.xs,
             children: [
               if (answer.voteupCount > 0)
-                ZhihuMetricRow(
-                  icon: Icons.thumb_up_outlined,
-                  label: '${answer.voteupCount} 赞同',
-                ),
+                ZhihuMetricRow(icon: Icons.thumb_up_outlined, label: '${answer.voteupCount} 赞同'),
               if (answer.commentCount > 0)
-                ZhihuMetricRow(
-                  icon: Icons.mode_comment_outlined,
-                  label: '${answer.commentCount} 评论',
-                ),
+                ZhihuMetricRow(icon: Icons.mode_comment_outlined, label: '${answer.commentCount} 评论'),
               if (answer.updatedAtMs > 0)
                 ZhihuMetricRow(
                   icon: Icons.schedule,

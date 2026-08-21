@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/zhihu_models.dart';
 import 'local_database.dart';
@@ -58,14 +59,17 @@ class ZhihuService {
       'AppleWebKit/537.36 (KHTML, like Gecko) '
       'Chrome/126.0.0.0 Safari/537.36';
 
-  /// Field list for the v4 feeds endpoint as sent by the website itself;
-  /// keeps the response shape stable (content, author, voteup_count, ...).
+  /// Field list for the v4 feeds endpoint. Zhihu's server rejects the full
+  /// `data[*]...` whitelist on a signed-in session with an empty `data`
+  /// array — the feed call succeeds (HTTP 200) but yields no answers, which
+  /// the parser reports as a parse failure. A lean list returns the same
+  /// answer objects (content, author, engagement stats) reliably, so the
+  /// accepted fields are requested and nothing else (there is no stable
+  /// non-empty whitelist shape when signed in).
   static const _feedInclude =
-      'data[*].is_normal,admin_closed_comment,reward_info,is_collapsed,'
-      'annotation_action,annotation_detail,collapse_reason,collapsed_by,'
-      'suggest_edit,comment_count,can_comment,content,editable_content,'
-      'voteup_count,created_time,upvoted_followees,'
-      'author.badge[?(type=best_answerer)].topics';
+      'data[*].content,data[*].author.name,data[*].author.avatar_url,'
+      'data[*].author.headline,data[*].voteup_count,data[*].comment_count,'
+      'data[*].created_time,data[*].updated_time,data[*].excerpt';
 
   static const _answerPageSize = 5;
 
@@ -415,6 +419,14 @@ class ZhihuService {
     required int requested,
   }) {
     _ensureNoApiError(data);
+    // Some gateway responses answer HTTP 200 with an `error` node that is
+    // neither a map nor a string — e.g. `{"error": {"code": 10003, ...}}`
+    // flattened by a double-decode — so neither `_asJsonMap` nor
+    // `_ensureNoApiError` catches them. Detect a non-null `error` field here
+    // and raise the standard exception instead of crashing on the payload.
+    if (data['error'] != null) {
+      throw const ZhihuException('回答数据解析失败');
+    }
     final list = data['data'];
     if (list is! List) {
       throw const ZhihuException('回答数据解析失败');
@@ -441,10 +453,32 @@ class ZhihuService {
 
   static ZhihuArticle _parseArticle(Map<String, dynamic> data) {
     _ensureNoApiError(data);
+    if (data['error'] != null) {
+      throw const ZhihuException('文章数据解析失败');
+    }
     if (data['id'] == null || data['title'] == null) {
       throw const ZhihuException('文章数据解析失败');
     }
     return ZhihuArticle.fromJson(data);
+  }
+
+  /// Test-only seam: exposes [parseAnswerPageForTest]'s logic to unit tests
+  /// without requiring live network access.
+  ///
+  /// The production page loader swallows the underlying exception type, so
+  /// the tests only assert on the [ZhihuException]/[ZhihuAnswerPage] surface
+  /// rather than on the raw crash.
+  @visibleForTesting
+  static ZhihuAnswerPage parseAnswerPageForTest(
+    Map<String, dynamic> data, {
+    required String questionId,
+    required int requested,
+  }) {
+    return _parseAnswerPage(
+      data,
+      questionId: questionId,
+      requested: requested,
+    );
   }
 
   /// Parses the v3 recommend feed API response.
