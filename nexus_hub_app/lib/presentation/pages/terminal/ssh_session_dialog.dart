@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../../data/models/ssh_profile.dart';
 import '../../states/terminal_state.dart';
@@ -15,10 +15,13 @@ Future<SshProfile?> showSshSessionDialog(
   BuildContext context, {
   SshProfile? initial,
 }) {
-  return showDialog<SshProfile>(
-    context: context,
-    builder: (_) => _SshSessionDialog(initial: initial),
-  );
+  return showOverlay<SshProfile>(
+    context,
+    DialogConfiguration<SshProfile>(
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+      builder: (_) => _SshSessionDialog(initial: initial),
+    ),
+  ).future;
 }
 
 class _SshSessionDialog extends StatefulWidget {
@@ -31,7 +34,6 @@ class _SshSessionDialog extends StatefulWidget {
 }
 
 class _SshSessionDialogState extends State<_SshSessionDialog> {
-  final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.initial?.name);
   late final _hostController = TextEditingController(text: widget.initial?.host);
   late final _portController =
@@ -65,7 +67,13 @@ class _SshSessionDialogState extends State<_SshSessionDialog> {
   }
 
   void _submit() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_validateRequired(_nameController.text) != null ||
+        _validateRequired(_hostController.text) != null ||
+        _validatePort(_portController.text) != null ||
+        _validateRequired(_usernameController.text) != null ||
+        _validateRequired(_passwordController.text) != null) {
+      return;
+    }
     final profile = SshProfile(
       id: widget.initial?.id ?? TerminalState.generateId(),
       name: _nameController.text.trim(),
@@ -74,7 +82,7 @@ class _SshSessionDialogState extends State<_SshSessionDialog> {
       username: _usernameController.text.trim(),
       password: _passwordController.text,
     );
-    Navigator.of(context).pop(profile);
+    closeOverlay<SshProfile>(context, profile);
   }
 
   @override
@@ -83,11 +91,9 @@ class _SshSessionDialogState extends State<_SshSessionDialog> {
     final isEditing = widget.initial != null;
 
     return AlertDialog(
-      backgroundColor: colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Row(
         children: [
-          Icon(Icons.dns_outlined, size: 24, color: colorScheme.secondary),
+          Icon(LucideIcons.server, size: 24, color: colorScheme.secondary),
           const SizedBox(width: 12),
           Text(
             isEditing ? '编辑 SSH 会话' : '新增 SSH 会话',
@@ -97,9 +103,7 @@ class _SshSessionDialogState extends State<_SshSessionDialog> {
       ),
       content: SizedBox(
         width: 420,
-        child: Form(
-          key: _formKey,
-          child: Column(
+        child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -160,16 +164,15 @@ class _SshSessionDialogState extends State<_SshSessionDialog> {
               ),
             ],
           ),
-        ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+        Button.text(
+          onPressed: () => closeOverlay<SshProfile>(context),
           child: const Text('取消'),
         ),
         NexusButton(
           label: isEditing ? '保存' : '保存并连接',
-          icon: isEditing ? Icons.check : Icons.bolt_outlined,
+          icon: isEditing ? RadixIcons.check : LucideIcons.zap,
           onPressed: _submit,
         ),
       ],

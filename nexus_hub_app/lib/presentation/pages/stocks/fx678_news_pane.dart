@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/fx678_news_model.dart';
@@ -86,7 +86,7 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
               Text(
                 '${visible.length} 条',
                 style: NexusTypography.labelSm.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             const Spacer(),
@@ -106,7 +106,7 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
             const SizedBox(width: NexusSpacing.md),
             NexusButton(
               label: '刷新',
-              icon: Icons.refresh,
+              icon: LucideIcons.refreshCw,
               variant: NexusButtonVariant.outlined,
               isLoading: _isLoading,
               onPressed: _refresh,
@@ -139,12 +139,12 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
 
     if (_hasError) {
       return NexusEmptyState(
-        icon: Icons.cloud_off,
+        icon: LucideIcons.cloudOff,
         title: '快讯加载失败',
         subtitle: '请检查网络后重试',
         action: NexusButton(
           label: '重试',
-          icon: Icons.refresh,
+          icon: LucideIcons.refreshCw,
           variant: NexusButtonVariant.outlined,
           onPressed: _load,
         ),
@@ -153,13 +153,15 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
 
     if (items.isEmpty) {
       return const NexusEmptyState(
-        icon: Icons.flash_on,
+        icon: LucideIcons.zap,
         title: '暂无快讯',
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _refresh,
+    return RefreshTrigger(
+      onRefresh: () async {
+        await _refresh();
+      },
       child: ListView.separated(
         padding: const EdgeInsets.only(bottom: NexusSpacing.lg),
         itemCount: items.length,
@@ -195,16 +197,9 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
     required VoidCallback onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected ? colorScheme.primary : Colors.transparent,
-      borderRadius: NexusRadii.fullRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.fullRadius,
-        hoverColor: selected
-            ? null
-            : colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-        child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: NexusSpacing.sm,
             vertical: 4,
@@ -213,22 +208,21 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
             borderRadius: NexusRadii.fullRadius,
             border: Border.all(
               color: selected
-                  ? Colors.transparent
-                  : colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  ? const Color(0x00000000)
+                  : colorScheme.border.withValues(alpha: 0.6),
             ),
           ),
           child: Text(
             label,
             style: NexusTypography.labelSm.copyWith(
               color: selected
-                  ? colorScheme.onPrimary
-                  : colorScheme.onSurfaceVariant,
+                  ? colorScheme.primaryForeground
+                  : colorScheme.mutedForeground,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
-      ),
-    );
+);
   }
 }
 
@@ -269,13 +263,13 @@ class _DayHeader extends StatelessWidget {
             vertical: 2,
           ),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.6),
+            color: colorScheme.accent.withValues(alpha: 0.6),
             borderRadius: NexusRadii.fullRadius,
           ),
           child: Text(
             label,
             style: NexusTypography.labelSm.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -283,7 +277,7 @@ class _DayHeader extends StatelessWidget {
         const SizedBox(width: NexusSpacing.sm),
         Expanded(
           child: Divider(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            color: colorScheme.border.withValues(alpha: 0.4),
           ),
         ),
       ],
@@ -327,7 +321,7 @@ class _NewsTileState extends State<_NewsTile> {
                   ? item.timeText.substring(0, 5)
                   : item.timeText,
               style: NexusTypography.labelSm.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -337,18 +331,18 @@ class _NewsTileState extends State<_NewsTile> {
           child: Container(
             padding: const EdgeInsets.all(NexusSpacing.md),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerLowest,
+              color: colorScheme.card,
               borderRadius: NexusRadii.lgRadius,
               border: Border(
                 left: BorderSide(color: accent, width: 3),
                 top: BorderSide(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                  color: colorScheme.border.withValues(alpha: 0.4),
                 ),
                 right: BorderSide(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                  color: colorScheme.border.withValues(alpha: 0.4),
                 ),
                 bottom: BorderSide(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                  color: colorScheme.border.withValues(alpha: 0.4),
                 ),
               ),
             ),
@@ -365,7 +359,7 @@ class _NewsTileState extends State<_NewsTile> {
                           fontWeight: FontWeight.w700,
                           color: item.isImportant
                               ? NexusColors.stockDown
-                              : colorScheme.onSurface,
+                              : colorScheme.foreground,
                         ),
                       ),
                     ),
@@ -374,17 +368,16 @@ class _NewsTileState extends State<_NewsTile> {
                       _ImportantBadge(),
                     ],
                     const SizedBox(width: NexusSpacing.sm),
-                    InkWell(
-                      onTap: widget.onOpen,
-                      borderRadius: NexusRadii.smRadius,
-                      child: Icon(
-                        Icons.open_in_new,
+                    GestureDetector(
+  onTap: widget.onOpen,
+  child: Icon(
+                        RadixIcons.externalLink,
                         size: 14,
-                        color: colorScheme.onSurfaceVariant.withValues(
+                        color: colorScheme.mutedForeground.withValues(
                           alpha: 0.6,
                         ),
                       ),
-                    ),
+),
                   ],
                 ),
                 if (item.content != item.title) ...[
@@ -394,7 +387,7 @@ class _NewsTileState extends State<_NewsTile> {
                     maxLines: _expanded ? null : 5,
                     overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
                     style: NexusTypography.bodyMd.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.85),
+                      color: colorScheme.foreground.withValues(alpha: 0.85),
                       height: 1.5,
                     ),
                   ),

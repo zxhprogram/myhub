@@ -1,6 +1,8 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
+
+import '../components/nexus_toast.dart';
 import 'package:path/path.dart' as p;
 import 'package:signals_flutter/signals_flutter.dart';
 import 'package:super_clipboard/super_clipboard.dart';
@@ -63,7 +65,7 @@ class _ClipboardHistoryPageState extends State<ClipboardHistoryPage> {
           const SizedBox(height: NexusSpacing.md),
           NexusInput(
             hintText: 'Search clipboard...',
-            prefixIcon: const Icon(Icons.search, size: 20),
+            prefixIcon: const Icon(RadixIcons.magnifyingGlass, size: 20),
             onChanged: (value) => _query.value = value,
           ),
           const SizedBox(height: NexusSpacing.md),
@@ -77,7 +79,7 @@ class _ClipboardHistoryPageState extends State<ClipboardHistoryPage> {
                   child: Text(
                     'Error: ${_state.error.value}',
                     style: NexusTypography.bodyMd.copyWith(
-                      color: colorScheme.error,
+                      color: colorScheme.destructive,
                     ),
                   ),
                 );
@@ -85,7 +87,7 @@ class _ClipboardHistoryPageState extends State<ClipboardHistoryPage> {
               final visible = _visibleItems(_state.items.value);
               if (visible.isEmpty) {
                 return const NexusEmptyState(
-                  icon: Icons.content_paste,
+                  icon: RadixIcons.clipboard,
                   title: 'No clipboard items yet',
                   subtitle: 'Copy text, images, or files to see them here.',
                 );
@@ -121,9 +123,7 @@ class _ClipboardHistoryPageState extends State<ClipboardHistoryPage> {
     await clipboard.write([writerItem]);
 
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
+      nexusToast(context, 'Copied to clipboard');
     }
   }
 
@@ -149,26 +149,29 @@ class _ClipboardHistoryPageState extends State<ClipboardHistoryPage> {
   }
 
   void _showClearConfirmation(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear clipboard history?'),
-        content: const Text(
-          'This will remove all items. This action cannot be undone.',
+    showOverlay<void>(
+      context,
+      DialogConfiguration<void>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (ctx) => AlertDialog(
+          title: const Text('Clear clipboard history?'),
+          content: const Text(
+            'This will remove all items. This action cannot be undone.',
+          ),
+          actions: [
+            Button.text(
+              onPressed: () => closeOverlay<void>(ctx),
+              child: const Text('Cancel'),
+            ),
+            Button.destructive(
+              onPressed: () {
+                _state.clear();
+                closeOverlay<void>(ctx);
+              },
+              child: const Text('Clear'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              _state.clear();
-              Navigator.of(context).pop();
-            },
-            child: const Text('Clear'),
-          ),
-        ],
       ),
     );
   }
@@ -207,13 +210,13 @@ class _Header extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainer,
+                    color: colorScheme.muted,
                     borderRadius: NexusRadii.fullRadius,
                   ),
                   child: Text(
                     '$count',
                     style: NexusTypography.labelSm.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                      color: colorScheme.mutedForeground,
                     ),
                   ),
                 ),
@@ -223,7 +226,7 @@ class _Header extends StatelessWidget {
             Text(
               'Recent copied text, images, and files.',
               style: NexusTypography.bodyMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
             ),
           ],
@@ -234,7 +237,7 @@ class _Header extends StatelessWidget {
             const SizedBox(width: NexusSpacing.sm),
             NexusButton(
               label: 'Clear History',
-              icon: Icons.delete_outline,
+              icon: LucideIcons.trash2,
               variant: NexusButtonVariant.outlined,
               onPressed: onClear,
             ),
@@ -257,21 +260,21 @@ class _ViewToggle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLowest,
-        border: Border.all(color: colorScheme.outlineVariant),
+        color: colorScheme.card,
+        border: Border.all(color: colorScheme.border),
         borderRadius: NexusRadii.lgRadius,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _toggleButton(
-            icon: Icons.grid_view,
+            icon: RadixIcons.grid,
             active: view == ClipboardView.grid,
             colorScheme: colorScheme,
             onTap: () => onChanged(ClipboardView.grid),
           ),
           _toggleButton(
-            icon: Icons.view_list,
+            icon: LucideIcons.list,
             active: view == ClipboardView.list,
             colorScheme: colorScheme,
             onTap: () => onChanged(ClipboardView.list),
@@ -287,26 +290,19 @@ class _ViewToggle extends StatelessWidget {
     required ColorScheme colorScheme,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: active
-          ? colorScheme.surfaceContainerHighest
-          : Colors.transparent,
-      borderRadius: NexusRadii.mdRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.mdRadius,
-        child: Padding(
+    return GestureDetector(
+  onTap: onTap,
+  child: Padding(
           padding: const EdgeInsets.all(6),
           child: Icon(
             icon,
             size: 18,
             color: active
-                ? colorScheme.onSurface
-                : colorScheme.onSurfaceVariant,
+                ? colorScheme.foreground
+                : colorScheme.mutedForeground,
           ),
         ),
-      ),
-    );
+);
   }
 }
 
@@ -423,24 +419,24 @@ class _ClipboardGridCardState extends State<_ClipboardGridCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLowest,
+          color: colorScheme.card,
           borderRadius: NexusRadii.xxlRadius,
           border: Border.all(
             color: _hovered
-                ? colorScheme.outline
-                : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ? colorScheme.border
+                : colorScheme.border.withValues(alpha: 0.5),
           ),
           boxShadow: _hovered
               ? [
                   BoxShadow(
-                    color: colorScheme.onSurface.withValues(alpha: 0.08),
+                    color: colorScheme.foreground.withValues(alpha: 0.08),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: colorScheme.onSurface.withValues(alpha: 0.04),
+                    color: colorScheme.foreground.withValues(alpha: 0.04),
                     blurRadius: 4,
                     offset: const Offset(0, 1),
                   ),
@@ -457,10 +453,10 @@ class _ClipboardGridCardState extends State<_ClipboardGridCard> {
                   children: [
                     Container(
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
+                        color: colorScheme.accent,
                         border: Border(
                           bottom: BorderSide(
-                            color: colorScheme.outlineVariant.withValues(
+                            color: colorScheme.border.withValues(
                               alpha: 0.5,
                             ),
                           ),
@@ -479,19 +475,19 @@ class _ClipboardGridCardState extends State<_ClipboardGridCard> {
                         child: Row(
                           children: [
                             _HoverAction(
-                              icon: Icons.copy,
+                              icon: RadixIcons.copy,
                               onTap: widget.onCopy,
                             ),
                             if (widget.item.hasFile) ...[
                               const SizedBox(width: 4),
                               _HoverAction(
-                                icon: Icons.open_in_new,
+                                icon: RadixIcons.externalLink,
                                 onTap: widget.onOpen,
                               ),
                             ],
                             const SizedBox(width: 4),
                             _HoverAction(
-                              icon: Icons.delete,
+                              icon: LucideIcons.trash2,
                               danger: true,
                               onTap: widget.onDelete,
                             ),
@@ -583,19 +579,19 @@ class _ClipboardListCard extends StatelessWidget {
           ),
           Row(
             children: [
-              IconButton(
-                onPressed: onCopy,
-                icon: const Icon(Icons.copy, size: 18),
-              ),
+              IconButton.ghost(
+  onPressed: onCopy,
+  icon: const Icon(RadixIcons.copy, size: 18),
+),
               if (item.hasFile)
-                IconButton(
-                  onPressed: onOpen,
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                ),
-              IconButton(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, size: 18),
-              ),
+                IconButton.ghost(
+  onPressed: onOpen,
+  icon: const Icon(RadixIcons.externalLink, size: 18),
+),
+              IconButton.ghost(
+  onPressed: onDelete,
+  icon: const Icon(LucideIcons.trash2, size: 18),
+),
             ],
           ),
         ],
@@ -628,16 +624,16 @@ class _ItemPreview extends StatelessWidget {
 
     if (onTap == null) return child;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(onTap: onTap, borderRadius: borderRadius, child: child),
-    );
+    return GestureDetector(
+  onTap: onTap,
+  child: child,
+);
   }
 
   Widget _buildImage() {
     final path = item.filePath;
     if (path == null || path.isEmpty) {
-      return const _Placeholder(icon: Icons.image);
+      return const _Placeholder(icon: LucideIcons.image);
     }
 
     if (_isRemotePath(path)) {
@@ -646,7 +642,7 @@ class _ItemPreview extends StatelessWidget {
         fit: fit,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (context, _, _) => const _Placeholder(icon: Icons.image),
+        errorBuilder: (context, _, _) => const _Placeholder(icon: LucideIcons.image),
       );
     }
 
@@ -655,7 +651,7 @@ class _ItemPreview extends StatelessWidget {
       fit: fit,
       width: double.infinity,
       height: double.infinity,
-      errorBuilder: (context, _, _) => const _Placeholder(icon: Icons.image),
+      errorBuilder: (context, _, _) => const _Placeholder(icon: LucideIcons.image),
     );
   }
 }
@@ -671,13 +667,13 @@ class _TextPreview extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: colorScheme.surfaceContainer,
+      color: colorScheme.muted,
       padding: const EdgeInsets.all(NexusSpacing.md),
       child: Center(
         child: Text(
           content,
           style: NexusTypography.bodyMd.copyWith(
-            color: colorScheme.onSurfaceVariant,
+            color: colorScheme.mutedForeground,
           ),
           maxLines: 6,
           overflow: TextOverflow.ellipsis,
@@ -703,12 +699,12 @@ class _FileIcon extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: colorScheme.surfaceContainer,
+      color: colorScheme.muted,
       padding: const EdgeInsets.all(NexusSpacing.md),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 40, color: colorScheme.onSurfaceVariant),
+          Icon(icon, size: 40, color: colorScheme.mutedForeground),
           const SizedBox(height: NexusSpacing.sm),
           if (extension.isNotEmpty)
             Container(
@@ -717,13 +713,13 @@ class _FileIcon extends StatelessWidget {
                 vertical: 2,
               ),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh,
+                color: colorScheme.accent,
                 borderRadius: NexusRadii.smRadius,
               ),
               child: Text(
                 extension,
                 style: NexusTypography.labelSm.copyWith(
-                  color: colorScheme.onSurface,
+                  color: colorScheme.foreground,
                 ),
               ),
             ),
@@ -733,17 +729,17 @@ class _FileIcon extends StatelessWidget {
   }
 
   IconData _iconForMimeType(String? mimeType) {
-    if (mimeType == null) return Icons.insert_drive_file;
-    if (mimeType.startsWith('image/')) return Icons.image;
-    if (mimeType.startsWith('video/')) return Icons.movie;
-    if (mimeType.startsWith('audio/')) return Icons.music_note;
-    if (mimeType == 'application/pdf') return Icons.picture_as_pdf;
+    if (mimeType == null) return LucideIcons.file;
+    if (mimeType.startsWith('image/')) return LucideIcons.image;
+    if (mimeType.startsWith('video/')) return LucideIcons.film;
+    if (mimeType.startsWith('audio/')) return LucideIcons.music;
+    if (mimeType == 'application/pdf') return LucideIcons.fileText;
     if (mimeType.contains('zip') ||
         mimeType.contains('compressed') ||
         mimeType.contains('archive')) {
-      return Icons.folder_zip;
+      return LucideIcons.folderArchive;
     }
-    return Icons.insert_drive_file;
+    return LucideIcons.file;
   }
 }
 
@@ -758,8 +754,8 @@ class _Placeholder extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: colorScheme.surfaceContainer,
-      child: Icon(icon, size: 40, color: colorScheme.onSurfaceVariant),
+      color: colorScheme.muted,
+      child: Icon(icon, size: 40, color: colorScheme.mutedForeground),
     );
   }
 }
@@ -773,10 +769,10 @@ class _TypeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final (label, color) = switch (type) {
-      'text' => ('TEXT', colorScheme.primaryContainer),
-      'image' => ('IMAGE', colorScheme.secondaryContainer),
-      'file' => ('FILE', colorScheme.tertiaryContainer),
-      _ => (type.toUpperCase(), colorScheme.surfaceContainerHigh),
+      'text' => ('TEXT', colorScheme.primary),
+      'image' => ('IMAGE', colorScheme.secondary),
+      'file' => ('FILE', colorScheme.accent),
+      _ => (type.toUpperCase(), colorScheme.accent),
     };
 
     return Container(
@@ -790,7 +786,7 @@ class _TypeBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: NexusTypography.labelSm.copyWith(color: colorScheme.onSurface),
+        style: NexusTypography.labelSm.copyWith(color: colorScheme.foreground),
       ),
     );
   }
@@ -810,26 +806,21 @@ class _HoverAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: colorScheme.surfaceContainerLowest,
-      borderRadius: NexusRadii.fullRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.fullRadius,
-        child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             borderRadius: NexusRadii.fullRadius,
-            border: Border.all(color: colorScheme.outlineVariant),
+            border: Border.all(color: colorScheme.border),
           ),
           child: Icon(
             icon,
             size: 16,
-            color: danger ? colorScheme.error : colorScheme.onSurface,
+            color: danger ? colorScheme.destructive : colorScheme.foreground,
           ),
         ),
-      ),
-    );
+);
   }
 }
 

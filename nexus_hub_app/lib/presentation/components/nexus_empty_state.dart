@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../theme/typography.dart';
 
@@ -28,20 +28,20 @@ class NexusEmptyState extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainer,
+              color: colorScheme.muted,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
               icon,
               size: 32,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              color: colorScheme.mutedForeground.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 16),
           Text(
             title,
             style: NexusTypography.headlineSm.copyWith(
-              color: colorScheme.onSurface,
+              color: colorScheme.foreground,
             ),
           ),
           if (subtitle != null) ...[
@@ -49,7 +49,7 @@ class NexusEmptyState extends StatelessWidget {
             Text(
               subtitle!,
               style: NexusTypography.bodyMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
             ),
           ],

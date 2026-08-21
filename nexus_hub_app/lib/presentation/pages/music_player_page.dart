@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/music_playlist_model.dart';
@@ -52,7 +52,7 @@ class _MusicPlayerPageState extends State<MusicPlayerPage> {
               Text(
                 'mu-jie.cc musicBox · 在线音乐',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ],
@@ -63,22 +63,22 @@ class _MusicPlayerPageState extends State<MusicPlayerPage> {
               vertical: NexusSpacing.xs,
             ),
             decoration: BoxDecoration(
-              color: colorScheme.secondaryContainer,
+              color: colorScheme.secondary,
               borderRadius: NexusRadii.fullRadius,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  Icons.cloud_outlined,
+                  LucideIcons.cloud,
                   size: 14,
-                  color: colorScheme.onSecondaryContainer,
+                  color: colorScheme.secondaryForeground,
                 ),
                 const SizedBox(width: NexusSpacing.xs),
                 Text(
                   'Streaming',
                   style: NexusTypography.labelMd.copyWith(
-                    color: colorScheme.onSecondaryContainer,
+                    color: colorScheme.secondaryForeground,
                   ),
                 ),
               ],
@@ -127,7 +127,7 @@ class _PlaylistDivider extends StatelessWidget {
       width: 1,
       color: Theme.of(
         context,
-      ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+      ).colorScheme.border.withValues(alpha: 0.5),
     );
   }
 }
@@ -177,7 +177,7 @@ class _Artwork extends StatelessWidget {
           ],
         ),
         child: Center(
-          child: Icon(Icons.music_note, color: Colors.white70, size: iconSize),
+          child: Icon(LucideIcons.music, color: const Color(0xB3FFFFFF), size: iconSize),
         ),
       );
 }
@@ -200,15 +200,15 @@ class _NowPlayingPanel extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.album_outlined,
+              LucideIcons.disc,
               size: 72,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+              color: colorScheme.mutedForeground.withValues(alpha: 0.4),
             ),
             const SizedBox(height: NexusSpacing.md),
             Text(
               'Pick a track to start listening',
               style: NexusTypography.bodyMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
             ),
           ],
@@ -248,7 +248,7 @@ class _NowPlayingPanel extends StatelessWidget {
             Text(
               track.artist,
               style: NexusTypography.bodyMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -257,7 +257,7 @@ class _NowPlayingPanel extends StatelessWidget {
             Text(
               track.album.isEmpty ? track.artist : track.album,
               style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -291,15 +291,15 @@ class _CompactNowPlaying extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              Icons.album_outlined,
+              LucideIcons.disc,
               size: 20,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              color: colorScheme.mutedForeground.withValues(alpha: 0.5),
             ),
             const SizedBox(width: NexusSpacing.sm),
             Text(
               'Pick a track below to start listening',
               style: NexusTypography.bodyMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
             ),
           ],
@@ -339,7 +339,7 @@ class _CompactNowPlaying extends StatelessWidget {
                 Text(
                   track.artist,
                   style: NexusTypography.bodyMd.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.mutedForeground,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -412,56 +412,29 @@ class _RightPaneState extends State<_RightPane> {
               Expanded(
                 child: TextField(
                   controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: '搜索歌单或歌曲',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
-                          )
-                        : null,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: NexusSpacing.sm,
-                      vertical: NexusSpacing.xs,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: NexusRadii.mdRadius,
-                      borderSide: BorderSide(
-                        color: colorScheme.outlineVariant,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: NexusRadii.mdRadius,
-                      borderSide: BorderSide(
-                        color: colorScheme.outlineVariant,
-                      ),
-                    ),
-                  ),
+                  hintText: '搜索歌单或歌曲',
                   onSubmitted: (_) => _doSearch(),
                   onChanged: (_) => setState(() {}),
                 ),
               ),
               const SizedBox(width: NexusSpacing.xs),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(
-                    value: false,
-                    label: Text('歌单', style: TextStyle(fontSize: 12)),
+              TabList(
+                index: _searchSongs ? 1 : 0,
+                onChanged: (index) => setState(() => _searchSongs = index == 1),
+                children: const [
+                  TabChildWidget(
+                    indexed: true,
+                    child: TabButton(
+                      child: Text('歌单', style: TextStyle(fontSize: 12)),
+                    ),
                   ),
-                  ButtonSegment(
-                    value: true,
-                    label: Text('歌曲', style: TextStyle(fontSize: 12)),
+                  TabChildWidget(
+                    indexed: true,
+                    child: TabButton(
+                      child: Text('歌曲', style: TextStyle(fontSize: 12)),
+                    ),
                   ),
                 ],
-                selected: {_searchSongs},
-                onSelectionChanged: (set) =>
-                    setState(() => _searchSongs = set.first),
-                showSelectedIcon: false,
               ),
             ],
           ),
@@ -475,7 +448,7 @@ class _RightPaneState extends State<_RightPane> {
             child: Text(
               state.errorMessage.value!,
               style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.error,
+                color: colorScheme.destructive,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -514,7 +487,7 @@ class _BrowseContent extends StatelessWidget {
         child: Text(
           '暂无歌单',
           style: NexusTypography.bodyMd.copyWith(
-            color: colorScheme.onSurfaceVariant,
+            color: colorScheme.mutedForeground,
           ),
         ),
       );
@@ -549,10 +522,9 @@ class _PlaylistCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: NexusRadii.mdRadius,
-      onTap: () => MusicPlayerState.instance.loadPlaylist(playlist),
-      child: Column(
+    return GestureDetector(
+  onTap: () => MusicPlayerState.instance.loadPlaylist(playlist),
+  child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
@@ -583,25 +555,25 @@ class _PlaylistCard extends StatelessWidget {
             Text(
               _formatPlayCount(playlist.playCount),
               style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
                 fontSize: 11,
               ),
               maxLines: 1,
             ),
         ],
       ),
-    );
+);
   }
 
   Widget _placeholderCover(ColorScheme colorScheme) {
     return Container(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
+        color: colorScheme.accent,
         borderRadius: NexusRadii.mdRadius,
       ),
       child: Icon(
-        Icons.queue_music,
-        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+        LucideIcons.listMusic,
+        color: colorScheme.mutedForeground.withValues(alpha: 0.5),
       ),
     );
   }
@@ -648,13 +620,13 @@ class _TrackListContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: NexusSpacing.sm),
-              InkWell(
-                onTap: () {
+              GestureDetector(
+  onTap: () {
                   state.playlist.value = const [];
                   state.playlistTitle.value = '';
                   state.currentIndex.value = -1;
                 },
-                child: Padding(
+  child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: NexusSpacing.xs,
                     vertical: 2,
@@ -663,26 +635,26 @@ class _TrackListContent extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.arrow_back,
+                        RadixIcons.arrowLeft,
                         size: 14,
-                        color: colorScheme.onSurfaceVariant,
+                        color: colorScheme.mutedForeground,
                       ),
                       const SizedBox(width: 2),
                       Text(
                         '歌单',
                         style: NexusTypography.labelMd.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                          color: colorScheme.mutedForeground,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
+),
               const SizedBox(width: NexusSpacing.sm),
               Text(
                 '${tracks.length} tracks',
                 style: NexusTypography.labelMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ],
@@ -715,9 +687,9 @@ class _TrackRow extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final track = state.playlist.value[index];
     final isCurrent = state.currentIndex.value == index;
-    return InkWell(
-      onTap: () => state.playTrack(index),
-      child: Padding(
+    return GestureDetector(
+  onTap: () => state.playTrack(index),
+  child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: NexusSpacing.md,
           vertical: NexusSpacing.sm,
@@ -734,7 +706,7 @@ class _TrackRow extends StatelessWidget {
                         style: NexusTypography.labelMd.copyWith(
                           color: isCurrent
                               ? colorScheme.primary
-                              : colorScheme.onSurfaceVariant,
+                              : colorScheme.mutedForeground,
                         ),
                       ),
               ),
@@ -760,7 +732,7 @@ class _TrackRow extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       color: isCurrent
                           ? colorScheme.primary
-                          : colorScheme.onSurface,
+                          : colorScheme.foreground,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -769,7 +741,7 @@ class _TrackRow extends StatelessWidget {
                   Text(
                     track.artist,
                     style: NexusTypography.labelMd.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                      color: colorScheme.mutedForeground,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -786,14 +758,14 @@ class _TrackRow extends StatelessWidget {
               )
             else
               Icon(
-                Icons.cloud_outlined,
+                LucideIcons.cloud,
                 size: 14,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                color: colorScheme.mutedForeground.withValues(alpha: 0.6),
               ),
           ],
         ),
       ),
-    );
+);
   }
 }
 
@@ -810,11 +782,11 @@ class _PlayerBar extends StatelessWidget {
     state.shuffle.watch(context);
     state.repeatMode.watch(context);
     final colorScheme = Theme.of(context).colorScheme;
-    final accent = colorScheme.onSurfaceVariant;
+    final accent = colorScheme.mutedForeground;
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+          top: BorderSide(color: colorScheme.border.withValues(alpha: 0.5)),
         ),
       ),
       padding: const EdgeInsets.symmetric(
@@ -823,46 +795,32 @@ class _PlayerBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: Icon(Icons.shuffle, size: 20),
-            tooltip: 'Shuffle',
-            color: state.shuffle.value ? colorScheme.primary : accent,
-            onPressed: state.toggleShuffle,
-          ),
+          IconButton.ghost(
+  icon: Icon(LucideIcons.shuffle, size: 20),
+  onPressed: state.toggleShuffle,
+),
           const SizedBox(width: NexusSpacing.xs),
-          IconButton(
-            icon: const Icon(Icons.skip_previous),
-            tooltip: 'Previous',
-            color: accent,
-            onPressed: state.previous,
-          ),
+          IconButton.ghost(
+  icon: const Icon(LucideIcons.skipBack),
+  onPressed: state.previous,
+),
           const SizedBox(width: NexusSpacing.xs),
           _PlayButton(onPressed: state.togglePlay),
           const SizedBox(width: NexusSpacing.xs),
-          IconButton(
-            icon: const Icon(Icons.skip_next),
-            tooltip: 'Next',
-            color: accent,
-            onPressed: state.next,
-          ),
+          IconButton.ghost(
+  icon: const Icon(LucideIcons.skipForward),
+  onPressed: state.next,
+),
           const SizedBox(width: NexusSpacing.xs),
-          IconButton(
-            icon: Icon(
+          IconButton.ghost(
+  icon: Icon(
               state.repeatMode.value == MusicRepeatMode.one
-                  ? Icons.repeat_one
-                  : Icons.repeat,
+                  ? LucideIcons.repeat1
+                  : LucideIcons.repeat,
               size: 20,
             ),
-            tooltip: switch (state.repeatMode.value) {
-              MusicRepeatMode.off => 'Repeat off',
-              MusicRepeatMode.all => 'Repeat all',
-              MusicRepeatMode.one => 'Repeat one',
-            },
-            color: state.repeatMode.value == MusicRepeatMode.off
-                ? accent
-                : colorScheme.primary,
-            onPressed: state.cycleRepeat,
-          ),
+  onPressed: state.cycleRepeat,
+),
           const SizedBox(width: NexusSpacing.md),
           const Expanded(child: _SeekBar()),
           const SizedBox(width: NexusSpacing.md),
@@ -888,30 +846,25 @@ class _PlayButton extends StatelessWidget {
     return SizedBox(
       width: 44,
       height: 44,
-      child: Material(
-        color: colorScheme.primary,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onPressed,
-          child: Center(
+      child: GestureDetector(
+  onTap: onPressed,
+  child: Center(
             child: state.isBuffering.value
                 ? SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: colorScheme.onPrimary,
+                      color: colorScheme.primaryForeground,
                     ),
                   )
                 : Icon(
-                    state.isPlaying.value ? Icons.pause : Icons.play_arrow,
-                    color: colorScheme.onPrimary,
+                    state.isPlaying.value ? LucideIcons.pause : RadixIcons.play,
+                    color: colorScheme.primaryForeground,
                     size: 26,
                   ),
           ),
-        ),
-      ),
+),
     );
   }
 }
@@ -943,25 +896,20 @@ class _SeekBarState extends State<_SeekBar> {
       children: [
         SizedBox(
           height: 22,
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 4,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+          child: Slider(
+            value: SliderValue.single(
+              enabled ? value.clamp(0.0, duration).toDouble() : 0.0,
             ),
-            child: Slider(
-              value: enabled ? value.clamp(0.0, duration).toDouble() : 0.0,
-              max: math.max(duration, 1),
-              onChanged: enabled
-                  ? (v) => setState(() => _dragValue = v)
-                  : null,
-              onChangeEnd: enabled
-                  ? (v) {
-                      state.seekTo(v);
-                      setState(() => _dragValue = null);
-                    }
-                  : null,
-            ),
+            max: math.max(duration, 1),
+            onChanged: enabled
+                ? (v) => setState(() => _dragValue = v.value)
+                : null,
+            onChangeEnd: enabled
+                ? (v) {
+                    state.seekTo(v.value);
+                    setState(() => _dragValue = null);
+                  }
+                : null,
           ),
         ),
         Row(
@@ -970,13 +918,13 @@ class _SeekBarState extends State<_SeekBar> {
             Text(
               _formatDuration(_dragValue ?? position),
               style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
             ),
             Text(
               duration > 0 ? _formatDuration(duration) : '--:--',
               style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
             ),
           ],
@@ -1001,28 +949,21 @@ class _VolumeControl extends StatelessWidget {
       children: [
         Icon(
           value == 0
-              ? Icons.volume_off
+              ? LucideIcons.volumeX
               : value < 0.5
-                  ? Icons.volume_down
-                  : Icons.volume_up,
+                  ? LucideIcons.volume1
+                  : LucideIcons.volume2,
           size: 18,
-          color: colorScheme.onSurfaceVariant,
+          color: colorScheme.mutedForeground,
         ),
         const SizedBox(width: NexusSpacing.xs),
         SizedBox(
           width: 110,
           height: 22,
-          child: SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-            ),
-            child: Slider(
-              value: value,
-              max: 1,
-              onChanged: state.setVolume,
-            ),
+          child: Slider(
+            value: SliderValue.single(value),
+            max: 1,
+            onChanged: (v) => state.setVolume(v.value),
           ),
         ),
       ],

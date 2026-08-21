@@ -1,8 +1,4 @@
-import 'package:flutter/material.dart';
-
-import '../../theme/radii.dart';
-import '../../theme/spacing.dart';
-import '../../theme/typography.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 enum NexusButtonVariant { filled, tonal, outlined, text }
 
@@ -24,70 +20,33 @@ class NexusButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final leading = isLoading
+        ? const CircularProgressIndicator(size: 16)
+        : (icon != null ? Icon(icon, size: 16) : null);
 
-    final foregroundColor = switch (variant) {
-      NexusButtonVariant.filled => colorScheme.onPrimary,
-      NexusButtonVariant.tonal => colorScheme.onSecondaryContainer,
-      NexusButtonVariant.outlined || NexusButtonVariant.text => colorScheme.onSurface,
-    };
+    final child = label.isEmpty ? const SizedBox.shrink() : Text(label);
 
-    final backgroundColor = switch (variant) {
-      NexusButtonVariant.filled => colorScheme.primary,
-      NexusButtonVariant.tonal => colorScheme.secondaryContainer,
-      NexusButtonVariant.outlined || NexusButtonVariant.text => Colors.transparent,
-    };
-
-    final border = variant == NexusButtonVariant.outlined
-        ? Border.all(color: colorScheme.outlineVariant)
-        : null;
-
-    return Material(
-      color: backgroundColor,
-      borderRadius: NexusRadii.mdRadius,
-      child: InkWell(
-        onTap: isLoading ? null : onPressed,
-        borderRadius: NexusRadii.mdRadius,
-        hoverColor: variant == NexusButtonVariant.filled
-            ? colorScheme.primary.withValues(alpha: 0.85)
-            : colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: NexusSpacing.md,
-            vertical: NexusSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            border: border,
-            borderRadius: NexusRadii.mdRadius,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isLoading)
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
-                  ),
-                )
-              else if (icon != null)
-                Icon(icon, size: 18, color: foregroundColor),
-              if ((isLoading || icon != null) && label.isNotEmpty)
-                const SizedBox(width: NexusSpacing.sm),
-              if (label.isNotEmpty)
-                Text(
-                  label,
-                  style: NexusTypography.labelMd.copyWith(
-                    color: foregroundColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-            ],
-          ),
+    return switch (variant) {
+      NexusButtonVariant.filled => Button.primary(
+          onPressed: isLoading ? null : onPressed,
+          leading: leading,
+          child: child,
         ),
-      ),
-    );
+      NexusButtonVariant.tonal => Button.secondary(
+          onPressed: isLoading ? null : onPressed,
+          leading: leading,
+          child: child,
+        ),
+      NexusButtonVariant.outlined => Button.outline(
+          onPressed: isLoading ? null : onPressed,
+          leading: leading,
+          child: child,
+        ),
+      NexusButtonVariant.text => Button.text(
+          onPressed: isLoading ? null : onPressed,
+          leading: leading,
+          child: child,
+        ),
+    };
   }
 }

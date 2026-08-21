@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
+
+import '../components/nexus_toast.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -216,17 +218,12 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
 
   void _showError(String message) {
     if (!mounted) return;
-    final colorScheme = Theme.of(context).colorScheme;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: colorScheme.error),
-    );
+    nexusToast(context, message, isError: true);
   }
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    nexusToast(context, message);
   }
 
   @override
@@ -245,7 +242,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
               Text(
                 'Capture photos and videos from your webcam',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ],
@@ -282,10 +279,9 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         for (final (i, cam) in _cameras.indexed) ...[
-          InkWell(
-            onTap: () => _selectCamera(i),
-            borderRadius: NexusRadii.mdRadius,
-            child: AnimatedContainer(
+          GestureDetector(
+  onTap: () => _selectCamera(i),
+  child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(
                 horizontal: NexusSpacing.md,
@@ -293,21 +289,21 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
               ),
               decoration: BoxDecoration(
                 color: i == _selectedIndex
-                    ? colorScheme.secondaryContainer
-                    : colorScheme.surfaceContainerHigh,
+                    ? colorScheme.secondary
+                    : colorScheme.accent,
                 borderRadius: NexusRadii.mdRadius,
               ),
               child: Text(
                 cam.name.isNotEmpty ? cam.name : 'Camera ${i + 1}',
                 style: NexusTypography.labelMd.copyWith(
                   color: i == _selectedIndex
-                      ? colorScheme.onSecondaryContainer
-                      : colorScheme.onSurfaceVariant,
+                      ? colorScheme.secondaryForeground
+                      : colorScheme.mutedForeground,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-          ),
+),
         ],
         const SizedBox(width: NexusSpacing.xs),
         _ModeToggle(
@@ -325,9 +321,9 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
+        color: colorScheme.muted,
         borderRadius: NexusRadii.lgRadius,
-        border: Border.all(color: colorScheme.outlineVariant),
+        border: Border.all(color: colorScheme.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -359,7 +355,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
         horizontal: NexusSpacing.md,
         vertical: NexusSpacing.sm,
       ),
-      color: colorScheme.surfaceContainerLowest,
+      color: colorScheme.card,
       child: Row(
         children: [
           Expanded(
@@ -375,14 +371,13 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
             onTap: _mode == _CaptureMode.photo ? _takePhoto : _toggleRecording,
           ),
           const SizedBox(width: NexusSpacing.md),
-          IconButton(
-            tooltip: '打开捕获文件夹',
-            onPressed: () async {
+          IconButton.ghost(
+  onPressed: () async {
               final dir = await _captureDirectory();
               await _openInFolder(dir.path);
             },
-            icon: const Icon(Icons.folder_open_outlined),
-          ),
+  icon: const Icon(LucideIcons.folderOpen),
+),
         ],
       ),
     );
@@ -394,15 +389,15 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
       return Container(
         padding: const EdgeInsets.all(NexusSpacing.lg),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLow,
+          color: colorScheme.muted,
           borderRadius: NexusRadii.lgRadius,
         ),
         child: Column(
           children: [
             Icon(
-              Icons.photo_library_outlined,
+              LucideIcons.images,
               size: 32,
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
             ),
             const SizedBox(height: NexusSpacing.sm),
             Text('尚无捕获', style: NexusTypography.bodyMd),
@@ -410,7 +405,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
             Text(
               '拍摄的照片和视频会保存在此文件夹',
               style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
             ),
           ],
@@ -419,7 +414,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
     }
     return Container(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
+        color: colorScheme.muted,
         borderRadius: NexusRadii.lgRadius,
       ),
       clipBehavior: Clip.antiAlias,
@@ -432,7 +427,7 @@ class _CameraCapturePageState extends State<CameraCapturePage> {
               horizontal: NexusSpacing.md,
               vertical: NexusSpacing.sm,
             ),
-            color: colorScheme.surfaceContainerHigh,
+            color: colorScheme.accent,
             child: Text(
               '捕获记录 (${_captures.length})',
               style: NexusTypography.labelMd,
@@ -465,7 +460,7 @@ class _CaptureEntry {
 
   String get name => p.basename(path);
 
-  IconData get icon => video ? Icons.videocam_rounded : Icons.photo_rounded;
+  IconData get icon => video ? LucideIcons.video : LucideIcons.image;
 }
 
 /// A single capture listed in the history panel.
@@ -478,22 +473,21 @@ class _CaptureTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: NexusRadii.mdRadius,
-      child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: NexusSpacing.sm,
           vertical: 8,
         ),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLowest,
+          color: colorScheme.card,
           borderRadius: NexusRadii.mdRadius,
-          border: Border.all(color: colorScheme.outlineVariant),
+          border: Border.all(color: colorScheme.border),
         ),
         child: Row(
           children: [
-            Icon(entry.icon, size: 18, color: colorScheme.onSurfaceVariant),
+            Icon(entry.icon, size: 18, color: colorScheme.mutedForeground),
             const SizedBox(width: NexusSpacing.sm),
             Expanded(
               child: Text(
@@ -504,14 +498,14 @@ class _CaptureTile extends StatelessWidget {
               ),
             ),
             Icon(
-              Icons.folder_open_outlined,
+              LucideIcons.folderOpen,
               size: 16,
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
             ),
           ],
         ),
       ),
-    );
+);
   }
 }
 
@@ -561,7 +555,7 @@ class _ModeToggle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(NexusSpacing.xs),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
+        color: colorScheme.accent,
         borderRadius: NexusRadii.fullRadius,
       ),
       child: Row(
@@ -569,7 +563,7 @@ class _ModeToggle extends StatelessWidget {
         children: [
           _ModeChip(
             label: '照片',
-            icon: Icons.photo_camera_outlined,
+            icon: LucideIcons.camera,
             selected: mode == _CaptureMode.photo,
             enabled: enabled,
             onTap: () => onChanged(_CaptureMode.photo),
@@ -577,7 +571,7 @@ class _ModeToggle extends StatelessWidget {
           const SizedBox(width: NexusSpacing.xs),
           _ModeChip(
             label: '视频',
-            icon: Icons.videocam_outlined,
+            icon: LucideIcons.video,
             selected: mode == _CaptureMode.video,
             enabled: enabled,
             onTap: () => onChanged(_CaptureMode.video),
@@ -606,10 +600,9 @@ class _ModeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: enabled && !selected ? onTap : null,
-      borderRadius: NexusRadii.fullRadius,
-      child: AnimatedContainer(
+    return GestureDetector(
+  onTap: enabled && !selected ? onTap : null,
+  child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(
           horizontal: NexusSpacing.md,
@@ -617,8 +610,8 @@ class _ModeChip extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: selected
-              ? colorScheme.surfaceContainerLowest
-              : Colors.transparent,
+              ? colorScheme.card
+              : const Color(0x00000000),
           borderRadius: NexusRadii.fullRadius,
         ),
         child: Row(
@@ -629,7 +622,7 @@ class _ModeChip extends StatelessWidget {
               size: 15,
               color: selected
                   ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
+                  : colorScheme.mutedForeground,
             ),
             const SizedBox(width: NexusSpacing.xs),
             Text(
@@ -637,14 +630,14 @@ class _ModeChip extends StatelessWidget {
               style: NexusTypography.labelMd.copyWith(
                 color: selected
                     ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
+                    : colorScheme.mutedForeground,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ],
         ),
       ),
-    );
+);
   }
 }
 
@@ -670,15 +663,14 @@ class _CaptureButton extends StatelessWidget {
         ? colorScheme.secondary
         : const Color(0xFFE23C3C);
     final color = recording ? const Color(0xFFE23C3C) : accent;
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      customBorder: const CircleBorder(),
-      child: AnimatedContainer(
+    return GestureDetector(
+  onTap: enabled ? onTap : null,
+  child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 52,
         height: 52,
         decoration: BoxDecoration(
-          color: enabled ? color : colorScheme.surfaceContainerHigh,
+          color: enabled ? color : colorScheme.accent,
           shape: recording ? BoxShape.rectangle : BoxShape.circle,
           borderRadius: recording ? BorderRadius.circular(10) : null,
           boxShadow: enabled
@@ -693,15 +685,15 @@ class _CaptureButton extends StatelessWidget {
         ),
         child: Icon(
           recording
-              ? Icons.stop_rounded
+              ? LucideIcons.circleStop
               : isPhotoMode
-              ? Icons.camera_alt_rounded
-              : Icons.fiber_manual_record,
-          color: enabled ? colorScheme.onSecondary : colorScheme.onSurfaceVariant,
+              ? LucideIcons.camera
+              : RadixIcons.dotFilled,
+          color: enabled ? colorScheme.secondaryForeground : colorScheme.mutedForeground,
           size: 22,
         ),
       ),
-    );
+);
   }
 }
 
@@ -718,13 +710,13 @@ class _CameraBadge extends StatelessWidget {
         vertical: NexusSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer,
+        color: colorScheme.secondary,
         borderRadius: NexusRadii.fullRadius,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.camera_alt_outlined, size: 16),
+          const Icon(LucideIcons.camera, size: 16),
           const SizedBox(width: NexusSpacing.xs),
           Text('相机', style: NexusTypography.labelMd),
         ],

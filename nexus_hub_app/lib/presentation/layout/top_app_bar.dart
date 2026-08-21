@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 
 class TopAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -19,7 +18,7 @@ class TopAppBar extends StatelessWidget implements PreferredSizeWidget {
         color: colorScheme.background,
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: colorScheme.border.withValues(alpha: 0.3),
           ),
         ),
       ),
@@ -27,11 +26,11 @@ class TopAppBar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           if (title != null) Expanded(child: title!),
           if (title == null) const Spacer(),
-          _ActionButton(icon: Icons.search, onTap: () {}),
+          IconButton.ghost(icon: Icon(RadixIcons.magnifyingGlass, size: 18)),
           const SizedBox(width: NexusSpacing.sm),
-          _ActionButton(icon: Icons.notifications_outlined, onTap: () {}),
+          IconButton.ghost(icon: Icon(LucideIcons.bell, size: 18)),
           const SizedBox(width: NexusSpacing.sm),
-          _ActionButton(icon: Icons.help_outline, onTap: () {}),
+          IconButton.ghost(icon: Icon(LucideIcons.circleHelp, size: 18)),
         ],
       ),
     );
@@ -39,31 +38,4 @@ class TopAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
-}
-
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({required this.icon, this.onTap});
-
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        hoverColor: colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-        child: Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          child: Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
-        ),
-      ),
-    );
-  }
 }

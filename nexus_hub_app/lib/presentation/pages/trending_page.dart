@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/trending_repo_model.dart';
@@ -78,7 +78,7 @@ class _TrendingPageState extends State<TrendingPage> {
               Text(
                 'Discover popular open-source repositories',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ],
@@ -95,9 +95,9 @@ class _TrendingPageState extends State<TrendingPage> {
     return Row(
       children: [
         Icon(
-          Icons.calendar_today_outlined,
+          LucideIcons.calendar,
           size: 14,
-          color: colorScheme.onSurfaceVariant,
+          color: colorScheme.mutedForeground,
         ),
         const SizedBox(width: NexusSpacing.xs),
         for (final (since, label) in [
@@ -136,8 +136,10 @@ class _TrendingPageState extends State<TrendingPage> {
   }
 
   Widget _buildList() {
-    return RefreshIndicator(
-      onRefresh: _refresh,
+    return RefreshTrigger(
+      onRefresh: () async {
+        await _refresh();
+      },
       child: ListView.separated(
         padding: const EdgeInsets.only(bottom: NexusSpacing.xl),
         physics: const AlwaysScrollableScrollPhysics(),
@@ -210,7 +212,7 @@ class TrendingRepoCard extends StatelessWidget {
         repo.languageColor.isNotEmpty
             ? Color(int.parse('FF${repo.languageColor.substring(1)}',
                 radix: 16))
-            : Colors.transparent;
+            : const Color(0x00000000);
 
     return Wrap(
       spacing: NexusSpacing.md,
@@ -234,11 +236,11 @@ class TrendingRepoCard extends StatelessWidget {
             ],
           ),
         _IconStat(
-          icon: Icons.star_border,
+          icon: LucideIcons.star,
           text: repo.formattedStars,
         ),
         _IconStat(
-          icon: Icons.call_split_outlined,
+          icon: LucideIcons.gitFork,
           text: repo.formattedForks,
         ),
         Text('•', style: NexusTypography.labelSm),
@@ -280,7 +282,7 @@ class TrendingRepoCard extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.trending_up, size: 14, color: upColor),
+            Icon(LucideIcons.trendingUp, size: 14, color: upColor),
             const SizedBox(width: 2),
             Text(
               repo.formattedPeriodStars,
@@ -316,7 +318,7 @@ class _IconStat extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: colorScheme.onSurfaceVariant),
+        Icon(icon, size: 14, color: colorScheme.mutedForeground),
         const SizedBox(width: 4),
         Text(text, style: NexusTypography.labelSm),
       ],
@@ -334,7 +336,7 @@ class _ContributorPlaceholder extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       alignment: Alignment.center,
-      color: colorScheme.surfaceContainerHigh,
+      color: colorScheme.accent,
       child: Text(
         text.isEmpty ? '?' : text.characters.first.toUpperCase(),
         style: NexusTypography.labelSm.copyWith(
@@ -362,16 +364,9 @@ class _SelectableChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: isSelected ? colorScheme.primary : Colors.transparent,
-      borderRadius: NexusRadii.fullRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.fullRadius,
-        hoverColor: isSelected
-            ? null
-            : colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-        child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: NexusSpacing.sm,
             vertical: 4,
@@ -380,21 +375,20 @@ class _SelectableChip extends StatelessWidget {
             borderRadius: NexusRadii.fullRadius,
             border: Border.all(
               color: isSelected
-                  ? Colors.transparent
-                  : colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  ? const Color(0x00000000)
+                  : colorScheme.border.withValues(alpha: 0.6),
             ),
           ),
           child: Text(
             label,
             style: NexusTypography.labelSm.copyWith(
               color: isSelected
-                  ? colorScheme.onPrimary
-                  : colorScheme.onSurfaceVariant,
+                  ? colorScheme.primaryForeground
+                  : colorScheme.mutedForeground,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
-      ),
-    );
+);
   }
 }

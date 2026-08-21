@@ -1,8 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../../theme/colors.dart';
-import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 
@@ -28,12 +26,10 @@ class NexusChipInput extends StatefulWidget {
 
 class _NexusChipInputState extends State<NexusChipInput> {
   final _controller = TextEditingController();
-  final _focusNode = FocusNode();
 
   @override
   void dispose() {
     _controller.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
 
@@ -46,7 +42,6 @@ class _NexusChipInputState extends State<NexusChipInput> {
     }
     widget.onChanged?.call([...widget.values, text]);
     _controller.clear();
-    _focusNode.requestFocus();
   }
 
   void _removeChip(String value) {
@@ -59,75 +54,36 @@ class _NexusChipInputState extends State<NexusChipInput> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.labelText != null) ...[
-          Text(
-            widget.labelText!,
-            style: NexusTypography.labelMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
-            ),
-          ),
+          Text(widget.labelText!, style: NexusTypography.labelMd),
           const SizedBox(height: NexusSpacing.xs),
         ],
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: NexusSpacing.sm,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: NexusColors.surfaceContainerLowest,
-            borderRadius: NexusRadii.mdRadius,
-            border: Border.all(color: NexusColors.outline),
-          ),
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              ...widget.values.map(
-                (value) =>
-                    _Chip(label: value, onDeleted: () => _removeChip(value)),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ...widget.values.map(
+              (value) => _Chip(label: value, onDeleted: () => _removeChip(value)),
+            ),
+            SizedBox(
+              width: 160,
+              child: TextField(
+                controller: _controller,
+                style: NexusTypography.bodyMd,
+                hintText: widget.values.isEmpty ? widget.hintText : null,
+                onSubmitted: (_) => _addChip(),
+                onChanged: (value) {
+                  if (value.endsWith(',')) {
+                    _controller.text = value.substring(0, value.length - 1);
+                    _controller.selection = TextSelection.fromPosition(
+                      TextPosition(offset: _controller.text.length),
+                    );
+                    _addChip();
+                  }
+                },
               ),
-              SizedBox(
-                width: 120,
-                child: KeyboardListener(
-                  focusNode: _focusNode,
-                  onKeyEvent: (event) {
-                    if (event is KeyDownEvent &&
-                        event.logicalKey == LogicalKeyboardKey.enter) {
-                      _addChip();
-                    }
-                  },
-                  child: TextField(
-                    controller: _controller,
-                    style: NexusTypography.bodyMd,
-                    decoration: InputDecoration(
-                      hintText: widget.values.isEmpty ? widget.hintText : '',
-                      hintStyle: NexusTypography.bodyMd.copyWith(
-                        color: NexusColors.onSurfaceVariant,
-                      ),
-                      isCollapsed: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 6,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                    ),
-                    onSubmitted: (_) => _addChip(),
-                    onChanged: (value) {
-                      if (value.endsWith(',')) {
-                        _controller.text = value.substring(0, value.length - 1);
-                        _controller.selection = TextSelection.fromPosition(
-                          TextPosition(offset: _controller.text.length),
-                        );
-                        _addChip();
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
@@ -142,11 +98,12 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: NexusColors.secondaryContainer,
-        borderRadius: NexusRadii.fullRadius,
+        color: colorScheme.secondary,
+        borderRadius: BorderRadius.circular(9999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -154,19 +111,18 @@ class _Chip extends StatelessWidget {
           Text(
             label,
             style: NexusTypography.labelMd.copyWith(
-              color: NexusColors.onSecondaryContainer,
+              color: colorScheme.secondaryForeground,
             ),
           ),
           const SizedBox(width: 4),
-          InkWell(
+          GestureDetector(
             onTap: onDeleted,
-            borderRadius: BorderRadius.circular(10),
             child: Padding(
               padding: const EdgeInsets.all(1),
               child: Icon(
-                Icons.close,
+                RadixIcons.cross2,
                 size: 14,
-                color: NexusColors.onSecondaryContainer,
+                color: colorScheme.secondaryForeground,
               ),
             ),
           ),

@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 
-class NexusInput extends StatelessWidget {
+/// Text input built on the shadcn [TextField].
+///
+/// Validation (when [validator] is set) runs on every change once the field
+/// has content and the error text is rendered below the field.
+class NexusInput extends StatefulWidget {
   const NexusInput({
     super.key,
     this.controller,
@@ -39,75 +42,79 @@ class NexusInput extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
 
   @override
+  State<NexusInput> createState() => _NexusInputState();
+}
+
+class _NexusInputState extends State<NexusInput> {
+  String? _error;
+
+  void _validate(String value) {
+    if (widget.validator == null) return;
+    final error = widget.validator!(value);
+    if (error != _error) setState(() => _error = error);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = colorScheme.brightness == Brightness.dark;
+
+    final field = TextField(
+      controller: widget.controller,
+      hintText: widget.hintText,
+      maxLines: widget.maxLines,
+      autofocus: widget.autofocus,
+      enabled: widget.enabled,
+      obscureText: widget.obscureText,
+      keyboardType: widget.keyboardType,
+      style: NexusTypography.bodyMd,
+      onChanged: (value) {
+        _validate(value);
+        widget.onChanged?.call(value);
+      },
+      onSubmitted: widget.onSubmitted,
+    );
+
+    final decoratedField = (widget.prefixIcon != null ||
+            widget.suffixIcon != null)
+        ? Row(
+            children: [
+              if (widget.prefixIcon != null) ...[
+                widget.prefixIcon!,
+                const SizedBox(width: NexusSpacing.sm),
+              ],
+              Expanded(child: field),
+              if (widget.suffixIcon != null) ...[
+                const SizedBox(width: NexusSpacing.sm),
+                widget.suffixIcon!,
+              ],
+            ],
+          )
+        : field;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (labelText != null)
+        if (widget.labelText != null)
           Padding(
             padding: const EdgeInsets.only(bottom: NexusSpacing.xs),
             child: Text(
-              labelText!,
+              widget.labelText!,
               style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.onSurface,
+                color: colorScheme.foreground,
               ),
             ),
           ),
-        TextFormField(
-          controller: controller,
-          maxLines: maxLines,
-          autofocus: autofocus,
-          enabled: enabled,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          validator: validator,
-          autovalidateMode: autovalidateMode,
-          onChanged: onChanged,
-          onFieldSubmitted: onSubmitted,
-          style: NexusTypography.bodyMd.copyWith(color: colorScheme.onSurface),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: NexusTypography.bodyMd.copyWith(
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-            ),
-            prefixIcon: prefixIcon,
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: colorScheme.surfaceContainerLow,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: NexusSpacing.md,
-              vertical: NexusSpacing.sm,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: NexusRadii.mdRadius,
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: NexusRadii.mdRadius,
-              borderSide: BorderSide(
-                color: isDark
-                    ? Colors.transparent
-                    : colorScheme.outlineVariant.withValues(alpha: 0.5),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: NexusRadii.mdRadius,
-              borderSide: BorderSide(color: colorScheme.secondary),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: NexusRadii.mdRadius,
-              borderSide: BorderSide(color: colorScheme.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: NexusRadii.mdRadius,
-              borderSide: BorderSide(color: colorScheme.error),
+        decoratedField,
+        if (_error != null) ...[
+          const SizedBox(height: NexusSpacing.xs),
+          Text(
+            _error!,
+            style: NexusTypography.labelSm.copyWith(
+              color: colorScheme.destructive,
             ),
           ),
-        ),
+        ],
       ],
     );
   }

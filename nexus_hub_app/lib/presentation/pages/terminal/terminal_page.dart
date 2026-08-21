@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_alacritty/flutter_alacritty.dart';
 import 'package:signals_flutter/signals_flutter.dart';
@@ -111,33 +111,34 @@ class _TerminalPageState extends State<TerminalPage> {
   }
 
   Future<void> _deleteProfile(SshProfile profile) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final colorScheme = Theme.of(context).colorScheme;
-        return AlertDialog(
-          backgroundColor: colorScheme.surfaceContainerLowest,
-          shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
-          title: Text('删除 "${profile.name}"？', style: NexusTypography.headlineSm),
-          content: Text(
-            '仅删除保存的连接信息，不影响已打开的会话。',
-            style: NexusTypography.bodyMd.copyWith(
-              color: colorScheme.onSurfaceVariant,
+    final confirmed = await showOverlay<bool>(
+      context,
+      DialogConfiguration<bool>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) {
+          final colorScheme = Theme.of(context).colorScheme;
+          return AlertDialog(
+            title: Text('删除 "${profile.name}"？', style: NexusTypography.headlineSm),
+            content: Text(
+              '仅删除保存的连接信息，不影响已打开的会话。',
+              style: NexusTypography.bodyMd.copyWith(
+                color: colorScheme.mutedForeground,
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('取消'),
-            ),
-            NexusButton(
-              label: '删除',
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        );
-      },
-    );
+            actions: [
+              Button.text(
+                onPressed: () => closeOverlay<bool>(context, false),
+                child: const Text('取消'),
+              ),
+              Button.destructive(
+                onPressed: () => closeOverlay<bool>(context, true),
+                child: const Text('删除'),
+              ),
+            ],
+          );
+        },
+      ),
+    ).future;
     if (confirmed == true) {
       await TerminalState.instance.deleteProfile(profile.id);
     }
@@ -240,7 +241,7 @@ class _SessionView extends StatelessWidget {
               height: 28,
               child: CircularProgressIndicator(
                 strokeWidth: 2.4,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7AA2F7)),
+                color: Color(0xFF7AA2F7),
               ),
             ),
             const SizedBox(height: 16),
@@ -262,7 +263,7 @@ class _SessionView extends StatelessWidget {
     return GestureDetector(
       onTap: session.restart,
       child: Container(
-        color: Colors.black.withValues(alpha: 0.7),
+        color: const Color(0xFF000000).withValues(alpha: 0.7),
         alignment: Alignment.center,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

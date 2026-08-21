@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart' as material;
 import 'package:flutter/services.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -99,9 +98,8 @@ class _AiChatPageState extends State<AiChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = material.Theme.of(context).brightness == Brightness.dark;
-    final scheme = dark ? ColorSchemes.darkSlate : ColorSchemes.lightSlate;
-    Widget content = _AiChatView(
+    // The shadcn theme is installed app-wide by ShadcnApp.
+    return _AiChatView(
       state: _state,
       controller: _controller,
       onSend: _send,
@@ -110,20 +108,6 @@ class _AiChatPageState extends State<AiChatPage> {
       onConfirmClear: _confirmClear,
       onNewChat: () => _state.createSession(),
       onDeleteSession: _confirmDeleteSession,
-    );
-    final ambientShadcnTheme = context.getInheritedWidgetOfExactType<Theme>();
-    if (ambientShadcnTheme != null) {
-      // Recolor the desktop layer's shadcn theme to follow the app theme.
-      return Theme(
-        data: ambientShadcnTheme.data.copyWith(colorScheme: () => scheme),
-        child: content,
-      );
-    }
-    return ShadcnLayer(
-      theme: dark
-          ? const ThemeData.dark(radius: 0.5, scaling: 1)
-          : const ThemeData(radius: 0.5, scaling: 1),
-      child: content,
     );
   }
 }
@@ -950,7 +934,7 @@ class _ChatBubble extends StatelessWidget {
                     SelectableText(
                       message.content,
                       style: theme.typography.base.copyWith(
-                        color: Colors.white,
+                        color: const Color(0xFFFFFFFF),
                       ),
                     )
                   else
@@ -1197,8 +1181,8 @@ class _ProviderListTile extends StatelessWidget {
               ),
             ),
             Tooltip(
-              tooltip: (context) => const Text('Delete'),
-              child: IconButton.ghost(
+  tooltip: (context) => const Text('Delete'),
+  child: IconButton.ghost(
                 icon: const Icon(LucideIcons.trash2, size: 16),
                 size: ButtonSize.small,
                 onPressed: () {
@@ -1209,7 +1193,7 @@ class _ProviderListTile extends StatelessWidget {
                   state.deleteProvider(provider.id);
                 },
               ),
-            ),
+),
           ],
         ),
       ),

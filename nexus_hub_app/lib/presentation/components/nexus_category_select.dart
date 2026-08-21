@@ -1,7 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../../theme/colors.dart';
-import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 
@@ -86,6 +84,7 @@ class _NexusCategorySelectState extends State<NexusCategorySelect> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final filtered = _filtered;
     final canCreate = _canCreate;
     final hasOptions = filtered.isNotEmpty || canCreate;
@@ -100,7 +99,7 @@ class _NexusCategorySelectState extends State<NexusCategorySelect> {
             child: Text(
               widget.labelText!,
               style: NexusTypography.labelMd.copyWith(
-                color: NexusColors.onSurface,
+                color: colorScheme.foreground,
               ),
             ),
           ),
@@ -108,43 +107,7 @@ class _NexusCategorySelectState extends State<NexusCategorySelect> {
           controller: _controller,
           focusNode: _focusNode,
           style: NexusTypography.bodyMd,
-          decoration: InputDecoration(
-            hintText: 'Select or type a new category',
-            hintStyle: NexusTypography.bodyMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
-            ),
-            filled: true,
-            fillColor: NexusColors.surfaceContainerLow,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: NexusSpacing.md,
-              vertical: NexusSpacing.sm,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: NexusRadii.mdRadius,
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: NexusRadii.mdRadius,
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: NexusRadii.mdRadius,
-              borderSide: const BorderSide(color: NexusColors.outline),
-            ),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _expanded ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                color: NexusColors.onSurfaceVariant,
-              ),
-              onPressed: () {
-                if (_expanded) {
-                  _focusNode.unfocus();
-                } else {
-                  _focusNode.requestFocus();
-                }
-              },
-            ),
-          ),
+          hintText: 'Select or type a new category',
           onChanged: (_) => setState(() {}),
           onSubmitted: (value) {
             final trimmed = value.trim();
@@ -155,14 +118,12 @@ class _NexusCategorySelectState extends State<NexusCategorySelect> {
           Container(
             margin: const EdgeInsets.only(top: 4),
             decoration: BoxDecoration(
-              color: NexusColors.surfaceContainerLowest,
-              borderRadius: NexusRadii.mdRadius,
-              border: Border.all(
-                color: NexusColors.outlineVariant.withValues(alpha: 0.5),
-              ),
+              color: colorScheme.popover,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: colorScheme.border),
               boxShadow: [
                 BoxShadow(
-                  color: NexusColors.onSurface.withValues(alpha: 0.08),
+                  color: colorScheme.foreground.withValues(alpha: 0.08),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -176,7 +137,7 @@ class _NexusCategorySelectState extends State<NexusCategorySelect> {
                       child: Text(
                         'No categories yet — type to create one.',
                         style: NexusTypography.bodyMd.copyWith(
-                          color: NexusColors.onSurfaceVariant,
+                          color: colorScheme.mutedForeground,
                         ),
                       ),
                     )
@@ -189,10 +150,15 @@ class _NexusCategorySelectState extends State<NexusCategorySelect> {
                         ),
                         if (canCreate) ...[
                           if (filtered.isNotEmpty)
-                            const Divider(height: 1, indent: 8, endIndent: 8),
+                            Divider(
+                              height: 1,
+                              indent: 8,
+                              endIndent: 8,
+                              color: colorScheme.border,
+                            ),
                           _OptionTile(
                             label: 'Create "${_controller.text.trim()}"',
-                            icon: Icons.add_circle_outline,
+                            icon: LucideIcons.circlePlus,
                             highlighted: true,
                             onTap: () => _select(_controller.text.trim()),
                           ),
@@ -221,9 +187,9 @@ class _OptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final colorScheme = Theme.of(context).colorScheme;
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: NexusRadii.smRadius,
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: NexusSpacing.md,
@@ -236,8 +202,8 @@ class _OptionTile extends StatelessWidget {
                 icon,
                 size: 18,
                 color: highlighted
-                    ? NexusColors.primary
-                    : NexusColors.onSurfaceVariant,
+                    ? colorScheme.primary
+                    : colorScheme.mutedForeground,
               ),
               const SizedBox(width: NexusSpacing.sm),
             ],
@@ -245,7 +211,7 @@ class _OptionTile extends StatelessWidget {
               child: Text(
                 label,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: highlighted ? NexusColors.primary : null,
+                  color: highlighted ? colorScheme.primary : null,
                   fontWeight: highlighted ? FontWeight.w500 : null,
                 ),
                 maxLines: 1,

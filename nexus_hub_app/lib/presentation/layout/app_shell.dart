@@ -1,8 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../../theme/colors.dart';
-import '../../theme/spacing.dart';
 import 'desktop_environment.dart';
 import 'top_app_bar.dart';
 
@@ -23,14 +21,12 @@ class AppShell extends StatelessWidget {
     }
 
     // Mobile layout: keep the existing bottom navigation bar
-    return Scaffold(
-      body: Column(
-        children: [
-          const TopAppBar(),
-          Expanded(child: child),
-        ],
-      ),
-      bottomNavigationBar: _BottomNavBar(currentPath: currentPath),
+    return Column(
+      children: [
+        const TopAppBar(),
+        Expanded(child: child),
+        _BottomNavBar(currentPath: currentPath),
+      ],
     );
   }
 }
@@ -46,8 +42,8 @@ class _BottomNavBar extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLowest,
-        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+        color: colorScheme.card,
+        border: Border(top: BorderSide(color: colorScheme.border)),
       ),
       child: SafeArea(
         child: Padding(
@@ -56,31 +52,31 @@ class _BottomNavBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _BottomNavItem(
-                icon: Icons.dashboard_outlined,
+                icon: RadixIcons.dashboard,
                 label: 'Home',
                 path: '/',
                 currentPath: currentPath,
               ),
               _BottomNavItem(
-                icon: Icons.check_circle_outline,
+                icon: LucideIcons.circleCheck,
                 label: 'Tasks',
                 path: '/tasks',
                 currentPath: currentPath,
               ),
               _BottomNavItem(
-                icon: Icons.chat_bubble_outline,
+                icon: RadixIcons.chatBubble,
                 label: 'AI',
                 path: '/ai-chat',
                 currentPath: currentPath,
               ),
               _BottomNavItem(
-                icon: Icons.mail_outlined,
+                icon: LucideIcons.mail,
                 label: 'Mail',
                 path: '/mail',
                 currentPath: currentPath,
               ),
               _BottomNavItem(
-                icon: Icons.menu,
+                icon: LucideIcons.menu,
                 label: 'More',
                 path: '/bookmarks',
                 currentPath: currentPath,
@@ -112,9 +108,10 @@ class _BottomNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final color = isActive ? colorScheme.onSurface : colorScheme.onSurfaceVariant;
+    final color =
+        isActive ? colorScheme.foreground : colorScheme.mutedForeground;
 
-    return InkWell(
+    return GestureDetector(
       onTap: () => context.go(path),
       child: Column(
         mainAxisSize: MainAxisSize.min,

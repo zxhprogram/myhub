@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../data/services/image_cache_service.dart';
 
@@ -71,7 +71,7 @@ class _NexusCachedImageState extends State<NexusCachedImage> {
     }
     if (file == null) {
       return ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        color: Theme.of(context).colorScheme.accent,
       );
     }
     return Image.file(

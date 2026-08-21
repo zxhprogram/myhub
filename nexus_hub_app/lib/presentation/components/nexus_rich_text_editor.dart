@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:path/path.dart' as p;
 import 'package:super_clipboard/super_clipboard.dart';
@@ -201,7 +201,7 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
         if (!widget.readOnly)
           Container(
             decoration: BoxDecoration(
-              color: NexusColors.surfaceContainer,
+              color: Theme.of(context).colorScheme.muted,
               borderRadius: NexusRadii.mdRadius,
             ),
             padding: const EdgeInsets.symmetric(
@@ -243,8 +243,8 @@ class _NexusRichTextEditorState extends State<NexusRichTextEditor> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: NexusColors.surfaceContainerLowest,
-              border: Border.all(color: NexusColors.outlineVariant),
+              color: Theme.of(context).colorScheme.card,
+              border: Border.all(color: Theme.of(context).colorScheme.border),
               borderRadius: NexusRadii.mdRadius,
             ),
             padding: const EdgeInsets.all(NexusSpacing.sm),
@@ -275,14 +275,14 @@ class _ImageEmbedBuilder extends EmbedBuilder {
   Widget build(BuildContext context, EmbedContext embedContext) {
     final source = embedContext.node.value.data as String?;
     if (source == null || source.isEmpty) {
-      return _embedPlaceholder('No image source');
+      return _embedPlaceholder(context, 'No image source');
     }
 
     final Widget image;
     if (source.startsWith('data:image')) {
       final bytes = _decodeBase64Image(source);
       if (bytes == null) {
-        return _embedPlaceholder('Invalid image data');
+        return _embedPlaceholder(context, 'Invalid image data');
       }
       image = Image.memory(bytes, fit: BoxFit.contain);
     } else if (source.startsWith('http://') || source.startsWith('https://')) {
@@ -290,7 +290,7 @@ class _ImageEmbedBuilder extends EmbedBuilder {
     } else {
       final file = File(source);
       if (!file.existsSync()) {
-        return _embedPlaceholder('Image not found');
+        return _embedPlaceholder(context, 'Image not found');
       }
       image = Image.file(file, fit: BoxFit.contain);
     }
@@ -323,31 +323,31 @@ class _UnknownEmbedBuilder extends EmbedBuilder {
 
   @override
   Widget build(BuildContext context, EmbedContext embedContext) {
-    return _embedPlaceholder('Unsupported embed');
+    return _embedPlaceholder(context, 'Unsupported embed');
   }
 }
 
-Widget _embedPlaceholder(String message) {
+Widget _embedPlaceholder(BuildContext context, String message) {
   return Container(
     padding: const EdgeInsets.all(NexusSpacing.sm),
     decoration: BoxDecoration(
-      color: NexusColors.surfaceContainer,
+      color: Theme.of(context).colorScheme.muted,
       borderRadius: NexusRadii.mdRadius,
-      border: Border.all(color: NexusColors.outlineVariant),
+      border: Border.all(color: Theme.of(context).colorScheme.border),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          Icons.image_not_supported_outlined,
+          LucideIcons.imageOff,
           size: 16,
-          color: NexusColors.onSurfaceVariant,
+          color: Theme.of(context).colorScheme.mutedForeground,
         ),
         const SizedBox(width: NexusSpacing.xs),
         Text(
           message,
           style: NexusTypography.labelSm.copyWith(
-            color: NexusColors.onSurfaceVariant,
+            color: Theme.of(context).colorScheme.mutedForeground,
           ),
         ),
       ],

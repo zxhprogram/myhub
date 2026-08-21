@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../../data/models/video_site_config.dart';
 import '../../../data/services/video_site_config_storage.dart';
@@ -15,10 +15,13 @@ import '../../../theme/typography.dart';
 /// source at close time, so callers can compare it with the config they
 /// are currently using and reload when it changed.
 Future<VideoSiteConfig> showVideoSourceManagerDialog(BuildContext context) {
-  return showDialog<VideoSiteConfig>(
-    context: context,
-    builder: (_) => const _VideoSourceManagerDialog(),
-  ).then(
+  return showOverlay<VideoSiteConfig>(
+    context,
+    DialogConfiguration<VideoSiteConfig>(
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+      builder: (_) => const _VideoSourceManagerDialog(),
+    ),
+  ).future.then(
     (value) => value ?? VideoSiteConfigStorage.current,
   );
 }
@@ -70,10 +73,13 @@ class _VideoSourceManagerDialogState extends State<_VideoSourceManagerDialog> {
   }
 
   Future<VideoSiteConfig?> _showEditDialog({VideoSiteConfig? initial}) {
-    return showDialog<VideoSiteConfig>(
-      context: context,
-      builder: (_) => _VideoSourceEditDialog(initial: initial),
-    );
+    return showOverlay<VideoSiteConfig>(
+      context,
+      DialogConfiguration<VideoSiteConfig>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (_) => _VideoSourceEditDialog(initial: initial),
+      ),
+    ).future;
   }
 
   @override
@@ -81,11 +87,9 @@ class _VideoSourceManagerDialogState extends State<_VideoSourceManagerDialog> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return AlertDialog(
-      backgroundColor: colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Row(
         children: [
-          Icon(Icons.dns_outlined, size: 24, color: colorScheme.secondary),
+          Icon(LucideIcons.server, size: 24, color: colorScheme.primary),
           const SizedBox(width: NexusSpacing.sm),
           Text('视频数据源', style: NexusTypography.headlineSm),
         ],
@@ -99,7 +103,7 @@ class _VideoSourceManagerDialogState extends State<_VideoSourceManagerDialog> {
             Text(
               '点选任一数据源即可切换浏览与播放；每个数据源可单独配置协议与域名。',
               style: NexusTypography.labelSm.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
             ),
             const SizedBox(height: NexusSpacing.md),
@@ -124,7 +128,7 @@ class _VideoSourceManagerDialogState extends State<_VideoSourceManagerDialog> {
             NexusButton(
               label: '新建数据源',
               variant: NexusButtonVariant.tonal,
-              icon: Icons.add,
+              icon: RadixIcons.plus,
               onPressed: _create,
             ),
           ],
@@ -166,33 +170,32 @@ class _SourceRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: NexusSpacing.sm),
-      child: InkWell(
-        borderRadius: NexusRadii.mdRadius,
-        onTap: onSelect,
-        child: Container(
+      child: GestureDetector(
+  onTap: onSelect,
+  child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: NexusSpacing.sm,
             vertical: NexusSpacing.xs + 2,
           ),
           decoration: BoxDecoration(
             color: active
-                ? colorScheme.secondaryContainer.withValues(alpha: 0.45)
-                : colorScheme.surfaceContainerLow,
+                ? colorScheme.secondary.withValues(alpha: 0.45)
+                : colorScheme.muted,
             border: Border.all(
               color: active
                   ? colorScheme.secondary.withValues(alpha: 0.6)
-                  : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  : colorScheme.border.withValues(alpha: 0.5),
             ),
             borderRadius: NexusRadii.mdRadius,
           ),
           child: Row(
             children: [
               Icon(
-                active ? Icons.check_circle : Icons.radio_button_unchecked,
+                active ? LucideIcons.circleCheck : LucideIcons.circle,
                 size: 20,
                 color: active
                     ? colorScheme.secondary
-                    : colorScheme.onSurfaceVariant,
+                    : colorScheme.mutedForeground,
               ),
               const SizedBox(width: NexusSpacing.xs),
               Expanded(
@@ -212,28 +215,24 @@ class _SourceRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: NexusTypography.labelSm.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                        color: colorScheme.mutedForeground,
                       ),
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                tooltip: '编辑',
-                visualDensity: VisualDensity.compact,
-                onPressed: onEdit,
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 18),
-                tooltip: deletable ? '删除' : '最后一个数据源不可删除',
-                visualDensity: VisualDensity.compact,
-                onPressed: deletable ? onDelete : null,
-              ),
+              IconButton.ghost(
+  icon: const Icon(LucideIcons.pen, size: 18),
+  onPressed: onEdit,
+),
+              IconButton.ghost(
+  icon: const Icon(LucideIcons.trash2, size: 18),
+  onPressed: deletable ? onDelete : null,
+),
             ],
           ),
         ),
-      ),
+),
     );
   }
 }
@@ -254,7 +253,6 @@ class _VideoSourceEditDialog extends StatefulWidget {
 }
 
 class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
-  final _formKey = GlobalKey<FormState>();
   late VideoProtocol _protocol =
       widget.initial?.protocol ?? VideoProtocol.netflixgc;
   late final _nameController = TextEditingController(
@@ -310,8 +308,16 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
   }
 
   void _submit() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    Navigator.of(context).pop(
+    if (_validateName(_nameController.text) != null ||
+        _validateDomain(_domainController.text) != null) {
+      return;
+    }
+    if (_needsParseDomain &&
+        _validateDomain(_parseDomainController.text) != null) {
+      return;
+    }
+    closeOverlay<VideoSiteConfig>(
+      context,
       VideoSiteConfig(
         id: widget.initial?.id ?? VideoSiteConfig.generateId(),
         name: _nameController.text.trim(),
@@ -330,14 +336,12 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
     final isEditing = widget.initial != null;
 
     return AlertDialog(
-      backgroundColor: colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Row(
         children: [
           Icon(
-            isEditing ? Icons.edit_outlined : Icons.add_circle_outline,
+            isEditing ? LucideIcons.pen : LucideIcons.circlePlus,
             size: 24,
-            color: colorScheme.secondary,
+            color: colorScheme.primary,
           ),
           const SizedBox(width: NexusSpacing.sm),
           Text(
@@ -348,9 +352,7 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
       ),
       content: SizedBox(
         width: 440,
-        child: Form(
-          key: _formKey,
-          child: Column(
+        child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -358,7 +360,7 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
                 controller: _nameController,
                 labelText: '名称',
                 hintText: '例如：NetflixGC 主站',
-                prefixIcon: const Icon(Icons.label_outline, size: 18),
+                prefixIcon: const Icon(LucideIcons.tag, size: 18),
                 validator: _validateName,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 autofocus: !isEditing,
@@ -368,37 +370,26 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
               Text(
                 '解析协议',
                 style: NexusTypography.labelMd.copyWith(
-                  color: colorScheme.onSurface,
+                  color: colorScheme.foreground,
                 ),
               ),
               const SizedBox(height: NexusSpacing.xs),
-              DropdownButtonFormField<VideoProtocol>(
-                initialValue: _protocol,
-                items: [
-                  for (final protocol in VideoProtocol.values)
-                    DropdownMenuItem(
-                      value: protocol,
-                      child: Text(
-                        protocol.label,
-                        style: NexusTypography.bodyMd,
-                      ),
-                    ),
-                ],
+              Select<VideoProtocol>(
+                value: _protocol,
                 onChanged: _onProtocolChanged,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerLow,
-                  border: OutlineInputBorder(
-                    borderRadius: NexusRadii.mdRadius,
-                    borderSide: BorderSide(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: NexusRadii.mdRadius,
-                    borderSide: BorderSide(
-                      color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                    ),
+                itemBuilder: (context, value) => Text(
+                  value.label,
+                  style: NexusTypography.bodyMd,
+                ),
+                popup: SelectPopup(
+                  items: SelectItemList(
+                    children: [
+                      for (final protocol in VideoProtocol.values)
+                        SelectItem(
+                          value: protocol,
+                          builder: (context) => Text(protocol.label),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -406,7 +397,7 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
               Text(
                 _protocol.description,
                 style: NexusTypography.labelSm.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                   height: 1.5,
                 ),
               ),
@@ -415,7 +406,7 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
                 controller: _domainController,
                 labelText: '站点域名',
                 hintText: _protocol.defaultDomain,
-                prefixIcon: const Icon(Icons.language, size: 18),
+                prefixIcon: const Icon(LucideIcons.languages, size: 18),
                 validator: _validateDomain,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 onSubmitted: (_) => _submit(),
@@ -426,7 +417,7 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
                   controller: _parseDomainController,
                   labelText: '解析接口域名',
                   hintText: _protocol.defaultParseDomain,
-                  prefixIcon: const Icon(Icons.play_circle_outline, size: 18),
+                  prefixIcon: const Icon(LucideIcons.circlePlay, size: 18),
                   validator: _validateDomain,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   onSubmitted: (_) => _submit(),
@@ -435,20 +426,18 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
                 Text(
                   '播放源云端解析接口所在的域名，与站点域名通常不同。',
                   style: NexusTypography.labelSm.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.mutedForeground,
                   ),
                 ),
               ],
             ],
           ),
-        ),
       ),
-      actionsAlignment: MainAxisAlignment.spaceBetween,
       actions: [
         NexusButton(
           label: '恢复默认域名',
           variant: NexusButtonVariant.text,
-          icon: Icons.restore,
+          icon: LucideIcons.history,
           onPressed: _reset,
         ),
         Row(
@@ -457,10 +446,10 @@ class _VideoSourceEditDialogState extends State<_VideoSourceEditDialog> {
             NexusButton(
               label: '取消',
               variant: NexusButtonVariant.text,
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => closeOverlay<VideoSiteConfig>(context),
             ),
             const SizedBox(width: NexusSpacing.sm),
-            NexusButton(label: '保存', icon: Icons.check, onPressed: _submit),
+            NexusButton(label: '保存', icon: RadixIcons.check, onPressed: _submit),
           ],
         ),
       ],

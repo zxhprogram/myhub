@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
+
+import '../components/nexus_toast.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/services/java_decompiler_service.dart';
@@ -72,23 +74,21 @@ class _JavaDecompilerPageState extends State<JavaDecompilerPage> {
     if (source == null) return;
     await Clipboard.setData(ClipboardData(text: source));
     if (!mounted) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(content: Text('已复制反编译源码到剪贴板')),
-    );
+    nexusToast(context, '已复制反编译源码到剪贴板');
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      body: Column(
+    return Container(
+      color: colorScheme.card,
+      child: Column(
         children: [
           _buildToolbar(context),
-          const Divider(height: 1),
+          Divider(height: 1, color: colorScheme.border),
           Expanded(child: _buildBody(context)),
           if (_result != null) ...[
-            const Divider(height: 1),
+            Divider(height: 1, color: colorScheme.border),
             _buildStatusBar(context),
           ],
         ],
@@ -105,44 +105,38 @@ class _JavaDecompilerPageState extends State<JavaDecompilerPage> {
       ),
       child: Row(
         children: [
-          FilledButton.icon(
+          Button.primary(
             onPressed: _loading ? null : _openFile,
-            icon: _loading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.folder_open, size: 18),
-            label: const Text('打开 Class 文件'),
+            leading: _loading
+                ? const CircularProgressIndicator(size: 16)
+                : const Icon(LucideIcons.folderOpen, size: 18),
+            child: const Text('打开 Class 文件'),
           ),
           const SizedBox(width: NexusSpacing.md),
           if (_result != null) ...[
-            Icon(Icons.description_outlined,
-                size: 16, color: colorScheme.onSurfaceVariant),
+            Icon(LucideIcons.fileText,
+                size: 16, color: colorScheme.mutedForeground),
             const SizedBox(width: NexusSpacing.sm),
             Expanded(
               child: Text(
                 _fileLabel,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            IconButton(
-              tooltip: '复制源码',
-              icon: const Icon(Icons.copy, size: 18),
-              onPressed: _copySource,
-            ),
-            IconButton(
-              tooltip: '清空',
-              icon: const Icon(Icons.delete_outline, size: 18),
-              onPressed: () => setState(() {
+            IconButton.ghost(
+  icon: const Icon(RadixIcons.copy, size: 18),
+  onPressed: _copySource,
+),
+            IconButton.ghost(
+  icon: const Icon(LucideIcons.trash2, size: 18),
+  onPressed: () => setState(() {
                 _result = null;
                 _error = null;
               }),
-            ),
+),
           ] else ...[
             Expanded(child: Container()),
           ],
@@ -166,13 +160,13 @@ class _JavaDecompilerPageState extends State<JavaDecompilerPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline,
-                size: 48, color: Theme.of(context).colorScheme.error),
+            Icon(LucideIcons.circleAlert,
+                size: 48, color: Theme.of(context).colorScheme.destructive),
             const SizedBox(height: NexusSpacing.md),
             Text(
               '反编译失败',
               style: NexusTypography.headlineSm.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
+                color: Theme.of(context).colorScheme.foreground,
               ),
             ),
             const SizedBox(height: NexusSpacing.sm),
@@ -181,16 +175,16 @@ class _JavaDecompilerPageState extends State<JavaDecompilerPage> {
               child: Text(
                 _error!,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: Theme.of(context).colorScheme.mutedForeground,
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
             const SizedBox(height: NexusSpacing.md),
-            FilledButton.icon(
+            Button.primary(
               onPressed: _openFile,
-              icon: const Icon(Icons.folder_open, size: 18),
-              label: const Text('重新选择文件'),
+              leading: const Icon(LucideIcons.folderOpen, size: 18),
+              child: const Text('重新选择文件'),
             ),
           ],
         ),
@@ -199,13 +193,13 @@ class _JavaDecompilerPageState extends State<JavaDecompilerPage> {
     final result = _result;
     if (result == null) {
       return NexusEmptyState(
-        icon: Icons.coffee,
+        icon: LucideIcons.coffee,
         title: 'Java 反编译器',
         subtitle: '打开一个 .class 文件，查看反编译后的 Java 源码',
-        action: FilledButton.icon(
+        action: Button.primary(
           onPressed: _openFile,
-          icon: const Icon(Icons.folder_open, size: 18),
-          label: const Text('打开 Class 文件'),
+          leading: const Icon(LucideIcons.folderOpen, size: 18),
+          child: const Text('打开 Class 文件'),
         ),
       );
     }
@@ -224,16 +218,16 @@ class _JavaDecompilerPageState extends State<JavaDecompilerPage> {
         horizontal: NexusSpacing.md,
         vertical: 6,
       ),
-      color: colorScheme.surfaceContainerLow,
+      color: colorScheme.muted,
       child: Row(
         children: [
-          const Icon(Icons.info_outline, size: 14),
+          const Icon(LucideIcons.info, size: 14),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               result.filePath,
               style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
                 fontWeight: FontWeight.w400,
               ),
               overflow: TextOverflow.ellipsis,
@@ -244,7 +238,7 @@ class _JavaDecompilerPageState extends State<JavaDecompilerPage> {
             'class v${result.majorVersion}.${result.minorVersion}'
             ' (Java ${result.javaVersion})',
             style: NexusTypography.labelMd.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
               fontWeight: FontWeight.w400,
             ),
           ),
@@ -252,7 +246,7 @@ class _JavaDecompilerPageState extends State<JavaDecompilerPage> {
           Text(
             '$lines 行',
             style: NexusTypography.labelMd.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
               fontWeight: FontWeight.w400,
             ),
           ),

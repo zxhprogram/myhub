@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../theme/colors.dart';
 import '../../theme/radii.dart';
@@ -26,7 +26,7 @@ class DashboardPage extends StatelessWidget {
           Text(
             'Here is everything happening today',
             style: NexusTypography.bodyMd.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
             ),
           ),
         ],
@@ -51,7 +51,7 @@ class DashboardPage extends StatelessWidget {
                       label: 'Unread Articles',
                       value: '8',
                       trend: '2 new',
-                      color: NexusColors.tertiary,
+                      color: Theme.of(context).colorScheme.foreground,
                     ),
                     _MetricCard(
                       label: 'Bookmarks',
@@ -160,15 +160,15 @@ class _RecentTasksCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Recent Tasks', style: NexusTypography.headlineSm),
-              TextButton(
-                onPressed: () {},
-                child: Text(
+              Button.text(
+  onPressed: () {},
+  child: Text(
                   'See all',
                   style: NexusTypography.labelMd.copyWith(
                     color: colorScheme.secondary,
                   ),
                 ),
-              ),
+),
             ],
           ),
           const SizedBox(height: NexusSpacing.md),
@@ -178,9 +178,9 @@ class _RecentTasksCard extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    Icons.circle_outlined,
+                    LucideIcons.circle,
                     size: 18,
-                    color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.mutedForeground,
                   ),
                   const SizedBox(width: NexusSpacing.sm),
                   Expanded(child: Text(task.$1, style: NexusTypography.bodyMd)),
@@ -206,9 +206,9 @@ class _PriorityDot extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final color = switch (priority) {
-      'high' => colorScheme.error,
+      'high' => colorScheme.destructive,
       'medium' => colorScheme.secondary,
-      _ => colorScheme.outline,
+      _ => colorScheme.border,
     };
     return Container(
       width: 8,
@@ -236,7 +236,7 @@ class _FocusChartCard extends StatelessWidget {
           Text(
             'This week: 18h 20m',
             style: NexusTypography.bodyMd.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
             ),
           ),
           const SizedBox(height: NexusSpacing.md),
@@ -247,13 +247,13 @@ class _FocusChartCard extends StatelessWidget {
                 final opacity = Random().nextDouble();
                 Color color;
                 if (opacity < 0.2) {
-                  color = colorScheme.surfaceContainerHighest;
+                  color = colorScheme.accent;
                 } else if (opacity < 0.5) {
                   color = colorScheme.secondary.withValues(alpha: 0.4);
                 } else if (opacity < 0.8) {
                   color = colorScheme.secondary.withValues(alpha: 0.7);
                 } else {
-                  color = colorScheme.secondaryContainer;
+                  color = colorScheme.secondary;
                 }
                 return Expanded(
                   child: Container(
@@ -280,10 +280,10 @@ class _QuickActionsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final actions = [
-      ('New Task', Icons.add_task),
-      ('Add Bookmark', Icons.bookmark_add_outlined),
-      ('AI Ask', Icons.chat_bubble_outline),
-      ('Copy Snippet', Icons.content_copy),
+      ('New Task', LucideIcons.listPlus),
+      ('Add Bookmark', LucideIcons.bookmarkPlus),
+      ('AI Ask', RadixIcons.chatBubble),
+      ('Copy Snippet', RadixIcons.copy),
     ];
 
     return NexusCard(

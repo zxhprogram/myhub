@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 
 /// Consistent page wrapper used by all screens.
@@ -12,14 +11,11 @@ class PageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Wrap the page in a Scaffold so ScaffoldMessenger.showSnackBar works
-    // everywhere, including inside desktop windows that provide no Scaffold
-    // of their own. The inner container's background colour is moved onto the
-    // Scaffold so the look is unchanged.
-    return Scaffold(
-      backgroundColor: NexusColors.background,
-      resizeToAvoidBottomInset: false,
-      body: Padding(
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      color: colorScheme.background,
+      child: Padding(
         padding: const EdgeInsets.all(NexusSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/finance_calendar_model.dart';
@@ -107,7 +107,7 @@ class _FinanceCalendarPaneState extends State<FinanceCalendarPane> {
           Text(
             range,
             style: NexusTypography.labelSm.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
             ),
           ),
         const Spacer(),
@@ -120,7 +120,7 @@ class _FinanceCalendarPaneState extends State<FinanceCalendarPane> {
         const SizedBox(width: NexusSpacing.md),
         NexusButton(
           label: '刷新',
-          icon: Icons.refresh,
+          icon: LucideIcons.refreshCw,
           variant: NexusButtonVariant.outlined,
           isLoading: _isLoading,
           onPressed: _refresh,
@@ -166,12 +166,12 @@ class _FinanceCalendarPaneState extends State<FinanceCalendarPane> {
 
     if (_hasError) {
       return NexusEmptyState(
-        icon: Icons.cloud_off,
+        icon: LucideIcons.cloudOff,
         title: '周历加载失败',
         subtitle: '请检查网络后重试',
         action: NexusButton(
           label: '重试',
-          icon: Icons.refresh,
+          icon: LucideIcons.refreshCw,
           variant: NexusButtonVariant.outlined,
           onPressed: _load,
         ),
@@ -180,7 +180,7 @@ class _FinanceCalendarPaneState extends State<FinanceCalendarPane> {
 
     if (_days.isEmpty) {
       return const NexusEmptyState(
-        icon: Icons.event_busy,
+        icon: LucideIcons.calendarX,
         title: '本周暂无财经数据',
       );
     }
@@ -192,13 +192,15 @@ class _FinanceCalendarPaneState extends State<FinanceCalendarPane> {
 
     if (events.isEmpty) {
       return NexusEmptyState(
-        icon: Icons.event_available,
+        icon: LucideIcons.calendarCheck,
         title: '${day.weekday}（${day.dateLabel}）暂无${_onlyImportant ? '重要' : ''}数据',
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _refresh,
+    return RefreshTrigger(
+      onRefresh: () async {
+        await _refresh();
+      },
       child: ListView.separated(
         padding: const EdgeInsets.only(bottom: NexusSpacing.lg),
         itemCount: events.length,
@@ -216,16 +218,9 @@ class _FinanceCalendarPaneState extends State<FinanceCalendarPane> {
     required VoidCallback onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected ? colorScheme.primary : Colors.transparent,
-      borderRadius: NexusRadii.fullRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.fullRadius,
-        hoverColor: selected
-            ? null
-            : colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-        child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: NexusSpacing.sm,
             vertical: 4,
@@ -234,22 +229,21 @@ class _FinanceCalendarPaneState extends State<FinanceCalendarPane> {
             borderRadius: NexusRadii.fullRadius,
             border: Border.all(
               color: selected
-                  ? Colors.transparent
-                  : colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  ? const Color(0x00000000)
+                  : colorScheme.border.withValues(alpha: 0.6),
             ),
           ),
           child: Text(
             label,
             style: NexusTypography.labelSm.copyWith(
               color: selected
-                  ? colorScheme.onPrimary
-                  : colorScheme.onSurfaceVariant,
+                  ? colorScheme.primaryForeground
+                  : colorScheme.mutedForeground,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
-      ),
-    );
+);
   }
 }
 
@@ -278,23 +272,17 @@ class _DayChip extends StatelessWidget {
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final isToday = day.dateLabel == today;
 
-    return Material(
-      color: selected
-          ? colorScheme.primary
-          : colorScheme.surfaceContainerLowest,
-      borderRadius: NexusRadii.mdRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.mdRadius,
-        child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
           width: 76,
           padding: const EdgeInsets.symmetric(vertical: NexusSpacing.sm),
           decoration: BoxDecoration(
             borderRadius: NexusRadii.mdRadius,
             border: Border.all(
               color: selected
-                  ? Colors.transparent
-                  : colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  ? const Color(0x00000000)
+                  : colorScheme.border.withValues(alpha: 0.6),
             ),
           ),
           child: Column(
@@ -307,8 +295,8 @@ class _DayChip extends StatelessWidget {
                     isToday ? '今天' : day.weekday,
                     style: NexusTypography.labelMd.copyWith(
                       color: selected
-                          ? colorScheme.onPrimary
-                          : colorScheme.onSurface,
+                          ? colorScheme.primaryForeground
+                          : colorScheme.foreground,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -321,7 +309,7 @@ class _DayChip extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: selected
-                            ? colorScheme.onPrimary.withValues(alpha: 0.25)
+                            ? colorScheme.primaryForeground.withValues(alpha: 0.25)
                             : NexusColors.stockDown.withValues(alpha: 0.12),
                         borderRadius: NexusRadii.fullRadius,
                       ),
@@ -329,7 +317,7 @@ class _DayChip extends StatelessWidget {
                         '$importantCount',
                         style: NexusTypography.labelSm.copyWith(
                           color: selected
-                              ? colorScheme.onPrimary
+                              ? colorScheme.primaryForeground
                               : NexusColors.stockDown,
                           fontWeight: FontWeight.w600,
                         ),
@@ -343,15 +331,14 @@ class _DayChip extends StatelessWidget {
                 mmdd,
                 style: NexusTypography.labelSm.copyWith(
                   color: selected
-                      ? colorScheme.onPrimary.withValues(alpha: 0.8)
-                      : colorScheme.onSurfaceVariant,
+                      ? colorScheme.primaryForeground.withValues(alpha: 0.8)
+                      : colorScheme.mutedForeground,
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
+);
   }
 }
 
@@ -367,18 +354,14 @@ class _CalendarEventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Material(
-      color: colorScheme.surfaceContainerLowest,
-      borderRadius: NexusRadii.lgRadius,
-      child: InkWell(
-        onTap: event.detailUrl.isEmpty ? null : () => onOpen(event.detailUrl),
-        borderRadius: NexusRadii.lgRadius,
-        child: Container(
+    return GestureDetector(
+  onTap: event.detailUrl.isEmpty ? null : () => onOpen(event.detailUrl),
+  child: Container(
           padding: const EdgeInsets.all(NexusSpacing.md),
           decoration: BoxDecoration(
             borderRadius: NexusRadii.lgRadius,
             border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+              color: colorScheme.border.withValues(alpha: 0.4),
             ),
           ),
           child: Column(
@@ -392,7 +375,7 @@ class _CalendarEventCard extends StatelessWidget {
                     child: Text(
                       event.time,
                       style: NexusTypography.labelMd.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                        color: colorScheme.mutedForeground,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
@@ -411,7 +394,7 @@ class _CalendarEventCard extends StatelessWidget {
                             : FontWeight.w500,
                         color: event.isImportant
                             ? NexusColors.stockDown
-                            : colorScheme.onSurface,
+                            : colorScheme.foreground,
                       ),
                     ),
                   ),
@@ -425,9 +408,9 @@ class _CalendarEventCard extends StatelessWidget {
                   ],
                   const SizedBox(width: NexusSpacing.sm),
                   Icon(
-                    Icons.chevron_right,
+                    RadixIcons.chevronRight,
                     size: 16,
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                    color: colorScheme.mutedForeground.withValues(alpha: 0.5),
                   ),
                 ],
               ),
@@ -461,8 +444,7 @@ class _CalendarEventCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+);
   }
 }
 
@@ -487,7 +469,7 @@ class _ValueColumn extends StatelessWidget {
         Text(
           label,
           style: NexusTypography.labelSm.copyWith(
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+            color: colorScheme.mutedForeground.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 2),
@@ -498,10 +480,10 @@ class _ValueColumn extends StatelessWidget {
           style: NexusTypography.bodyMd.copyWith(
             fontWeight: highlight && hasValue ? FontWeight.w700 : FontWeight.w500,
             color: !hasValue
-                ? colorScheme.onSurfaceVariant.withValues(alpha: 0.7)
+                ? colorScheme.mutedForeground.withValues(alpha: 0.7)
                 : highlight
                     ? colorScheme.primary
-                    : colorScheme.onSurface,
+                    : colorScheme.foreground,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
@@ -521,13 +503,13 @@ class _CountryBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.7),
+        color: colorScheme.accent.withValues(alpha: 0.7),
         borderRadius: NexusRadii.fullRadius,
       ),
       child: Text(
         label,
         style: NexusTypography.labelSm.copyWith(
-          color: colorScheme.onSurfaceVariant,
+          color: colorScheme.mutedForeground,
           fontWeight: FontWeight.w600,
         ),
       ),

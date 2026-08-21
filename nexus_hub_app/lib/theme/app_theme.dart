@@ -1,127 +1,34 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as material;
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import 'colors.dart';
-import 'radii.dart';
-import 'spacing.dart';
-import 'typography.dart';
+/// Theme plumbing for Nexus Hub.
+///
+/// The whole UI is built from shadcn_flutter components and uses the default
+/// slate color scheme. A few third-party packages (flutter_quill toolbar,
+/// media_kit video controls, gpt_markdown, flutter_widget_from_html) still
+/// read the ambient *Material* theme internally and cannot be rewritten;
+/// [materialCompatTheme] derives a matching Material theme from the slate
+/// scheme so they render correctly in dark mode. This is the only file in
+/// the app allowed to import flutter/material.
+abstract final class NexusAppTheme {
+  static const shadcnLight = ThemeData(colorScheme: ColorSchemes.lightSlate);
+  static const shadcnDark = ThemeData(colorScheme: ColorSchemes.darkSlate);
 
-/// Builds the Material 3 theme for Nexus Hub.
-class NexusAppTheme {
-  static ThemeData _buildTheme({required Brightness brightness}) {
-    final isDark = brightness == Brightness.dark;
-
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: NexusColors.secondary,
-      brightness: brightness,
-      surface: isDark ? NexusColors.surfaceDark : NexusColors.surfaceLight,
-      onSurface: isDark ? NexusColors.onSurfaceDark : NexusColors.onSurfaceLight,
-      surfaceContainerLowest: isDark
-          ? NexusColors.surfaceContainerLowestDark
-          : NexusColors.surfaceContainerLowestLight,
-      surfaceContainerLow: isDark
-          ? NexusColors.surfaceContainerLowDark
-          : NexusColors.surfaceContainerLowLight,
-      surfaceContainer: isDark
-          ? NexusColors.surfaceContainerDark
-          : NexusColors.surfaceContainerLight,
-      surfaceContainerHigh: isDark
-          ? NexusColors.surfaceContainerHighDark
-          : NexusColors.surfaceContainerHighLight,
-      surfaceContainerHighest: isDark
-          ? NexusColors.surfaceContainerHighestDark
-          : NexusColors.surfaceContainerHighestLight,
-      primary: isDark ? NexusColors.primaryDark : NexusColors.primaryLight,
-      onPrimary: isDark ? NexusColors.onPrimaryDark : NexusColors.onPrimaryLight,
-      secondary:
-          isDark ? NexusColors.secondaryDark : NexusColors.secondaryLight,
-      onSecondary:
-          isDark ? NexusColors.onSecondaryDark : NexusColors.onSecondaryLight,
-      tertiary: isDark ? NexusColors.tertiaryDark : NexusColors.tertiaryLight,
-      onTertiary:
-          isDark ? NexusColors.onTertiaryDark : NexusColors.onTertiaryLight,
-      error: isDark ? NexusColors.errorDark : NexusColors.errorLight,
-      onError: isDark ? NexusColors.onErrorDark : NexusColors.onErrorLight,
-      outline: isDark ? NexusColors.outlineDark : NexusColors.outlineLight,
-      outlineVariant:
-          isDark ? NexusColors.outlineVariantDark : NexusColors.outlineVariantLight,
-    );
-
-    return ThemeData(
-      useMaterial3: true,
-      brightness: brightness,
-      colorScheme: colorScheme,
-      scaffoldBackgroundColor:
-          isDark ? NexusColors.backgroundDark : NexusColors.backgroundLight,
-      fontFamily: 'Microsoft YaHei',
-      appBarTheme: AppBarTheme(
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor:
-            isDark ? NexusColors.backgroundDark : NexusColors.backgroundLight,
-        titleTextStyle: NexusTypography.headlineSm.copyWith(
-          color: colorScheme.onSurface,
-        ),
-      ),
-      cardTheme: CardThemeData(
-        color: colorScheme.surfaceContainerLowest,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: NexusRadii.mdRadius),
-      ),
-      dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant,
-        thickness: 1,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: colorScheme.surfaceContainerLow,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: NexusSpacing.md,
-          vertical: NexusSpacing.sm,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: NexusRadii.mdRadius,
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: NexusRadii.mdRadius,
-          borderSide: BorderSide(
-            color: isDark
-                ? Colors.transparent
-                : colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: NexusRadii.mdRadius,
-          borderSide: BorderSide(color: colorScheme.secondary),
-        ),
-      ),
-      iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
-      textTheme: TextTheme(
-        headlineLarge: NexusTypography.headlineXl.copyWith(
-          color: colorScheme.onSurface,
-        ),
-        headlineMedium: NexusTypography.headlineLg.copyWith(
-          color: colorScheme.onSurface,
-        ),
-        headlineSmall: NexusTypography.headlineSm.copyWith(
-          color: colorScheme.onSurface,
-        ),
-        bodyLarge: NexusTypography.bodyLg.copyWith(
-          color: colorScheme.onSurface,
-        ),
-        bodyMedium: NexusTypography.bodyMd.copyWith(
-          color: colorScheme.onSurface,
-        ),
-        labelMedium: NexusTypography.labelMd.copyWith(
-          color: colorScheme.onSurfaceVariant,
-        ),
-        labelSmall: NexusTypography.labelSm.copyWith(
-          color: colorScheme.onSurfaceVariant,
-        ),
+  /// Material theme mirroring the slate scheme, fed to
+  /// `ShadcnApp.materialTheme` for packages that read the Material theme.
+  static material.ThemeData materialCompatTheme(Brightness brightness) {
+    final scheme = brightness == Brightness.dark
+        ? ColorSchemes.darkSlate
+        : ColorSchemes.lightSlate;
+    return material.ThemeData.from(
+      colorScheme: material.ColorScheme.fromSeed(
+        seedColor: scheme.primary,
+        brightness: brightness,
+        surface: scheme.background,
+        primary: scheme.primary,
+        secondary: scheme.secondary,
+        error: scheme.destructive,
       ),
     );
   }
-
-  static ThemeData light() => _buildTheme(brightness: Brightness.light);
-  static ThemeData dark() => _buildTheme(brightness: Brightness.dark);
 }

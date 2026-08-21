@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../data/models/global_index_model.dart';
 import '../../data/services/global_index_service.dart';
@@ -97,7 +97,7 @@ class _StocksPageState extends State<StocksPage> {
               Text(
                 'Real-time portfolio and market tracking',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ],
@@ -125,7 +125,7 @@ class _StocksPageState extends State<StocksPage> {
                       child: Row(
                         children: [
                           const Icon(
-                            Icons.trending_up,
+                            LucideIcons.trendingUp,
                             size: 16,
                             color: NexusColors.stockUp,
                           ),
@@ -168,21 +168,21 @@ class _StocksPageState extends State<StocksPage> {
       children: [
         _StocksTabChip(
           label: '市场行情',
-          icon: Icons.show_chart,
+          icon: LucideIcons.chartLine,
           isSelected: _tab == _StocksTab.markets,
           onTap: () => setState(() => _tab = _StocksTab.markets),
         ),
         const SizedBox(width: NexusSpacing.sm),
         _StocksTabChip(
           label: '24小时快讯',
-          icon: Icons.flash_on,
+          icon: LucideIcons.zap,
           isSelected: _tab == _StocksTab.news,
           onTap: () => setState(() => _tab = _StocksTab.news),
         ),
         const SizedBox(width: NexusSpacing.sm),
         _StocksTabChip(
           label: '财经周历',
-          icon: Icons.event_note,
+          icon: LucideIcons.calendarDays,
           isSelected: _tab == _StocksTab.calendar,
           onTap: () => setState(() => _tab = _StocksTab.calendar),
         ),
@@ -224,9 +224,9 @@ class _StocksPageState extends State<StocksPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.cloud_off,
+                              LucideIcons.cloudOff,
                               size: 32,
-                              color: colorScheme.onSurfaceVariant.withValues(
+                              color: colorScheme.mutedForeground.withValues(
                                 alpha: 0.5,
                               ),
                             ),
@@ -234,15 +234,15 @@ class _StocksPageState extends State<StocksPage> {
                             Text(
                               _indexError!,
                               style: NexusTypography.bodyMd.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                                color: colorScheme.mutedForeground,
                               ),
                             ),
                             const SizedBox(height: NexusSpacing.sm),
-                            TextButton.icon(
-                              onPressed: _loadIndices,
-                              icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Retry'),
-                            ),
+                            Button.text(
+  onPressed: _loadIndices,
+  leading: const Icon(LucideIcons.refreshCw, size: 16),
+  child: const Text('Retry'),
+),
                           ],
                         ),
                       ),
@@ -304,14 +304,14 @@ class _WatchlistCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Watchlist', style: NexusTypography.headlineSm),
-              IconButton(
-                onPressed: () {},
-                icon: Icon(
-                  Icons.add,
+              IconButton.ghost(
+  onPressed: () {},
+  icon: Icon(
+                  RadixIcons.plus,
                   size: 20,
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
-              ),
+),
             ],
           ),
           const SizedBox(height: NexusSpacing.md),
@@ -361,7 +361,7 @@ class _WatchlistItem extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
+              color: colorScheme.accent,
               borderRadius: NexusRadii.mdRadius,
             ),
             alignment: Alignment.center,
@@ -556,43 +556,41 @@ class _HoldingsCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Holdings', style: NexusTypography.headlineSm),
-              TextButton(
-                onPressed: () {},
-                child: Text(
+              Button.text(
+  onPressed: () {},
+  child: Text(
                   'View All',
                   style: NexusTypography.labelSm.copyWith(
                     color: colorScheme.secondary,
                   ),
                 ),
-              ),
+),
             ],
           ),
           const SizedBox(height: NexusSpacing.md),
-          Table(
-            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-            columnWidths: const {
-              0: FlexColumnWidth(3),
-              1: FlexColumnWidth(2),
-              2: FlexColumnWidth(2),
-              3: FlexColumnWidth(2),
-              4: FlexColumnWidth(2),
-            },
+          Column(
             children: [
-              TableRow(
+              const Row(
                 children: [
-                  _TableHeader('Asset'),
-                  _TableHeader('Qty'),
-                  _TableHeader('Avg Cost'),
-                  _TableHeader('Price'),
-                  _TableHeader('P/L'),
+                  Expanded(flex: 3, child: _TableHeader('Asset')),
+                  Expanded(flex: 2, child: _TableHeader('Qty')),
+                  Expanded(flex: 2, child: _TableHeader('Avg Cost')),
+                  Expanded(flex: 2, child: _TableHeader('Price')),
+                  Expanded(flex: 2, child: _TableHeader('P/L')),
                 ],
               ),
               ...holdings.map((h) {
                 final pl = (h.$5 - h.$4) * h.$3;
                 final isUp = pl >= 0;
-                return TableRow(
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: NexusSpacing.sm,
+                  ),
+                  child: Row(
                   children: [
-                    Padding(
+                    Expanded(
+                      flex: 3,
+                      child: Padding(
                       padding: const EdgeInsets.symmetric(
                         vertical: NexusSpacing.sm,
                       ),
@@ -602,7 +600,7 @@ class _HoldingsCard extends StatelessWidget {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainerHighest,
+                              color: colorScheme.accent,
                               borderRadius: NexusRadii.mdRadius,
                             ),
                             alignment: Alignment.center,
@@ -624,24 +622,38 @@ class _HoldingsCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Text('${h.$3}', style: NexusTypography.bodyMd),
-                    Text(
-                      '\$${h.$4.toStringAsFixed(2)}',
-                      style: NexusTypography.bodyMd,
                     ),
-                    Text(
-                      '\$${h.$5.toStringAsFixed(2)}',
-                      style: NexusTypography.bodyMd,
+                    Expanded(
+                      flex: 2,
+                      child: Text('${h.$3}', style: NexusTypography.bodyMd),
                     ),
-                    Text(
-                      '\$${pl.abs().toStringAsFixed(2)}',
-                      style: NexusTypography.bodyMd.copyWith(
-                        color: isUp
-                            ? NexusColors.stockUp
-                            : NexusColors.stockDown,
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        '\$${h.$4.toStringAsFixed(2)}',
+                        style: NexusTypography.bodyMd,
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        '\$${h.$5.toStringAsFixed(2)}',
+                        style: NexusTypography.bodyMd,
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        '\$${pl.abs().toStringAsFixed(2)}',
+                        style: NexusTypography.bodyMd.copyWith(
+                          color: isUp
+                              ? NexusColors.stockUp
+                              : NexusColors.stockDown,
+                        ),
                       ),
                     ),
                   ],
+                  ),
                 );
               }),
             ],
@@ -684,16 +696,9 @@ class _StocksTabChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: isSelected ? colorScheme.primary : Colors.transparent,
-      borderRadius: NexusRadii.fullRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.fullRadius,
-        hoverColor: isSelected
-            ? null
-            : colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-        child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: NexusSpacing.sm,
             vertical: 4,
@@ -702,8 +707,8 @@ class _StocksTabChip extends StatelessWidget {
             borderRadius: NexusRadii.fullRadius,
             border: Border.all(
               color: isSelected
-                  ? Colors.transparent
-                  : colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  ? const Color(0x00000000)
+                  : colorScheme.border.withValues(alpha: 0.6),
             ),
           ),
           child: Row(
@@ -713,23 +718,22 @@ class _StocksTabChip extends StatelessWidget {
                 icon,
                 size: 14,
                 color: isSelected
-                    ? colorScheme.onPrimary
-                    : colorScheme.onSurfaceVariant,
+                    ? colorScheme.primaryForeground
+                    : colorScheme.mutedForeground,
               ),
               const SizedBox(width: 4),
               Text(
                 label,
                 style: NexusTypography.labelSm.copyWith(
                   color: isSelected
-                      ? colorScheme.onPrimary
-                      : colorScheme.onSurfaceVariant,
+                      ? colorScheme.primaryForeground
+                      : colorScheme.mutedForeground,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
+);
   }
 }

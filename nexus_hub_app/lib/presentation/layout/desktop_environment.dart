@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+
 import 'package:flutter_reorderable_grid_view/entities/reorder_update_entity.dart';
 import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
 import 'package:intl/intl.dart';
-import 'package:shadcn_flutter/shadcn_flutter.dart' as shadcn;
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/desktop_item.dart';
-import '../../theme/colors.dart';
+
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import '../components/desktop_folder.dart';
@@ -102,7 +102,7 @@ class _MacOsSquircle extends StatelessWidget {
             if (child != null)
               Center(
                 child: IconTheme(
-                  data: const IconThemeData(color: Colors.white),
+                  data: const IconThemeData(color: const Color(0xFFFFFFFF)),
                   child: child!,
                 ),
               ),
@@ -129,8 +129,8 @@ class _SquircleShine extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.white.withValues(alpha: 0.4),
-            Colors.white.withValues(alpha: 0.0),
+            const Color(0xFFFFFFFF).withValues(alpha: 0.4),
+            const Color(0xFFFFFFFF).withValues(alpha: 0.0),
           ],
           stops: const [0.0, 0.45],
         ),
@@ -162,7 +162,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   static final List<DesktopAppItem> _appItems = [
     DesktopAppItem(
       label: 'Dashboard',
-      icon: Icons.dashboard_outlined,
+      icon: RadixIcons.dashboard,
       route: '/',
       pageBuilder: (_) => const DashboardPage(),
       gradientStart: const Color(0xFF5AC8FA),
@@ -170,7 +170,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Bookmarks',
-      icon: Icons.bookmark_outline,
+      icon: LucideIcons.bookmark,
       route: '/bookmarks',
       pageBuilder: (_) => const BookmarksPage(),
       gradientStart: const Color(0xFFFF9F0A),
@@ -178,7 +178,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Tasks',
-      icon: Icons.check_circle_outline,
+      icon: LucideIcons.circleCheck,
       route: '/tasks',
       pageBuilder: (_) => const TasksPage(),
       gradientStart: const Color(0xFF34C759),
@@ -186,7 +186,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Clipboard',
-      icon: Icons.content_paste,
+      icon: RadixIcons.clipboard,
       route: '/clipboard',
       pageBuilder: (_) => const ClipboardHistoryPage(),
       gradientStart: const Color(0xFFAF52DE),
@@ -194,7 +194,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'RSS Reader',
-      icon: Icons.rss_feed,
+      icon: LucideIcons.rss,
       route: '/rss',
       pageBuilder: (_) => const RssReaderPage(),
       gradientStart: const Color(0xFFFF2D55),
@@ -202,7 +202,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Google News',
-      icon: Icons.newspaper,
+      icon: LucideIcons.newspaper,
       route: '/news',
       pageBuilder: (_) => const GoogleNewsPage(),
       gradientStart: const Color(0xFF4285F4),
@@ -210,7 +210,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Mail',
-      icon: Icons.mail_outlined,
+      icon: LucideIcons.mail,
       route: '/mail',
       pageBuilder: (_) => const MailPage(),
       gradientStart: const Color(0xFF64D2FF),
@@ -218,7 +218,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'AI Chat',
-      icon: Icons.chat_bubble_outline,
+      icon: RadixIcons.chatBubble,
       route: '/ai-chat',
       pageBuilder: (_) => const AiChatPage(),
       gradientStart: const Color(0xFF32D74B),
@@ -226,7 +226,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Stocks',
-      icon: Icons.show_chart,
+      icon: LucideIcons.chartLine,
       route: '/stocks',
       pageBuilder: (_) => const StocksPage(),
       gradientStart: const Color(0xFF30D158),
@@ -234,7 +234,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'My Computer',
-      icon: Icons.computer,
+      icon: LucideIcons.monitor,
       route: '/my-computer',
       pageBuilder: (_) => const MyComputerPage(),
       gradientStart: const Color(0xFF9AA0A6),
@@ -242,7 +242,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'DevTools',
-      icon: Icons.construction,
+      icon: LucideIcons.hammer,
       route: '/dev-tools',
       pageBuilder: (_) => const DevToolsPage(),
       gradientStart: const Color(0xFFFF9500),
@@ -250,7 +250,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'GitHub Trending',
-      icon: Icons.trending_up,
+      icon: LucideIcons.trendingUp,
       route: '/github-trending',
       pageBuilder: (_) => const TrendingPage(),
       gradientStart: const Color(0xFF4078C0),
@@ -258,7 +258,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Terminal',
-      icon: Icons.terminal,
+      icon: LucideIcons.terminal,
       route: '/terminal',
       pageBuilder: (_) => const TerminalPage(),
       gradientStart: const Color(0xFF2E2E2E),
@@ -266,7 +266,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Pomodoro',
-      icon: Icons.timer_outlined,
+      icon: LucideIcons.timer,
       route: '/pomodoro',
       pageBuilder: (_) => const PomodoroPage(),
       gradientStart: const Color(0xFFFF5F6D),
@@ -274,7 +274,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Camera',
-      icon: Icons.photo_camera_outlined,
+      icon: LucideIcons.camera,
       route: '/camera',
       pageBuilder: (_) => const CameraCapturePage(),
       gradientStart: const Color(0xFF5AC8FA),
@@ -282,7 +282,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Calendar',
-      icon: Icons.calendar_month_outlined,
+      icon: LucideIcons.calendarDays,
       route: '/calendar',
       pageBuilder: (_) => const CalendarPage(),
       gradientStart: const Color(0xFFFF453A),
@@ -290,7 +290,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Music',
-      icon: Icons.music_note,
+      icon: LucideIcons.music,
       route: '/music',
       pageBuilder: (_) => const MusicPlayerPage(),
       gradientStart: const Color(0xFFFB5C74),
@@ -298,7 +298,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Java Decompiler',
-      icon: Icons.coffee,
+      icon: LucideIcons.coffee,
       route: '/java-decompiler',
       pageBuilder: (_) => const JavaDecompilerPage(),
       gradientStart: const Color(0xFFC89060),
@@ -306,7 +306,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: 'Video',
-      icon: Icons.smart_display_outlined,
+      icon: LucideIcons.monitorPlay,
       route: '/video',
       pageBuilder: (_) => const VideoPlayerPage(),
       gradientStart: const Color(0xFFE50914),
@@ -314,7 +314,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
     DesktopAppItem(
       label: '知乎',
-      icon: Icons.local_fire_department_outlined,
+      icon: LucideIcons.flame,
       route: '/zhihu',
       pageBuilder: (_) => const ZhihuHotPage(),
       gradientStart: const Color(0xFF38A3FF),
@@ -360,9 +360,9 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     super.dispose();
   }
 
-  shadcn.WindowNavigatorHandle? get _navigatorHandle {
+  WindowNavigatorHandle? get _navigatorHandle {
     final state = _navigatorKey.currentState;
-    if (state is shadcn.WindowNavigatorHandle) {
+    if (state is WindowNavigatorHandle) {
       return state;
     }
     return null;
@@ -386,7 +386,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       return;
     }
 
-    final controller = shadcn.WindowController(
+    final controller = WindowController(
       bounds: Rect.fromLTWH(
         60 + (_windowCounter % 5) * 40,
         40 + _kMenuBarHeight + (_windowCounter % 5) * 40, // below menu bar
@@ -407,12 +407,16 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     );
     _windowCounter++;
 
-    final window = shadcn.Window.controlled(
+    final window = Window.controlled(
       controller: controller,
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(appItem.icon, size: 16, color: NexusColors.onSurface),
+          Icon(
+            appItem.icon,
+            size: 16,
+            color: Theme.of(context).colorScheme.foreground,
+          ),
           const SizedBox(width: 8),
           Text(
             appItem.label,
@@ -426,8 +430,12 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       // the whole desktop and break back navigation.
       content: ClipRect(
         child: Navigator(
-          onGenerateRoute: (settings) => MaterialPageRoute<void>(
-            builder: (context) => appItem.pageBuilder(context),
+          onGenerateRoute: (settings) => PageRouteBuilder<void>(
+            settings: settings,
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                appItem.pageBuilder(context),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+                FadeTransition(opacity: animation, child: child),
           ),
         ),
       ),
@@ -495,31 +503,10 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
   /// Shows a dialog to create a new folder on the desktop.
   Future<void> _showNewFolderDialog(BuildContext context) async {
-    final controller = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('新建文件夹'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: '文件夹名称',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('创建'),
-          ),
-        ],
-      ),
+    final name = await _showPromptDialog(
+      context,
+      title: '新建文件夹',
+      confirmLabel: '创建',
     );
     if (name != null && name.isNotEmpty) {
       DesktopState.instance.createFolder(name);
@@ -532,31 +519,11 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     String folderId,
     String currentName,
   ) async {
-    final controller = TextEditingController(text: currentName);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('重命名文件夹'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: '文件夹名称',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('确认'),
-          ),
-        ],
-      ),
+    final name = await _showPromptDialog(
+      context,
+      title: '重命名文件夹',
+      confirmLabel: '确认',
+      initialText: currentName,
     );
     if (name != null && name.isNotEmpty) {
       DesktopState.instance.renameFolder(folderId, name);
@@ -568,24 +535,26 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     BuildContext context,
     String folderId,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('删除文件夹'),
-        content: const Text('确定要删除此文件夹吗？文件夹内的图标不会被删除。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('删除'),
-          ),
-        ],
+    final confirmed = await showOverlay<bool>(
+      context,
+      DialogConfiguration<bool>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (ctx) => AlertDialog(
+          title: const Text('删除文件夹'),
+          content: const Text('确定要删除此文件夹吗？文件夹内的图标不会被删除。'),
+          actions: [
+            Button.text(
+              onPressed: () => closeOverlay<bool>(ctx, false),
+              child: const Text('取消'),
+            ),
+            Button.destructive(
+              onPressed: () => closeOverlay<bool>(ctx, true),
+              child: const Text('删除'),
+            ),
+          ],
+        ),
       ),
-    );
+    ).future;
     if (confirmed == true) {
       DesktopState.instance.deleteFolder(folderId);
     }
@@ -593,53 +562,43 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
   @override
   Widget build(BuildContext context) {
-    final materialTheme = Theme.of(context);
-    return shadcn.ShadcnLayer(
-      theme: const shadcn.ThemeData(radius: 0.5, scaling: 1),
-      child: Theme(
-        data: materialTheme,
-        child: Material(
-          type: MaterialType.transparency,
-          child: Stack(
-            children: [
-              shadcn.WindowNavigator(
-                key: _navigatorKey,
-                initialWindows: const [],
-                // Maximized windows stop below the overlay menu bar so their
-                // title bar stays visible and draggable.
-                maximizedInsets: const EdgeInsets.only(top: _kMenuBarHeight),
-                child: _buildDesktopContent(context),
-              ),
-              // Menu bar on top of everything, including windows (like macOS).
-              const Positioned(top: 0, left: 0, right: 0, child: _MenuBar()),
-            ],
-          ),
+    return Stack(
+      children: [
+        WindowNavigator(
+          key: _navigatorKey,
+          initialWindows: const [],
+          // Maximized windows stop below the overlay menu bar so their
+          // title bar stays visible and draggable.
+          maximizedInsets: const EdgeInsets.only(top: _kMenuBarHeight),
+          child: _buildDesktopContent(context),
         ),
-      ),
+        // Menu bar on top of everything, including windows (like macOS).
+        const Positioned(top: 0, left: 0, right: 0, child: _MenuBar()),
+      ],
     );
   }
 
   Widget _buildDesktopContent(BuildContext context) {
     return Watch((_) {
       final wallpaper = WallpaperState.instance.currentWallpaper.value;
-      return shadcn.ContextMenu(
+      return ContextMenu(
         items: [
-          shadcn.MenuButton(
-            leading: const Icon(Icons.wallpaper, size: 16),
+          MenuButton(
+            leading: const Icon(LucideIcons.image, size: 16),
             onPressed: (context) => WallpaperPickerDialog.show(context),
             child: const Text('更换壁纸'),
           ),
           if (wallpaper != null) ...[
-            const shadcn.MenuDivider(),
-            shadcn.MenuButton(
-              leading: const Icon(Icons.restart_alt, size: 16),
+            const MenuDivider(),
+            MenuButton(
+              leading: const Icon(LucideIcons.rotateCcw, size: 16),
               onPressed: (context) => WallpaperState.instance.clearWallpaper(),
               child: const Text('恢复默认壁纸'),
             ),
           ],
-          const shadcn.MenuDivider(),
-          shadcn.MenuButton(
-            leading: const Icon(Icons.create_new_folder, size: 16),
+          const MenuDivider(),
+          MenuButton(
+            leading: const Icon(LucideIcons.folderPlus, size: 16),
             onPressed: (context) => _showNewFolderDialog(context),
             child: const Text('新建文件夹'),
           ),
@@ -795,9 +754,9 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
             height: 80,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: colorScheme.surface.withValues(alpha: 0.18),
+              color: colorScheme.card.withValues(alpha: 0.18),
               border: Border.all(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+                color: colorScheme.border.withValues(alpha: 0.2),
               ),
               borderRadius: BorderRadius.circular(22),
             ),
@@ -839,11 +798,11 @@ class _MenuBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: isDark
-            ? Colors.black.withValues(alpha: 0.25)
-            : Colors.white.withValues(alpha: 0.2),
+            ? const Color(0xFF000000).withValues(alpha: 0.25)
+            : const Color(0xFFFFFFFF).withValues(alpha: 0.2),
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.1),
+            color: colorScheme.border.withValues(alpha: 0.1),
           ),
         ),
       ),
@@ -854,19 +813,19 @@ class _MenuBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.apple,
+                LucideIcons.apple,
                 size: 16,
                 color: isDark
-                    ? Colors.white.withValues(alpha: 0.9)
-                    : Colors.black.withValues(alpha: 0.85),
+                    ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
+                    : const Color(0xFF000000).withValues(alpha: 0.85),
               ),
               const SizedBox(width: 8),
               Text(
                 'Nexus Hub',
                 style: TextStyle(
                   color: isDark
-                      ? Colors.white.withValues(alpha: 0.9)
-                      : Colors.black.withValues(alpha: 0.85),
+                      ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
+                      : const Color(0xFF000000).withValues(alpha: 0.85),
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.2,
@@ -877,7 +836,7 @@ class _MenuBar extends StatelessWidget {
           const Spacer(),
           // Right: theme toggle + live clock
           _MenuIconButton(
-            icon: isDark ? Icons.dark_mode : Icons.light_mode,
+            icon: isDark ? LucideIcons.moon : LucideIcons.sun,
             onTap: () => ThemeState.instance.toggle(),
           ),
           const SizedBox(width: 8),
@@ -899,24 +858,15 @@ class _MenuIconButton extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = colorScheme.brightness == Brightness.dark;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        hoverColor: colorScheme.surfaceContainerHigh.withValues(alpha: 0.4),
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: Icon(
-            icon,
-            size: 16,
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.9)
-                : Colors.black.withValues(alpha: 0.85),
-          ),
-        ),
+    return IconButton.ghost(
+      icon: Icon(
+        icon,
+        size: 16,
+        color: isDark
+            ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
+            : const Color(0xFF000000).withValues(alpha: 0.85),
       ),
+      onPressed: onTap,
     );
   }
 }
@@ -979,8 +929,8 @@ class _ClockWidgetState extends State<_ClockWidget> {
           date,
           style: TextStyle(
             color: isDark
-                ? Colors.white.withValues(alpha: 0.8)
-                : Colors.black.withValues(alpha: 0.75),
+                ? const Color(0xFFFFFFFF).withValues(alpha: 0.8)
+                : const Color(0xFF000000).withValues(alpha: 0.75),
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -990,8 +940,8 @@ class _ClockWidgetState extends State<_ClockWidget> {
           time,
           style: TextStyle(
             color: isDark
-                ? Colors.white.withValues(alpha: 0.95)
-                : Colors.black.withValues(alpha: 0.9),
+                ? const Color(0xFFFFFFFF).withValues(alpha: 0.95)
+                : const Color(0xFF000000).withValues(alpha: 0.9),
             fontSize: 13,
             fontWeight: FontWeight.w600,
             fontFeatures: const [FontFeature.tabularFigures()],
@@ -1004,8 +954,8 @@ class _ClockWidgetState extends State<_ClockWidget> {
 
 /// Data class holding a window entry's state.
 class _WindowEntry {
-  final shadcn.Window window;
-  final shadcn.WindowController controller;
+  final Window window;
+  final WindowController controller;
   final DesktopAppItem appItem;
 
   const _WindowEntry({
@@ -1105,11 +1055,25 @@ class _DesktopIcon extends StatelessWidget {
         final isHovering = candidateData.isNotEmpty;
         return SizedBox(
           width: 72,
-          child: GestureDetector(
-            onTap: onFolderDoubleTap,
-            onDoubleTap: onFolderDoubleTap,
-            onSecondaryTap: () => _showFolderContextMenu(context),
-            child: Column(
+          child: ContextMenu(
+            items: [
+              MenuButton(
+                onPressed: (context) => onFolderDoubleTap?.call(),
+                child: const Text('打开'),
+              ),
+              MenuButton(
+                onPressed: (context) => onRename?.call(),
+                child: const Text('重命名'),
+              ),
+              MenuButton(
+                onPressed: (context) => onDelete?.call(),
+                child: const Text('删除'),
+              ),
+            ],
+            child: GestureDetector(
+              onTap: onFolderDoubleTap,
+              onDoubleTap: onFolderDoubleTap,
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 AnimatedScale(
@@ -1121,18 +1085,18 @@ class _DesktopIcon extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(48 * 0.23),
                       color: isHovering
-                          ? colorScheme.surfaceContainerLow.withValues(
+                          ? colorScheme.muted.withValues(
                               alpha: isDark ? 0.5 : 0.6,
                             )
-                          : colorScheme.surfaceContainerLow.withValues(
+                          : colorScheme.muted.withValues(
                               alpha: isDark ? 0.25 : 0.35,
                             ),
                       border: Border.all(
                         color: isHovering
-                            ? colorScheme.outlineVariant.withValues(
+                            ? colorScheme.border.withValues(
                                 alpha: isDark ? 0.6 : 0.7,
                               )
-                            : colorScheme.outlineVariant.withValues(
+                            : colorScheme.border.withValues(
                                 alpha: isDark ? 0.3 : 0.4,
                               ),
                       ),
@@ -1148,6 +1112,7 @@ class _DesktopIcon extends StatelessWidget {
               ],
             ),
           ),
+          ),
         );
       },
     );
@@ -1162,13 +1127,13 @@ class _DesktopIcon extends StatelessWidget {
         return Text(
           label,
           style: TextStyle(
-            color: isDark ? Colors.white : Colors.black.withValues(alpha: 0.9),
+            color: isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000).withValues(alpha: 0.9),
             fontSize: 11,
             fontWeight: FontWeight.w500,
             height: 1.2,
             shadows: [
               Shadow(
-                color: isDark ? Colors.black45 : Colors.white54,
+                color: isDark ? const Color(0x73000000) : const Color(0x89FFFFFF),
                 blurRadius: 4,
                 offset: const Offset(0, 1),
               ),
@@ -1181,27 +1146,6 @@ class _DesktopIcon extends StatelessWidget {
       },
     );
   }
-
-  void _showFolderContextMenu(BuildContext context) {
-    showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(0, 0, 0, 0),
-      items: [
-        const PopupMenuItem(value: 'open', child: Text('打开')),
-        const PopupMenuItem(value: 'rename', child: Text('重命名')),
-        const PopupMenuItem(value: 'delete', child: Text('删除')),
-      ],
-    ).then((value) {
-      switch (value) {
-        case 'open':
-          onFolderDoubleTap?.call();
-        case 'rename':
-          onRename?.call();
-        case 'delete':
-          onDelete?.call();
-      }
-    });
-  }
 }
 
 /// Resolves a [DesktopAppItem] by route from the static app items list.
@@ -1212,6 +1156,63 @@ DesktopAppItem? _resolveAppItem(String route) {
     );
   } catch (_) {
     return null;
+  }
+}
+
+/// shadcn text-prompt dialog returning the entered value (trimmed).
+Future<String?> _showPromptDialog(
+  BuildContext context, {
+  required String title,
+  required String confirmLabel,
+  String? initialText,
+}) async {
+  final controller = TextEditingController(text: initialText ?? '');
+  return showOverlay<String>(
+    context,
+    DialogConfiguration<String>(
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+      builder: (ctx) => _PromptDialog(
+        controller: controller,
+        title: title,
+        confirmLabel: confirmLabel,
+      ),
+    ),
+  ).future;
+}
+
+class _PromptDialog extends StatelessWidget {
+  const _PromptDialog({
+    required this.controller,
+    required this.title,
+    required this.confirmLabel,
+  });
+
+  final TextEditingController controller;
+  final String title;
+  final String confirmLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(title),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        hintText: '文件夹名称',
+        onSubmitted: (value) => closeOverlay<String>(context, value.trim()),
+      ),
+      actions: [
+        Button.text(
+          onPressed: () => closeOverlay<String>(context),
+          child: const Text('取消'),
+        ),
+        Button.primary(
+          onPressed: () =>
+              closeOverlay<String>(context, controller.text.trim()),
+          child: Text(confirmLabel),
+        ),
+      ],
+    );
   }
 }
 
@@ -1257,10 +1258,31 @@ class _DockIconState extends State<_DockIcon> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Dock icon with magnification
-              GestureDetector(
-                onTap: widget.onTap,
-                onSecondaryTap: _showContextMenu,
-                child: MouseRegion(
+              ContextMenu(
+                items: [
+                  if (widget.isActive) ...[
+                    MenuButton(
+                      onPressed: (context) => widget.onTap(),
+                      child: const Text('隐藏'),
+                    ),
+                    MenuButton(
+                      onPressed: (context) => widget.onTap(),
+                      child: const Text('退出'),
+                    ),
+                  ] else
+                    MenuButton(
+                      onPressed: (context) => widget.onTap(),
+                      child: const Text('打开'),
+                    ),
+                  const MenuDivider(),
+                  MenuButton(
+                    onPressed: (context) {},
+                    child: const Text('选项'),
+                  ),
+                ],
+                child: GestureDetector(
+                  onTap: widget.onTap,
+                  child: MouseRegion(
                   onEnter: (_) => setState(() {
                     _isHovering = true;
                     if (widget.isActive) {
@@ -1300,6 +1322,7 @@ class _DockIconState extends State<_DockIcon> {
                   ),
                 ),
               ),
+              ),
               // Active indicator dot (macOS style)
               AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
@@ -1307,7 +1330,7 @@ class _DockIconState extends State<_DockIcon> {
                 height: 4,
                 margin: const EdgeInsets.only(top: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(
+                  color: const Color(0xFFFFFFFF).withValues(
                     alpha: widget.isActive ? (_isHovering ? 0.9 : 0.6) : 0.0,
                   ),
                   shape: BoxShape.circle,
@@ -1329,13 +1352,13 @@ class _DockIconState extends State<_DockIcon> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.7),
+                    color: const Color(0xFF000000).withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     widget.label,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFFFFFFFF),
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1368,10 +1391,10 @@ class _DockIconState extends State<_DockIcon> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         color: const Color(0xFF2C2C2E),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        border: Border.all(color: const Color(0xFFFFFFFF).withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
+            color: const Color(0xFF000000).withValues(alpha: 0.4),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -1422,7 +1445,7 @@ class _DockIconState extends State<_DockIcon> {
                     child: Text(
                       widget.label,
                       style: const TextStyle(
-                        color: Colors.white54,
+                        color: const Color(0x89FFFFFF),
                         fontSize: 8,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -1446,41 +1469,4 @@ class _DockIconState extends State<_DockIcon> {
     );
   }
 
-  /// Shows a macOS-style context menu on right-click.
-  void _showContextMenu() {
-    final context = this.context;
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize) return;
-
-    final offset = renderBox.localToGlobal(Offset.zero);
-    showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx,
-        offset.dy,
-        offset.dx + renderBox.size.width,
-        offset.dy + renderBox.size.height,
-      ),
-      items: [
-        if (widget.isActive) ...[
-          const PopupMenuItem(value: 'hide', child: Text('隐藏')),
-          const PopupMenuItem(value: 'quit', child: Text('退出')),
-        ] else ...[
-          const PopupMenuItem(value: 'open', child: Text('打开')),
-        ],
-        const PopupMenuDivider(),
-        const PopupMenuItem(value: 'options', child: Text('选项')),
-      ],
-    ).then((value) {
-      if (value == null) return;
-      switch (value) {
-        case 'open':
-          widget.onTap();
-        case 'hide':
-          widget.onTap();
-        case 'quit':
-          widget.onTap();
-      }
-    });
-  }
 }

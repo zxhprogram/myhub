@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../theme/radii.dart';
 
@@ -30,13 +30,13 @@ class NexusIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final effectiveColor = color ??
-        (active ? colorScheme.onSurface : colorScheme.onSurfaceVariant);
+        (active ? colorScheme.foreground : colorScheme.mutedForeground);
 
     return Container(
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: backgroundColor ?? colorScheme.surfaceContainer,
+        color: backgroundColor ?? colorScheme.muted,
         borderRadius: NexusRadii.mdRadius,
       ),
       alignment: Alignment.center,

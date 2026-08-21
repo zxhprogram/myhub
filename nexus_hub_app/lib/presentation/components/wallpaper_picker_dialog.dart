@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/wallpaper_item.dart';
@@ -20,19 +20,25 @@ class WallpaperPickerDialog extends StatelessWidget {
 
   /// Shows the wallpaper picker as a modal dialog.
   static Future<void> show(BuildContext context) {
-    return showDialog<void>(
-      context: context,
-      builder: (_) => const WallpaperPickerDialog(),
-    );
+    return showOverlay<void>(
+      context,
+      DialogConfiguration<void>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (_) => const WallpaperPickerDialog(),
+      ),
+    ).future;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: NexusColors.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
+    return Card(
+      padding: EdgeInsets.zero,
+      fillColor: Theme.of(context).colorScheme.card,
+      borderRadius: NexusRadii.lgRadius,
+      borderWidth: 0,
+      child: ClipRRect(
+        borderRadius: NexusRadii.lgRadius,
+        child: SizedBox(
         width: 720,
         height: 500,
         child: Column(
@@ -42,6 +48,7 @@ class WallpaperPickerDialog extends StatelessWidget {
             Expanded(child: _buildBody()),
             _buildFooter(context),
           ],
+        ),
         ),
       ),
     );
@@ -57,32 +64,30 @@ class WallpaperPickerDialog extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.wallpaper, size: 20, color: NexusColors.onSurface),
+           Icon(LucideIcons.image, size: 20, color: Theme.of(context).colorScheme.foreground),
           const SizedBox(width: NexusSpacing.sm),
           Text('壁纸库', style: NexusTypography.headlineSm),
           const Spacer(),
           Watch((_) {
             final loading = WallpaperState.instance.isLoading.value;
-            return IconButton(
-              tooltip: '刷新',
-              onPressed: loading
+            return IconButton.ghost(
+  onPressed: loading
                   ? null
                   : () => WallpaperState.instance.refresh(),
-              icon: const Icon(Icons.refresh),
-            );
+  icon: const Icon(LucideIcons.refreshCw),
+);
           }),
-          IconButton(
-            tooltip: '关闭',
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close),
-          ),
+          IconButton.ghost(
+  onPressed: () => Navigator.of(context).pop(),
+  icon: const Icon(RadixIcons.cross2),
+),
         ],
       ),
     );
   }
 
   Widget _buildBody() {
-    return Watch((_) {
+    return Watch((context) {
       final state = WallpaperState.instance;
       if (state.isLoading.value) {
         return const Center(child: CircularProgressIndicator());
@@ -93,10 +98,10 @@ class WallpaperPickerDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.cloud_off,
+               Icon(
+                LucideIcons.cloudOff,
                 size: 40,
-                color: NexusColors.onSurfaceVariant,
+                color: Theme.of(context).colorScheme.mutedForeground,
               ),
               const SizedBox(height: NexusSpacing.md),
               Text('壁纸加载失败', style: NexusTypography.bodyMd),
@@ -114,10 +119,10 @@ class WallpaperPickerDialog extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: NexusSpacing.md),
-              TextButton(
-                onPressed: () => state.refresh(),
-                child: const Text('重试'),
-              ),
+              Button.text(
+  onPressed: () => state.refresh(),
+  child: const Text('重试'),
+),
             ],
           ),
         );
@@ -161,7 +166,7 @@ class WallpaperPickerDialog extends StatelessWidget {
             return NexusButton(
               label: '恢复默认',
               variant: NexusButtonVariant.outlined,
-              icon: Icons.restart_alt,
+              icon: LucideIcons.rotateCcw,
               onPressed: current == null
                   ? null
                   : () {
@@ -174,7 +179,7 @@ class WallpaperPickerDialog extends StatelessWidget {
           NexusButton(
             label: '随机换一张',
             variant: NexusButtonVariant.outlined,
-            icon: Icons.shuffle,
+            icon: LucideIcons.shuffle,
             onPressed: () {
               final wallpapers = WallpaperState.instance.wallpapers.value;
               if (wallpapers.isEmpty) {
@@ -212,11 +217,10 @@ class _WallpaperThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderColor =
-        selected ? NexusColors.secondary : NexusColors.outlineVariant;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: NexusRadii.mdRadius,
-      child: Stack(
+        selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.border;
+    return GestureDetector(
+  onTap: onTap,
+  child: Stack(
         fit: StackFit.expand,
         children: [
           ClipRRect(
@@ -229,7 +233,7 @@ class _WallpaperThumb extends StatelessWidget {
                   return child;
                 }
                 return Container(
-                  color: NexusColors.surfaceContainer,
+                  color: Theme.of(context).colorScheme.muted,
                   alignment: Alignment.center,
                   child: const SizedBox(
                     width: 20,
@@ -239,11 +243,11 @@ class _WallpaperThumb extends StatelessWidget {
                 );
               },
               errorBuilder: (context, error, stackTrace) => Container(
-                color: NexusColors.surfaceContainer,
+                color: Theme.of(context).colorScheme.muted,
                 alignment: Alignment.center,
-                child: const Icon(
-                  Icons.broken_image_outlined,
-                  color: NexusColors.onSurfaceVariant,
+                child:  Icon(
+                  LucideIcons.imageOff,
+                  color: Theme.of(context).colorScheme.mutedForeground,
                 ),
               ),
             ),
@@ -262,14 +266,14 @@ class _WallpaperThumb extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.6),
+                    const Color(0x00000000),
+                    const Color(0xFF000000).withValues(alpha: 0.6),
                   ],
                 ),
               ),
               child: Text(
                 item.date,
-                style: const TextStyle(color: Colors.white, fontSize: 10),
+                style: const TextStyle(color: const Color(0xFFFFFFFF), fontSize: 10),
               ),
             ),
           ),
@@ -282,6 +286,6 @@ class _WallpaperThumb extends StatelessWidget {
             ),
         ],
       ),
-    );
+);
   }
 }

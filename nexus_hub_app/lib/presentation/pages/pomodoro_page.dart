@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../theme/radii.dart';
@@ -38,7 +38,7 @@ class _PomodoroPageState extends State<PomodoroPage> {
               Text(
                 'Focus sessions with scheduled breaks',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ],
@@ -76,7 +76,7 @@ class _ModeSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(NexusSpacing.xs),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
+        color: colorScheme.accent,
         borderRadius: NexusRadii.fullRadius,
       ),
       child: Row(
@@ -104,10 +104,9 @@ class _ModeChip extends StatelessWidget {
     final state = PomodoroState.instance;
     state.mode.watch(context);
     final selected = state.mode.value == mode;
-    return InkWell(
-      onTap: () => state.selectMode(mode),
-      borderRadius: NexusRadii.fullRadius,
-      child: AnimatedContainer(
+    return GestureDetector(
+  onTap: () => state.selectMode(mode),
+  child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
         padding: const EdgeInsets.symmetric(
@@ -116,13 +115,13 @@ class _ModeChip extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: selected
-              ? colorScheme.surfaceContainerLowest
-              : Colors.transparent,
+              ? colorScheme.card
+              : const Color(0x00000000),
           borderRadius: NexusRadii.fullRadius,
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: colorScheme.onSurface.withValues(alpha: 0.08),
+                    color: colorScheme.foreground.withValues(alpha: 0.08),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -134,12 +133,12 @@ class _ModeChip extends StatelessWidget {
           style: NexusTypography.labelMd.copyWith(
             color: selected
                 ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
+                : colorScheme.mutedForeground,
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
-    );
+);
   }
 
   static String _label(PomodoroMode mode) => switch (mode) {
@@ -177,7 +176,7 @@ class _TimerRing extends StatelessWidget {
             painter: _RingPainter(
               progress: value,
               color: color,
-              trackColor: colorScheme.onSurface.withValues(alpha: 0.08),
+              trackColor: colorScheme.foreground.withValues(alpha: 0.08),
             ),
             child: Center(
               child: Column(
@@ -196,7 +195,7 @@ class _TimerRing extends StatelessWidget {
                   Text(
                     _modeLabel(state.mode.value),
                     style: NexusTypography.labelMd.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                      color: colorScheme.mutedForeground,
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -281,19 +280,19 @@ class _TimerControls extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _ControlButton(
-          icon: Icons.skip_next_rounded,
+          icon: LucideIcons.skipForward,
           tooltip: 'Skip to next session',
           onTap: state.skip,
         ),
         const SizedBox(width: NexusSpacing.lg),
         _PrimaryControlButton(
-          icon: running ? Icons.pause_rounded : Icons.play_arrow_rounded,
+          icon: running ? LucideIcons.pause : LucideIcons.play,
           label: running ? 'Pause' : 'Start',
           onTap: state.toggle,
         ),
         const SizedBox(width: NexusSpacing.lg),
         _ControlButton(
-          icon: Icons.restart_alt_rounded,
+          icon: LucideIcons.rotateCcw,
           tooltip: 'Reset timer',
           onTap: state.reset,
         ),
@@ -313,21 +312,20 @@ class _ControlButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Tooltip(
-      message: tooltip ?? '',
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Container(
+  tooltip: (context) => Text(tooltip ?? ''),
+  child: GestureDetector(
+  onTap: onTap,
+  child: Container(
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh,
+            color: colorScheme.accent,
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: colorScheme.onSurface, size: 22),
+          child: Icon(icon, color: colorScheme.foreground, size: 22),
         ),
-      ),
-    );
+),
+);
   }
 }
 
@@ -345,10 +343,9 @@ class _PrimaryControlButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: NexusRadii.fullRadius,
-      child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: NexusSpacing.xl,
           vertical: NexusSpacing.md,
@@ -367,19 +364,19 @@ class _PrimaryControlButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: colorScheme.onSecondary, size: 22),
+            Icon(icon, color: colorScheme.secondaryForeground, size: 22),
             const SizedBox(width: NexusSpacing.sm),
             Text(
               label,
               style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.onSecondary,
+                color: colorScheme.secondaryForeground,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
       ),
-    );
+);
   }
 }
 
@@ -399,18 +396,18 @@ class _DailyGoal extends StatelessWidget {
         vertical: NexusSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
+        color: colorScheme.muted,
         borderRadius: NexusRadii.lgRadius,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            reached ? Icons.emoji_events : Icons.local_fire_department,
+            reached ? LucideIcons.trophy : LucideIcons.flame,
             size: 18,
             color: reached
                 ? const Color(0xFFFF9500)
-                : colorScheme.onSurfaceVariant,
+                : colorScheme.mutedForeground,
           ),
           const SizedBox(width: NexusSpacing.sm),
           Text(
@@ -443,14 +440,14 @@ class _CompletedFocusBadge extends StatelessWidget {
           vertical: NexusSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHigh,
+          color: colorScheme.accent,
           borderRadius: NexusRadii.fullRadius,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(
-              Icons.local_fire_department,
+              LucideIcons.flame,
               size: 16,
               color: Color(0xFFFF9500),
             ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/task_model.dart';
@@ -49,14 +49,14 @@ class _TasksPageState extends State<TasksPage> {
                   Text(
                     'Manage your work across the board',
                     style: NexusTypography.bodyMd.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                      color: colorScheme.mutedForeground,
                     ),
                   ),
                 ],
               ),
               NexusButton(
                 label: 'New Task',
-                icon: Icons.add,
+                icon: RadixIcons.plus,
                 onPressed: () =>
                     _showAddDialog(context, _state.columns.value.first.status),
               ),
@@ -74,7 +74,7 @@ class _TasksPageState extends State<TasksPage> {
                   child: Text(
                     'Error: ${_state.error.value}',
                     style: NexusTypography.bodyMd.copyWith(
-                      color: colorScheme.error,
+                      color: colorScheme.destructive,
                     ),
                   ),
                 );
@@ -136,52 +136,55 @@ class _TasksPageState extends State<TasksPage> {
   }
 
   void _showAddDialog(BuildContext context, String defaultStatus) {
-    showDialog(
-      context: context,
-      builder: (context) => _AddTaskDialog(
-        defaultStatus: defaultStatus,
-        columns: _state.columns.value,
-        onSave: (task) => _state.add(task),
+    showOverlay(
+      context,
+      DialogConfiguration(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) => _AddTaskDialog(
+          defaultStatus: defaultStatus,
+          columns: _state.columns.value,
+          onSave: (task) => _state.add(task),
+        ),
       ),
     );
   }
 
   void _showAddColumnDialog(BuildContext context) {
     final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) {
-        final colorScheme = Theme.of(context).colorScheme;
-        return AlertDialog(
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
-        title: Text('Add List', style: NexusTypography.headlineSm),
-        content: SizedBox(
-          width: 360,
-          child: NexusInput(
-            labelText: 'List title',
-            controller: controller,
-            autofocus: true,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          NexusButton(
-            label: 'Add',
-            onPressed: () {
-              final title = controller.text.trim();
-              if (title.isNotEmpty) {
-                _state.addColumn(title);
-              }
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
-        );
-      },
+    showOverlay(
+      context,
+      DialogConfiguration(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Add List', style: NexusTypography.headlineSm),
+            content: SizedBox(
+              width: 360,
+              child: NexusInput(
+                labelText: 'List title',
+                controller: controller,
+                autofocus: true,
+              ),
+            ),
+            actions: [
+              Button.text(
+                onPressed: () => closeOverlay<void>(context),
+                child: const Text('Cancel'),
+              ),
+              NexusButton(
+                label: 'Add',
+                onPressed: () {
+                  final title = controller.text.trim();
+                  if (title.isNotEmpty) {
+                    _state.addColumn(title);
+                  }
+                  closeOverlay<void>(context);
+                },
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -190,41 +193,40 @@ class _TasksPageState extends State<TasksPage> {
       (c) => c.status != column.status,
       orElse: () => column,
     );
-    showDialog(
-      context: context,
-      builder: (context) {
-        final colorScheme = Theme.of(context).colorScheme;
-        return AlertDialog(
-        backgroundColor: colorScheme.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
-        title: Text(
-          'Delete "${column.title}"?',
-          style: NexusTypography.headlineSm,
-        ),
-        content: Text(
-          fallback.status == column.status
-              ? 'This is the only list and cannot be deleted.'
-              : 'Tasks in this list will be moved to "${fallback.title}".',
-          style: NexusTypography.bodyMd,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          NexusButton(
-            label: 'Delete',
-            variant: NexusButtonVariant.filled,
-            onPressed: fallback.status == column.status
-                ? null
-                : () {
-                    Navigator.of(context).pop();
-                    _state.deleteColumn(column);
-                  },
-          ),
-        ],
-        );
-      },
+    showOverlay(
+      context,
+      DialogConfiguration(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) {
+          return AlertDialog(
+            title: Text(
+              'Delete "${column.title}"?',
+              style: NexusTypography.headlineSm,
+            ),
+            content: Text(
+              fallback.status == column.status
+                  ? 'This is the only list and cannot be deleted.'
+                  : 'Tasks in this list will be moved to "${fallback.title}".',
+              style: NexusTypography.bodyMd,
+            ),
+            actions: [
+              Button.text(
+                onPressed: () => closeOverlay<void>(context),
+                child: const Text('Cancel'),
+              ),
+              Button.destructive(
+                onPressed: fallback.status == column.status
+                    ? null
+                    : () {
+                        closeOverlay<void>(context);
+                        _state.deleteColumn(column);
+                      },
+                child: const Text('Delete'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -274,43 +276,45 @@ class _KanbanColumn extends StatelessWidget {
                     vertical: 1,
                   ),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
+                    color: colorScheme.accent,
                     borderRadius: NexusRadii.fullRadius,
                   ),
                   child: Text(
                     '${tasks.length}',
                     style: NexusTypography.labelMd.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                      color: colorScheme.mutedForeground,
                     ),
                   ),
                 ),
                 const Spacer(),
-                PopupMenuButton<String>(
-                  padding: const EdgeInsets.all(6),
-                  icon: Icon(
-                    Icons.more_horiz,
-                    size: 18,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  tooltip: 'List options',
-                  shape: RoundedRectangleBorder(
-                    borderRadius: NexusRadii.mdRadius,
-                  ),
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
+                GestureDetector(
+                  onTap: () => showOverlay(
+                    context,
+                    PopoverConfiguration(
+                      alignment: Alignment.center,
+                      anchorAlignment: Alignment.bottomRight,
+                      builder: (context) => MenuPopup(
                         children: [
-                          const Icon(Icons.delete_outline, size: 18),
-                          const SizedBox(width: NexusSpacing.sm),
-                          Text('Delete list', style: NexusTypography.bodyMd),
+                          MenuButton(
+                            leading: const Icon(LucideIcons.trash2, size: 18),
+                            onPressed: (context) => onDeleteColumn(),
+                            child: Text(
+                              'Delete list',
+                              style: NexusTypography.bodyMd,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ],
-                  onSelected: (value) {
-                    if (value == 'delete') onDeleteColumn();
-                  },
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      LucideIcons.ellipsis,
+                      size: 18,
+                      color: colorScheme.mutedForeground,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -325,10 +329,10 @@ class _KanbanColumn extends StatelessWidget {
                 return Container(
                   decoration: BoxDecoration(
                     color: isHovering
-                        ? colorScheme.surfaceContainerHigh.withValues(
+                        ? colorScheme.accent.withValues(
                             alpha: 0.6,
                           )
-                        : colorScheme.surfaceContainerLow.withValues(
+                        : colorScheme.muted.withValues(
                             alpha: 0.4,
                           ),
                     borderRadius: NexusRadii.lgRadius,
@@ -380,15 +384,10 @@ class _DraggableTaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return LongPressDraggable<TaskModel>(
       data: task,
-      feedback: Material(
-        color: Colors.transparent,
-        elevation: 8,
-        borderRadius: NexusRadii.lgRadius,
-        child: SizedBox(
+      feedback: SizedBox(
           width: 276,
           child: _TaskCard(task: task, dragging: true, onTap: onTap),
         ),
-      ),
       childWhenDragging: Opacity(
         opacity: 0.4,
         child: _TaskCard(task: task, onDelete: onDelete, onTap: onTap),
@@ -414,10 +413,10 @@ class _TaskCard extends StatelessWidget {
   Color _tagColor(ColorScheme colorScheme, String tag) {
     return switch (tag.toLowerCase()) {
       'design' => const Color(0xFF7C3AED),
-      'backend' => NexusColors.tertiary,
+      'backend' => colorScheme.foreground,
       'frontend' => colorScheme.primary,
       'research' => const Color(0xFF2563EB),
-      _ => colorScheme.outline,
+      _ => colorScheme.border,
     };
   }
 
@@ -425,21 +424,20 @@ class _TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final tagColor = _tagColor(colorScheme, task.tag);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: NexusRadii.lgRadius,
-      child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLowest,
+          color: colorScheme.card,
           borderRadius: NexusRadii.lgRadius,
           border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            color: colorScheme.border.withValues(alpha: 0.5),
           ),
           boxShadow: dragging
               ? [
                   BoxShadow(
-                    color: colorScheme.onSurface.withValues(alpha: 0.15),
+                    color: colorScheme.foreground.withValues(alpha: 0.15),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -477,7 +475,7 @@ class _TaskCard extends StatelessWidget {
               Text(
                 task.plainDescription,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -491,9 +489,9 @@ class _TaskCard extends StatelessWidget {
                 const Spacer(),
                 if (task.dueDate != null) ...[
                   Icon(
-                    Icons.calendar_today,
+                    LucideIcons.calendar,
                     size: 14,
-                    color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.mutedForeground,
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -502,24 +500,23 @@ class _TaskCard extends StatelessWidget {
                   ),
                   const SizedBox(width: NexusSpacing.sm),
                 ],
-                InkWell(
-                  onTap: onDelete,
-                  borderRadius: NexusRadii.fullRadius,
-                  child: Padding(
+                GestureDetector(
+  onTap: onDelete,
+  child: Padding(
                     padding: const EdgeInsets.all(2),
                     child: Icon(
-                      Icons.delete_outline,
+                      LucideIcons.trash2,
                       size: 16,
-                      color: colorScheme.onSurfaceVariant,
+                      color: colorScheme.mutedForeground,
                     ),
                   ),
-                ),
+),
               ],
             ),
           ],
         ),
       ),
-    );
+);
   }
 }
 
@@ -531,16 +528,13 @@ class _AddTaskButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: NexusRadii.lgRadius,
-        child: Container(
+    return GestureDetector(
+  onTap: onPressed,
+  child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             border: Border.all(
-              color: colorScheme.outlineVariant,
+              color: colorScheme.border,
               style: BorderStyle.solid,
             ),
             borderRadius: NexusRadii.lgRadius,
@@ -548,14 +542,13 @@ class _AddTaskButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.add, size: 16),
+              const Icon(RadixIcons.plus, size: 16),
               const SizedBox(width: NexusSpacing.xs),
               Text('Add Task', style: NexusTypography.labelMd),
             ],
           ),
         ),
-      ),
-    );
+);
   }
 }
 
@@ -571,38 +564,34 @@ class _AddColumnButton extends StatelessWidget {
       width: 300,
       child: Align(
         alignment: Alignment.topLeft,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onAdd,
-            borderRadius: NexusRadii.lgRadius,
-            child: Container(
+        child: GestureDetector(
+  onTap: onAdd,
+  child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: colorScheme.outlineVariant,
+                  color: colorScheme.border,
                   style: BorderStyle.solid,
                 ),
                 borderRadius: NexusRadii.lgRadius,
-                color: colorScheme.surfaceContainerLow.withValues(alpha: 0.3),
+                color: colorScheme.muted.withValues(alpha: 0.3),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.add, size: 18),
+                  const Icon(RadixIcons.plus, size: 18),
                   const SizedBox(width: NexusSpacing.xs),
                   Text(
                     'Add another list',
                     style: NexusTypography.bodyMd.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                      color: colorScheme.mutedForeground,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ),
+),
       ),
     );
   }
@@ -641,8 +630,6 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return AlertDialog(
-      backgroundColor: colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Text('New Task', style: NexusTypography.headlineSm),
       content: SizedBox(
         width: 480,
@@ -656,7 +643,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
               Text(
                 'Description',
                 style: NexusTypography.labelMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
               const SizedBox(height: NexusSpacing.xs),
@@ -682,20 +669,24 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                 ],
               ),
               const SizedBox(height: NexusSpacing.sm),
-              DropdownButtonFormField<String>(
-                initialValue: _status,
-                decoration: InputDecoration(
-                  labelText: 'List',
-                  border: OutlineInputBorder(borderRadius: NexusRadii.mdRadius),
+              Select<String>(
+                value: _status,
+                itemBuilder: (context, value) => Text(
+                  widget.columns
+                      .firstWhere((c) => c.status == value)
+                      .title,
                 ),
-                items: widget.columns
-                    .map(
-                      (c) => DropdownMenuItem(
-                        value: c.status,
-                        child: Text(c.title),
-                      ),
-                    )
-                    .toList(),
+                popup: SelectPopup(
+                  items: SelectItemList(
+                    children: [
+                      for (final c in widget.columns)
+                        SelectItem(
+                          value: c.status,
+                          builder: (context) => Text(c.title),
+                        ),
+                    ],
+                  ),
+                ),
                 onChanged: (value) {
                   if (value != null) setState(() => _status = value);
                 },
@@ -705,8 +696,8 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+        Button.text(
+          onPressed: () => closeOverlay<void>(context),
           child: const Text('Cancel'),
         ),
         NexusButton(
@@ -724,7 +715,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                 updatedAt: now,
               ),
             );
-            Navigator.of(context).pop();
+            closeOverlay<void>(context);
           },
         ),
       ],

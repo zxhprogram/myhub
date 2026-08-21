@@ -1,6 +1,8 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
+
+import '../components/nexus_toast.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/radii.dart';
@@ -24,14 +26,14 @@ class _DevToolsPageState extends State<DevToolsPage> {
   bool _sidebarExpanded = true;
 
   static const _tools = [
-    _ToolDef('JSON Formatter', Icons.data_object),
-    _ToolDef('JWT Decoder', Icons.vpn_key_outlined),
-    _ToolDef('Base64 Encode/Decode', Icons.integration_instructions),
-    _ToolDef('RegEx Tester', Icons.rule),
-    _ToolDef('Password Generator', Icons.password),
-    _ToolDef('Color Converter', Icons.palette_outlined),
-    _ToolDef('URL Parser', Icons.http),
-    _ToolDef('Diff Viewer', Icons.difference_outlined),
+    _ToolDef('JSON Formatter', LucideIcons.braces),
+    _ToolDef('JWT Decoder', LucideIcons.keyRound),
+    _ToolDef('Base64 Encode/Decode', LucideIcons.code),
+    _ToolDef('RegEx Tester', LucideIcons.listChecks),
+    _ToolDef('Password Generator', LucideIcons.keyRound),
+    _ToolDef('Color Converter', LucideIcons.palette),
+    _ToolDef('URL Parser', LucideIcons.globe),
+    _ToolDef('Diff Viewer', LucideIcons.gitCompare),
   ];
 
   @override
@@ -79,7 +81,7 @@ class _DevToolsPageState extends State<DevToolsPage> {
           Text(
             'Handy utilities for everyday development',
             style: NexusTypography.bodyMd.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
             ),
           ),
           const SizedBox(height: NexusSpacing.md),
@@ -175,16 +177,15 @@ class _ToolSidebar extends StatelessWidget {
               NexusInput(
                 controller: searchController,
                 hintText: 'Find a tool...',
-                prefixIcon: const Icon(Icons.search, size: 18),
+                prefixIcon: const Icon(RadixIcons.magnifyingGlass, size: 18),
                 onChanged: (_) => onSearchChanged(),
               ),
               const SizedBox(height: NexusSpacing.sm),
             ] else ...[
-              IconButton(
-                icon: const Icon(Icons.search, size: 20),
-                onPressed: onToggleExpand,
-                tooltip: 'Expand to search',
-              ),
+              IconButton.ghost(
+  icon: const Icon(RadixIcons.magnifyingGlass, size: 20),
+  onPressed: onToggleExpand,
+),
               const SizedBox(height: NexusSpacing.sm),
             ],
             ...toolEntries.map((entry) {
@@ -200,14 +201,13 @@ class _ToolSidebar extends StatelessWidget {
             const SizedBox(height: NexusSpacing.sm),
             Align(
               alignment: expanded ? Alignment.centerRight : Alignment.center,
-              child: IconButton(
-                icon: Icon(
-                  expanded ? Icons.chevron_left : Icons.chevron_right,
+              child: IconButton.ghost(
+  icon: Icon(
+                  expanded ? RadixIcons.chevronLeft : RadixIcons.chevronRight,
                   size: 20,
                 ),
-                onPressed: onToggleExpand,
-                tooltip: expanded ? 'Collapse sidebar' : 'Expand sidebar',
-              ),
+  onPressed: onToggleExpand,
+),
             ),
           ],
         ),
@@ -232,13 +232,9 @@ class _SidebarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final item = Material(
-      color: selected ? colorScheme.primaryContainer : Colors.transparent,
-      borderRadius: NexusRadii.mdRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.mdRadius,
-        child: Container(
+    final item = GestureDetector(
+  onTap: onTap,
+  child: Container(
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.sm),
           child: Row(
@@ -246,7 +242,7 @@ class _SidebarItem extends StatelessWidget {
               Icon(
                 tool.icon,
                 size: 20,
-                color: selected ? colorScheme.primary : colorScheme.onSurface,
+                color: selected ? colorScheme.primary : colorScheme.foreground,
               ),
               if (expanded) ...[
                 const SizedBox(width: NexusSpacing.sm),
@@ -256,7 +252,7 @@ class _SidebarItem extends StatelessWidget {
                     style: NexusTypography.bodyMd.copyWith(
                       color: selected
                           ? colorScheme.primary
-                          : colorScheme.onSurface,
+                          : colorScheme.foreground,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -266,10 +262,12 @@ class _SidebarItem extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+);
     if (expanded) return item;
-    return Tooltip(message: tool.title, child: item);
+    return Tooltip(
+  tooltip: (context) => Text(tool.title),
+  child: item,
+);
   }
 }
 
@@ -318,7 +316,7 @@ class _ToolToolbar extends StatelessWidget {
           NexusInput(
             controller: searchController,
             hintText: 'Find a tool...',
-            prefixIcon: const Icon(Icons.search, size: 18),
+            prefixIcon: const Icon(RadixIcons.magnifyingGlass, size: 18),
             onChanged: (_) => onSearchChanged(),
           ),
         ],
@@ -341,15 +339,9 @@ class _ToolbarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? colorScheme.primaryContainer
-          : colorScheme.surfaceContainer,
-      borderRadius: NexusRadii.mdRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.mdRadius,
-        child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: NexusSpacing.sm,
             vertical: NexusSpacing.xs,
@@ -360,20 +352,19 @@ class _ToolbarItem extends StatelessWidget {
               Icon(
                 tool.icon,
                 size: 18,
-                color: selected ? colorScheme.primary : colorScheme.onSurface,
+                color: selected ? colorScheme.primary : colorScheme.foreground,
               ),
               const SizedBox(width: NexusSpacing.xs),
               Text(
                 tool.title,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: selected ? colorScheme.primary : colorScheme.onSurface,
+                  color: selected ? colorScheme.primary : colorScheme.foreground,
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
+);
   }
 }
 
@@ -393,9 +384,9 @@ class _PlaceholderToolCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.construction,
+                LucideIcons.hammer,
                 size: 48,
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
               const SizedBox(height: NexusSpacing.md),
               Text(title, style: NexusTypography.headlineSm),
@@ -403,7 +394,7 @@ class _PlaceholderToolCard extends StatelessWidget {
               Text(
                 'This tool is not yet implemented.',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ],
@@ -476,9 +467,7 @@ class _JsonFormatterCardState extends State<_JsonFormatterCard> {
     if (text.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
+      nexusToast(context, 'Copied to clipboard');
     }
   }
 
@@ -544,7 +533,7 @@ class _JsonFormatterCardState extends State<_JsonFormatterCard> {
             const SizedBox(height: NexusSpacing.sm),
             Text(
               _error!,
-              style: NexusTypography.labelSm.copyWith(color: colorScheme.error),
+              style: NexusTypography.labelSm.copyWith(color: colorScheme.destructive),
             ),
           ],
           const SizedBox(height: NexusSpacing.md),
@@ -636,13 +625,9 @@ class _IndentChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected ? colorScheme.primaryContainer : Colors.transparent,
-      borderRadius: NexusRadii.smRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.smRadius,
-        child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: NexusSpacing.sm,
             vertical: 4,
@@ -651,19 +636,18 @@ class _IndentChip extends StatelessWidget {
             border: Border.all(
               color: selected
                   ? colorScheme.primary
-                  : colorScheme.outlineVariant,
+                  : colorScheme.border,
             ),
             borderRadius: NexusRadii.smRadius,
           ),
           child: Text(
             label,
             style: NexusTypography.labelSm.copyWith(
-              color: selected ? colorScheme.primary : colorScheme.onSurface,
+              color: selected ? colorScheme.primary : colorScheme.foreground,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
         ),
-      ),
-    );
+);
   }
 }

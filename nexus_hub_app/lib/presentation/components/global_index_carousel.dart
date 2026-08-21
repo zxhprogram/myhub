@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../data/models/global_index_model.dart';
 import '../../theme/colors.dart';
@@ -141,16 +141,10 @@ class _GlobalIndexCarouselState extends State<GlobalIndexCarousel> {
                   if (widget.onRefresh != null)
                     SizedBox(
                       height: 32,
-                      child: IconButton(
-                        onPressed: widget.onRefresh,
-                        icon: const Icon(Icons.refresh, size: 18),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                        color: NexusColors.onSurfaceVariant,
-                      ),
+                      child: IconButton.ghost(
+  onPressed: widget.onRefresh,
+  icon: const Icon(LucideIcons.refreshCw, size: 18),
+),
                     ),
                 ],
               ),
@@ -203,8 +197,8 @@ class _GlobalIndexCarouselState extends State<GlobalIndexCarousel> {
                         height: 8,
                         decoration: BoxDecoration(
                           color: isActive
-                              ? NexusColors.primary
-                              : NexusColors.outlineVariant.withValues(alpha: 0.5),
+                              ? Theme.of(context).colorScheme.foreground
+                              : Theme.of(context).colorScheme.border.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -229,18 +223,14 @@ class _IndexCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = index.isUp ? NexusColors.stockUp : NexusColors.stockDown;
 
-    return Material(
-      color: NexusColors.surfaceContainerLow,
-      borderRadius: NexusRadii.lgRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.lgRadius,
-        child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
           padding: const EdgeInsets.all(NexusSpacing.md),
           decoration: BoxDecoration(
             borderRadius: NexusRadii.lgRadius,
             border: Border.all(
-              color: NexusColors.outlineVariant.withValues(alpha: 0.15),
+              color: Theme.of(context).colorScheme.border.withValues(alpha: 0.15),
             ),
           ),
           child: Column(
@@ -292,7 +282,7 @@ class _IndexCard extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    index.isUp ? Icons.arrow_upward : Icons.arrow_downward,
+                    index.isUp ? RadixIcons.arrowUp : RadixIcons.arrowDown,
                     size: 14,
                     color: color,
                   ),
@@ -332,14 +322,13 @@ class _IndexCard extends StatelessWidget {
                   child: Text(
                     index.updateTime,
                     style: NexusTypography.labelSm.copyWith(
-                      color: NexusColors.onSurfaceVariant.withValues(alpha: 0.6),
+                      color: Theme.of(context).colorScheme.mutedForeground.withValues(alpha: 0.6),
                     ),
                   ),
                 ),
             ],
           ),
         ),
-      ),
-    );
+);
   }
 }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../data/models/google_news_item.dart';
 import '../../data/services/google_news_service.dart';
@@ -117,14 +117,14 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
               Text(
                 'Latest headlines from Google News',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ],
           ),
           NexusButton(
             label: 'Refresh',
-            icon: Icons.refresh,
+            icon: LucideIcons.refreshCw,
             variant: NexusButtonVariant.outlined,
             onPressed: _refresh,
           ),
@@ -195,12 +195,12 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
   Widget _buildError() {
     return NexusCard(
       child: NexusEmptyState(
-        icon: Icons.cloud_off,
+        icon: LucideIcons.cloudOff,
         title: 'Could not load news',
         subtitle: 'Check your connection and try again.',
         action: NexusButton(
           label: 'Retry',
-          icon: Icons.refresh,
+          icon: LucideIcons.refreshCw,
           onPressed: _load,
         ),
       ),
@@ -210,12 +210,12 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
   Widget _buildEmpty() {
     return NexusCard(
       child: NexusEmptyState(
-        icon: Icons.newspaper,
+        icon: LucideIcons.newspaper,
         title: 'No news yet',
         subtitle: 'Refresh to load the latest headlines.',
         action: NexusButton(
           label: 'Refresh',
-          icon: Icons.refresh,
+          icon: LucideIcons.refreshCw,
           variant: NexusButtonVariant.outlined,
           onPressed: _refresh,
         ),
@@ -224,8 +224,10 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
   }
 
   Widget _buildList() {
-    return RefreshIndicator(
-      onRefresh: _refresh,
+    return RefreshTrigger(
+      onRefresh: () async {
+        await _refresh();
+      },
       child: ListView.separated(
         padding: const EdgeInsets.only(bottom: NexusSpacing.xl),
         physics: const AlwaysScrollableScrollPhysics(),
@@ -248,7 +250,7 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
     if (item == null) {
       return NexusCard(
         child: NexusEmptyState(
-          icon: Icons.article,
+          icon: LucideIcons.fileText,
           title: 'No article selected',
           subtitle: 'Pick a headline on the left to read it here.',
         ),
@@ -292,24 +294,21 @@ class _GoogleNewsPageState extends State<GoogleNewsPage> {
                   ),
                 ),
                 const SizedBox(width: NexusSpacing.md),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Reload',
-                  onPressed: () => _webViewKey.currentState?.reload(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.open_in_browser),
-                  tooltip: 'Open in browser',
-                  color: colorScheme.onSurfaceVariant,
-                  onPressed: () =>
+                IconButton.ghost(
+  icon: const Icon(LucideIcons.refreshCw),
+  onPressed: () => _webViewKey.currentState?.reload(),
+),
+                IconButton.ghost(
+  icon: const Icon(LucideIcons.compass),
+  onPressed: () =>
                       _webViewKey.currentState?.openInBrowser(),
-                ),
+),
               ],
             ),
           ),
           Divider(
             height: 1,
-            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            color: colorScheme.border.withValues(alpha: 0.5),
           ),
           Expanded(
             child: ClipRRect(
@@ -412,11 +411,11 @@ class _NewsThumbnail extends StatelessWidget {
           imageUrl,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => Container(
-            color: colorScheme.surfaceContainerHigh,
+            color: colorScheme.accent,
             child: Icon(
-              Icons.newspaper,
+              LucideIcons.newspaper,
               size: 20,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              color: colorScheme.mutedForeground.withValues(alpha: 0.5),
             ),
           ),
         ),
@@ -440,16 +439,9 @@ class _TopicChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: isSelected ? colorScheme.primary : Colors.transparent,
-      borderRadius: NexusRadii.fullRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.fullRadius,
-        hoverColor: isSelected
-            ? null
-            : colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-        child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: NexusSpacing.sm,
             vertical: 4,
@@ -458,21 +450,20 @@ class _TopicChip extends StatelessWidget {
             borderRadius: NexusRadii.fullRadius,
             border: Border.all(
               color: isSelected
-                  ? Colors.transparent
-                  : colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  ? const Color(0x00000000)
+                  : colorScheme.border.withValues(alpha: 0.6),
             ),
           ),
           child: Text(
             label,
             style: NexusTypography.labelSm.copyWith(
               color: isSelected
-                  ? colorScheme.onPrimary
-                  : colorScheme.onSurfaceVariant,
+                  ? colorScheme.primaryForeground
+                  : colorScheme.mutedForeground,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
-      ),
-    );
+);
   }
 }

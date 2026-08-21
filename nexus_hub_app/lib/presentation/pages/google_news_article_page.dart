@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -31,35 +31,40 @@ class _NexusWebViewPageState extends State<NexusWebViewPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surfaceContainerLow,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          widget.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: NexusTypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Reload',
-            onPressed: () => _webViewKey.currentState?.reload(),
+      backgroundColor: colorScheme.card,
+      headers: [
+        Container(
+          color: colorScheme.muted,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            children: [
+              IconButton.ghost(
+                icon: const Icon(RadixIcons.arrowLeft),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+              Expanded(
+                child: Text(
+                  widget.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: NexusTypography.bodyMd.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              IconButton.ghost(
+                icon: const Icon(LucideIcons.refreshCw),
+                onPressed: () => _webViewKey.currentState?.reload(),
+              ),
+              IconButton.ghost(
+                icon: const Icon(LucideIcons.compass),
+                onPressed: () => _webViewKey.currentState?.openInBrowser(),
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.open_in_browser),
-            tooltip: 'Open in browser',
-            onPressed: () => _webViewKey.currentState?.openInBrowser(),
-          ),
-        ],
-      ),
-      body: NexusWebView(key: _webViewKey, url: widget.url),
+        ),
+      ],
+      child: NexusWebView(key: _webViewKey, url: widget.url),
     );
   }
 }
@@ -152,7 +157,7 @@ class NexusWebViewState extends State<NexusWebView> {
         if (_isLoading)
           Positioned.fill(
             child: ColoredBox(
-              color: colorScheme.surface.withValues(alpha: 0.6),
+              color: colorScheme.card.withValues(alpha: 0.6),
               child: const Center(
                 child: SizedBox(
                   width: 28,
@@ -168,14 +173,14 @@ class NexusWebViewState extends State<NexusWebView> {
 
   Widget _buildFallback() {
     return NexusEmptyState(
-      icon: Icons.language,
+      icon: LucideIcons.languages,
       title: 'Built-in viewer unavailable',
       subtitle:
           'This platform has no built-in web viewer. '
           'Open the article in your default browser instead.',
       action: NexusButton(
         label: 'Open in Browser',
-        icon: Icons.open_in_browser,
+        icon: LucideIcons.compass,
         onPressed: openInBrowser,
       ),
     );

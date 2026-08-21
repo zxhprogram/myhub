@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
+import '../../theme/spacing.dart';
 import '../states/desktop_state.dart';
 
 /// Preview of up to 4 mini app icons displayed inside a folder's squircle.
@@ -14,7 +15,7 @@ class DesktopFolderPreview extends StatelessWidget {
     return Watch((_) {
       final folderItems = DesktopState.instance.getFolderItems(folderId);
       if (folderItems.isEmpty) {
-        return const Icon(Icons.folder, size: 26, color: Colors.white70);
+        return const Icon(LucideIcons.folder, size: 26, color: const Color(0xB3FFFFFF));
       }
 
       final visible = folderItems.take(4).toList();
@@ -54,11 +55,11 @@ class _MiniIcon extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.3),
+        color: const Color(0xFFFFFFFF).withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(size * 0.23),
       ),
-      child: const Icon(Icons.insert_drive_file_outlined,
-          size: 10, color: Colors.white70),
+      child: const Icon(LucideIcons.file,
+          size: 10, color: const Color(0xB3FFFFFF)),
     );
   }
 }
@@ -70,9 +71,12 @@ class DesktopFolderContent extends StatelessWidget {
   final String folderId;
 
   static void show(BuildContext context, String folderId) {
-    showDialog(
-      context: context,
-      builder: (_) => DesktopFolderContent(folderId: folderId),
+    showOverlay<void>(
+      context,
+      DialogConfiguration<void>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (_) => DesktopFolderContent(folderId: folderId),
+      ),
     );
   }
 
@@ -95,7 +99,7 @@ class DesktopFolderContent extends StatelessWidget {
                   padding: EdgeInsets.all(24),
                   child: Center(
                     child: Text('文件夹为空',
-                        style: TextStyle(color: Colors.grey)),
+                        style: TextStyle(color: const Color(0xFF9E9E9E))),
                   ),
                 )
               : ListView.separated(
@@ -104,17 +108,27 @@ class DesktopFolderContent extends StatelessWidget {
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final item = folderItems[index];
-                    return ListTile(
-                      leading: const Icon(Icons.insert_drive_file_outlined),
-                      title: Text(item.label ?? item.folderName ?? ''),
-                      dense: true,
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: NexusSpacing.md,
+                        vertical: NexusSpacing.sm,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(LucideIcons.file, size: 18),
+                          const SizedBox(width: NexusSpacing.sm),
+                          Expanded(
+                            child: Text(item.label ?? item.folderName ?? ''),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+          Button.text(
+            onPressed: () => closeOverlay<void>(context),
             child: const Text('关闭'),
           ),
         ],

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
@@ -104,7 +104,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
             },
             child: Container(
               width: 380,
-              color: NexusColors.surfaceContainerLowest,
+              color: Theme.of(context).colorScheme.card,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -128,7 +128,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
                           Text(
                             'Description',
                             style: NexusTypography.labelMd.copyWith(
-                              color: NexusColors.onSurfaceVariant,
+                              color: Theme.of(context).colorScheme.mutedForeground,
                             ),
                           ),
                           const SizedBox(height: NexusSpacing.xs),
@@ -163,7 +163,7 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
             child: Text(
               'Task Details',
               style: NexusTypography.labelSm.copyWith(
-                color: NexusColors.onSurfaceVariant,
+                color: Theme.of(context).colorScheme.mutedForeground,
               ),
             ),
           ),
@@ -185,12 +185,10 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
             ),
           ],
           const SizedBox(width: NexusSpacing.sm),
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.close, size: 20),
-            tooltip: 'Close',
-            onPressed: _close,
-          ),
+          IconButton.ghost(
+  icon: const Icon(RadixIcons.cross2, size: 20),
+  onPressed: _close,
+),
         ],
       ),
     );
@@ -244,7 +242,7 @@ class _MetaChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: NexusColors.surfaceContainer,
+        color: Theme.of(context).colorScheme.muted,
         borderRadius: NexusRadii.mdRadius,
       ),
       child: Column(
@@ -253,7 +251,7 @@ class _MetaChip extends StatelessWidget {
           Text(
             label,
             style: NexusTypography.labelSm.copyWith(
-              color: NexusColors.onSurfaceVariant,
+              color: Theme.of(context).colorScheme.mutedForeground,
             ),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,

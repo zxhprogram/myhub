@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/global_index_model.dart';
@@ -20,28 +20,35 @@ class GlobalIndexDetailPage extends StatelessWidget {
     final color = index.isUp ? NexusColors.stockUp : NexusColors.stockDown;
 
     return Scaffold(
-      backgroundColor: NexusColors.surface,
-      appBar: AppBar(
-        backgroundColor: NexusColors.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: NexusColors.onSurface),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(index.name, style: NexusTypography.headlineSm),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.open_in_new,
-              color: NexusColors.onSurfaceVariant,
-            ),
-            tooltip: 'Open in browser',
-            onPressed: () => _openFx678(),
+      backgroundColor: Theme.of(context).colorScheme.background,
+      headers: [
+        Container(
+          color: Theme.of(context).colorScheme.background,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            children: [
+              IconButton.ghost(
+                icon: Icon(
+                  RadixIcons.arrowLeft,
+                  color: Theme.of(context).colorScheme.foreground,
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              Expanded(
+                child: Text(index.name, style: NexusTypography.headlineSm),
+              ),
+              IconButton.ghost(
+                icon: Icon(
+                  RadixIcons.externalLink,
+                  color: Theme.of(context).colorScheme.mutedForeground,
+                ),
+                onPressed: () => _openFx678(),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
+        ),
+      ],
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(NexusSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +84,7 @@ class GlobalIndexDetailPage extends StatelessWidget {
                           Text(
                             'Updated: ${index.updateTime}',
                             style: NexusTypography.labelSm.copyWith(
-                              color: NexusColors.onSurfaceVariant.withValues(
+                              color: Theme.of(context).colorScheme.mutedForeground.withValues(
                                 alpha: 0.6,
                               ),
                             ),
@@ -89,7 +96,7 @@ class GlobalIndexDetailPage extends StatelessWidget {
                       index.formattedPrice,
                       style: NexusTypography.headlineLg.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: NexusColors.onSurface,
+                        color: Theme.of(context).colorScheme.foreground,
                       ),
                     ),
                     const SizedBox(height: NexusSpacing.sm),
@@ -97,8 +104,8 @@ class GlobalIndexDetailPage extends StatelessWidget {
                       children: [
                         Icon(
                           index.isUp
-                              ? Icons.arrow_upward
-                              : Icons.arrow_downward,
+                              ? RadixIcons.arrowUp
+                              : RadixIcons.arrowDown,
                           size: 20,
                           color: color,
                         ),
@@ -192,20 +199,10 @@ class GlobalIndexDetailPage extends StatelessWidget {
             // View on fx678 button
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: Button.outline(
                 onPressed: _openFx678,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: NexusColors.primary,
-                  side: BorderSide(
-                    color: NexusColors.primary.withValues(alpha: 0.3),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: NexusRadii.mdRadius,
-                  ),
-                ),
-                icon: const Icon(Icons.open_in_new, size: 18),
-                label: Text(
+                leading: const Icon(RadixIcons.externalLink, size: 18),
+                child: Text(
                   'View Full Details on fx678',
                   style: NexusTypography.bodyMd.copyWith(
                     fontWeight: FontWeight.w600,
@@ -246,14 +243,14 @@ class _DataRow extends StatelessWidget {
         Text(
           label,
           style: NexusTypography.bodyMd.copyWith(
-            color: NexusColors.onSurfaceVariant,
+            color: Theme.of(context).colorScheme.mutedForeground,
           ),
         ),
         Text(
           value,
           style: NexusTypography.bodyMd.copyWith(
             fontWeight: FontWeight.w600,
-            color: valueColor ?? NexusColors.onSurface,
+            color: valueColor ?? Theme.of(context).colorScheme.foreground,
           ),
         ),
       ],
@@ -273,7 +270,7 @@ class _IndexChartPainter extends CustomPainter {
 
     // Grid lines
     final gridPaint = Paint()
-      ..color = NexusColors.outlineVariant.withValues(alpha: 0.15)
+      ..color = const Color(0xFF94A3B8).withValues(alpha: 0.15)
       ..strokeWidth = 0.5;
 
     for (var i = 1; i < 5; i++) {

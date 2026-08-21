@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
@@ -147,60 +147,67 @@ class _VideoPlayPageState extends State<VideoPlayPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: _buildAppBar(context),
-      body: _buildBody(context),
+    return Column(
+      children: [
+        _buildAppBar(context),
+        Expanded(child: _buildBody(context)),
+      ],
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: Colors.black,
-      foregroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
-      title: Text(
-        '${widget.seriesTitle} · ${_episode.label}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: NexusTypography.bodyMd.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      color: const Color(0xFF000000),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${widget.seriesTitle} · ${_episode.label}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: NexusTypography.bodyMd.copyWith(
+                color: const Color(0xFFFFFFFF),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          IconButton.ghost(
+            icon: const Icon(
+              LucideIcons.skipBack,
+              color: Color(0xFFFFFFFF),
+            ),
+            onPressed:
+                _current > 0 ? () => _switchEpisode(_current - 1) : null,
+          ),
+          IconButton.ghost(
+            icon: const Icon(
+              LucideIcons.skipForward,
+              color: Color(0xFFFFFFFF),
+            ),
+            onPressed: _current < widget.episodes.length - 1
+                ? () => _switchEpisode(_current + 1)
+                : null,
+          ),
+        ],
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.skip_previous),
-          tooltip: '上一集',
-          color: Colors.white,
-          onPressed: _current > 0 ? () => _switchEpisode(_current - 1) : null,
-        ),
-        IconButton(
-          icon: const Icon(Icons.skip_next),
-          tooltip: '下一集',
-          color: Colors.white,
-          onPressed: _current < widget.episodes.length - 1
-              ? () => _switchEpisode(_current + 1)
-              : null,
-        ),
-      ],
     );
   }
 
   Widget _buildBody(BuildContext context) {
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+        child: CircularProgressIndicator(strokeWidth: 2.5, color: const Color(0xFFFFFFFF)),
       );
     }
     if (_error != null) {
       return NexusEmptyState(
-        icon: Icons.cloud_off_outlined,
+        icon: LucideIcons.cloudOff,
         title: '播放解析失败',
         subtitle: _error!,
         action: NexusButton(
           label: '重试',
-          icon: Icons.refresh,
+          icon: LucideIcons.refreshCw,
           onPressed: _resolve,
         ),
       );
@@ -241,14 +248,14 @@ class _EpisodeStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 56,
-      color: Colors.black.withValues(alpha: 0.85),
+      color: const Color(0xFF000000).withValues(alpha: 0.85),
       padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.sm),
       child: Row(
         children: [
           Icon(
-            Icons.video_library_outlined,
+            LucideIcons.video,
             size: 16,
-            color: Colors.white.withValues(alpha: 0.7),
+            color: const Color(0xFFFFFFFF).withValues(alpha: 0.7),
           ),
           const SizedBox(width: NexusSpacing.sm),
           Expanded(
@@ -259,10 +266,9 @@ class _EpisodeStrip extends StatelessWidget {
                   const SizedBox(width: NexusSpacing.xs),
               itemBuilder: (context, index) {
                 final selected = index == current;
-                return InkWell(
-                  borderRadius: NexusRadii.mdRadius,
-                  onTap: () => onSelect(index),
-                  child: Center(
+                return GestureDetector(
+  onTap: () => onSelect(index),
+  child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: NexusSpacing.sm + 2,
@@ -270,20 +276,20 @@ class _EpisodeStrip extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: selected
-                            ? Colors.red
-                            : Colors.white.withValues(alpha: 0.12),
+                            ? const Color(0xFFF44336)
+                            : const Color(0xFFFFFFFF).withValues(alpha: 0.12),
                         borderRadius: NexusRadii.mdRadius,
                       ),
                       child: Text(
                         episodes[index].label,
                         style: NexusTypography.labelMd.copyWith(
-                          color: selected ? Colors.white : Colors.white70,
+                          color: selected ? const Color(0xFFFFFFFF) : const Color(0xB3FFFFFF),
                           fontWeight: selected ? FontWeight.w700 : null,
                         ),
                       ),
                     ),
                   ),
-                );
+);
               },
             ),
           ),

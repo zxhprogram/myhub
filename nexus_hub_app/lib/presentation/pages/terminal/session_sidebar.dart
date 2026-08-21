@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../../data/models/ssh_profile.dart';
@@ -39,14 +39,12 @@ class TerminalSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: _background,
-      child: SizedBox(
+    return SizedBox(
         width: 232,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildHeader(),
+            _buildHeader(context),
             const Divider(color: _divider, height: 1),
             Expanded(
               child: ListView(
@@ -92,11 +90,10 @@ class TerminalSidebar extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       child: Row(
@@ -112,38 +109,39 @@ class TerminalSidebar extends StatelessWidget {
               ),
             ),
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.add, size: 20, color: _textSecondary),
-            color: const Color(0xFF26262E),
-            tooltip: '新增会话',
-            onSelected: (value) {
-              if (value == 'local') onNewLocal();
-              if (value == 'ssh') onNewSsh();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'local',
-                height: 40,
-                child: Row(
+          GestureDetector(
+            onTap: () => showOverlay(
+              context,
+              PopoverConfiguration(
+                alignment: Alignment.center,
+                anchorAlignment: Alignment.topRight,
+                builder: (context) => MenuPopup(
                   children: [
-                    Icon(Icons.terminal, size: 18, color: _textSecondary),
-                    SizedBox(width: 10),
-                    Text('新建本地会话', style: TextStyle(color: _textPrimary, fontSize: 13)),
+                    MenuButton(
+                      leading: const Icon(
+                        LucideIcons.terminal,
+                        size: 18,
+                        color: _textSecondary,
+                      ),
+                      onPressed: (context) => onNewLocal(),
+                      child: const Text('新建本地会话',
+                          style: TextStyle(color: _textPrimary, fontSize: 13)),
+                    ),
+                    MenuButton(
+                      leading: const Icon(
+                        LucideIcons.server,
+                        size: 18,
+                        color: _textSecondary,
+                      ),
+                      onPressed: (context) => onNewSsh(),
+                      child: const Text('新建 SSH 会话…',
+                          style: TextStyle(color: _textPrimary, fontSize: 13)),
+                    ),
                   ],
                 ),
               ),
-              PopupMenuItem(
-                value: 'ssh',
-                height: 40,
-                child: Row(
-                  children: [
-                    Icon(Icons.dns_outlined, size: 18, color: _textSecondary),
-                    SizedBox(width: 10),
-                    Text('新建 SSH 会话…', style: TextStyle(color: _textPrimary, fontSize: 13)),
-                  ],
-                ),
-              ),
-            ],
+            ),
+            child: const Icon(RadixIcons.plus, size: 20, color: _textSecondary),
           ),
         ],
       ),
@@ -204,7 +202,7 @@ class _SessionRowState extends State<_SessionRow> {
               ? const Color(0xFF2E2E3A)
               : _hovering
                   ? const Color(0xFF26262E)
-                  : Colors.transparent,
+                  : const Color(0x00000000),
           child: Row(
             children: [
               // Status indicator reacts to connection/exit signals.
@@ -215,21 +213,21 @@ class _SessionRowState extends State<_SessionRow> {
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.6,
-                      valueColor: AlwaysStoppedAnimation<Color>(_SessionPalette.accent),
+                      color: _SessionPalette.accent,
                     ),
                   );
                 }
                 if (s.exited.value) {
                   return const Icon(
-                    Icons.error_outline,
+                    LucideIcons.circleAlert,
                     size: 16,
                     color: _SessionPalette.error,
                   );
                 }
                 return Icon(
                   s.kind == TerminalSessionKind.ssh
-                      ? Icons.dns_outlined
-                      : Icons.terminal,
+                      ? LucideIcons.server
+                      : LucideIcons.terminal,
                   size: 16,
                   color: widget.active
                       ? _SessionPalette.accent
@@ -271,13 +269,10 @@ class _SessionRowState extends State<_SessionRow> {
                 SizedBox(
                   width: 26,
                   height: 26,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    iconSize: 14,
-                    tooltip: '关闭会话',
-                    icon: const Icon(Icons.close, color: _SessionPalette.faint),
-                    onPressed: widget.onClose,
-                  ),
+                  child: IconButton.ghost(
+  icon: const Icon(RadixIcons.cross2, color: _SessionPalette.faint),
+  onPressed: widget.onClose,
+),
                 ),
             ],
           ),
@@ -319,11 +314,11 @@ class _ProfileRowState extends State<_ProfileRow> {
         child: Container(
           height: 44,
           padding: const EdgeInsets.only(left: 12, right: 4),
-          color: _hovering ? const Color(0xFF26262E) : Colors.transparent,
+          color: _hovering ? const Color(0xFF26262E) : const Color(0x00000000),
           child: Row(
             children: [
               const Icon(
-                Icons.bookmark_outline,
+                LucideIcons.bookmark,
                 size: 16,
                 color: _SessionPalette.secondary,
               ),
@@ -355,8 +350,8 @@ class _ProfileRowState extends State<_ProfileRow> {
                 ),
               ),
               if (_hovering) ...[
-                _iconButton(Icons.edit_outlined, '编辑', widget.onEdit),
-                _iconButton(Icons.delete_outline, '删除', widget.onDelete),
+                _iconButton(LucideIcons.pen, '编辑', widget.onEdit),
+                _iconButton(LucideIcons.trash2, '删除', widget.onDelete),
               ],
             ],
           ),
@@ -369,13 +364,10 @@ class _ProfileRowState extends State<_ProfileRow> {
     return SizedBox(
       width: 26,
       height: 26,
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        iconSize: 14,
-        tooltip: tooltip,
-        icon: Icon(icon, color: _SessionPalette.faint),
-        onPressed: onPressed,
-      ),
+      child: IconButton.ghost(
+  icon: Icon(icon, color: _SessionPalette.faint),
+  onPressed: onPressed,
+),
     );
   }
 }

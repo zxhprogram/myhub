@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../../data/models/video_models.dart';
 import '../../../data/models/video_site_config.dart';
@@ -184,14 +184,17 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Future<bool> _handleCaptchaChallenge() async {
     final movie555 = _service.movie555;
     if (movie555 == null) return false;
-    return await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => _CaptchaDialog(
-            fetchImage: movie555.fetchCaptchaImage,
-            submit: movie555.submitCaptcha,
+    return await showOverlay<bool>(
+          context,
+          DialogConfiguration<bool>(
+            barrierDismissible: false,
+            barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+            builder: (_) => _CaptchaDialog(
+              fetchImage: movie555.fetchCaptchaImage,
+              submit: movie555.submitCaptcha,
+            ),
           ),
-        ) ??
+        ).future ??
         false;
   }
 
@@ -289,7 +292,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ],
@@ -307,23 +310,21 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
           child: NexusInput(
             controller: _searchController,
             hintText: '搜索剧名…',
-            prefixIcon: const Icon(Icons.search, size: 18),
+            prefixIcon: const Icon(RadixIcons.magnifyingGlass, size: 18),
             suffixIcon: _searchKeyword.isEmpty
                 ? null
-                : IconButton(
-                    icon: const Icon(Icons.close, size: 16),
-                    tooltip: '清除搜索',
-                    onPressed: _exitSearch,
-                  ),
+                : IconButton.ghost(
+  icon: const Icon(RadixIcons.cross2, size: 16),
+  onPressed: _exitSearch,
+),
             onSubmitted: _runSearch,
           ),
         ),
         const SizedBox(width: NexusSpacing.sm),
-        IconButton(
-          icon: const Icon(Icons.settings_outlined, size: 20),
-          tooltip: '管理数据源',
-          onPressed: _openSources,
-        ),
+        IconButton.ghost(
+  icon: const Icon(RadixIcons.gear, size: 20),
+  onPressed: _openSources,
+),
       ],
     );
   }
@@ -334,14 +335,14 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     }
     if (_error != null) {
       return NexusEmptyState(
-        icon: Icons.cloud_off_outlined,
+        icon: LucideIcons.cloudOff,
         title: '加载失败',
         subtitle: _error!,
         action: _captchaPending
             ? NexusButton(
                 label: '重新验证',
                 variant: NexusButtonVariant.tonal,
-                icon: Icons.verified_user_outlined,
+                icon: LucideIcons.shieldCheck,
                 onPressed: () => _loadCategory(_category),
               )
             : null,
@@ -351,7 +352,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     if (_searchKeyword.isNotEmpty) {
       if (_searchResults.isEmpty) {
         return NexusEmptyState(
-          icon: Icons.search_off,
+          icon: LucideIcons.searchX,
           title: '没有找到相关影片',
           subtitle: '换个关键词试试，或点击上方分类返回列表。',
         );
@@ -362,7 +363,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     final result = _tabs[_category]!.result;
     if (result == null || result.items.isEmpty) {
       return NexusEmptyState(
-        icon: Icons.movie_outlined,
+        icon: LucideIcons.film,
         title: '暂无${_category.label}',
         subtitle: '数据源暂时没有返回内容，请切换分类或稍后重试。',
       );
@@ -428,10 +429,9 @@ class _CategoryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: NexusRadii.fullRadius,
-      onTap: onTap,
-      child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: NexusSpacing.md,
           vertical: NexusSpacing.xs + 2,
@@ -439,18 +439,18 @@ class _CategoryTab extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? colorScheme.secondary
-              : colorScheme.surfaceContainerHigh,
+              : colorScheme.accent,
           borderRadius: NexusRadii.fullRadius,
         ),
         child: Text(
           label,
           style: NexusTypography.labelMd.copyWith(
-            color: selected ? colorScheme.onSecondary : colorScheme.onSurface,
+            color: selected ? colorScheme.secondaryForeground : colorScheme.foreground,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
       ),
-    );
+);
   }
 }
 
@@ -488,10 +488,9 @@ class _SeriesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: NexusRadii.mdRadius,
-      onTap: onTap,
-      child: Column(
+    return GestureDetector(
+  onTap: onTap,
+  child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(child: _CoverImage(series: series)),
@@ -510,12 +509,12 @@ class _SeriesCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: NexusTypography.labelSm.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
             ),
         ],
       ),
-    );
+);
   }
 }
 
@@ -537,10 +536,10 @@ class _CoverImage extends StatelessWidget {
             url: series.coverUrl,
             fit: BoxFit.cover,
             errorBuilder: (context, _) => ColoredBox(
-              color: colorScheme.surfaceContainerHigh,
+              color: colorScheme.accent,
               child: Icon(
-                Icons.movie_outlined,
-                color: colorScheme.onSurfaceVariant,
+                LucideIcons.film,
+                color: colorScheme.mutedForeground,
               ),
             ),
           ),
@@ -556,13 +555,13 @@ class _CoverImage extends StatelessWidget {
                   horizontal: 6,
                   vertical: 3,
                 ),
-                color: Colors.black.withValues(alpha: 0.55),
+                color: const Color(0xFF000000).withValues(alpha: 0.55),
                 child: Text(
                   series.remarks,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: NexusTypography.labelSm.copyWith(
-                    color: Colors.white,
+                    color: const Color(0xFFFFFFFF),
                     fontSize: 11,
                   ),
                 ),
@@ -597,36 +596,27 @@ class _SourceSwitcherButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return PopupMenuButton<String>(
-      tooltip: '切换数据源',
-      constraints: const BoxConstraints(minWidth: 240),
-      position: PopupMenuPosition.under,
-      onSelected: (value) {
-        if (value == '_manage') {
-          onManage();
-        } else {
-          onSelected(value);
-        }
-      },
-      itemBuilder: (context) => [
-        for (final source in VideoSiteConfigStorage.sources)
-          PopupMenuItem<String>(
-            value: source.id,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  child:
-                      source.id == config.id
-                          ? Icon(
-                              Icons.check,
-                              size: 16,
-                              color: colorScheme.secondary,
-                            )
-                          : null,
-                ),
-                const SizedBox(width: NexusSpacing.xs),
-                Expanded(
+    return GestureDetector(
+      onTap: () => showOverlay(
+        context,
+        PopoverConfiguration(
+          alignment: Alignment.topLeft,
+          anchorAlignment: Alignment.bottomLeft,
+          builder: (context) => MenuPopup(
+            children: [
+              for (final source in VideoSiteConfigStorage.sources)
+                MenuButton(
+                  leading: source.id == config.id
+                      ? Icon(
+                          RadixIcons.check,
+                          size: 16,
+                          color: colorScheme.primary,
+                        )
+                      : null,
+                  onPressed: (context) {
+                    if (source.id == config.id) return;
+                    onSelected(source.id);
+                  },
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -641,39 +631,31 @@ class _SourceSwitcherButton extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: NexusTypography.labelSm.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                          color: colorScheme.mutedForeground,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-        const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: '_manage',
-          child: Row(
-            children: [
-              const SizedBox(
-                width: 20,
-                child: Icon(Icons.settings_outlined, size: 16),
+              const MenuDivider(),
+              MenuButton(
+                leading: const Icon(RadixIcons.gear, size: 16),
+                onPressed: (context) => onManage(),
+                child: const Text('管理数据源…'),
               ),
-              const SizedBox(width: NexusSpacing.xs),
-              const Text('管理数据源…'),
             ],
           ),
         ),
-      ],
+      ),
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: NexusSpacing.sm + 2,
           vertical: NexusSpacing.xs + 3,
         ),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHigh,
+          color: colorScheme.accent,
           border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            color: colorScheme.border.withValues(alpha: 0.5),
           ),
           borderRadius: NexusRadii.mdRadius,
         ),
@@ -681,9 +663,9 @@ class _SourceSwitcherButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.dns_outlined,
+              LucideIcons.server,
               size: 16,
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
             ),
             const SizedBox(width: NexusSpacing.xs),
             ConstrainedBox(
@@ -697,9 +679,9 @@ class _SourceSwitcherButton extends StatelessWidget {
             ),
             const SizedBox(width: NexusSpacing.xs),
             Icon(
-              Icons.arrow_drop_down,
+              RadixIcons.chevronDown,
               size: 18,
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
             ),
           ],
         ),
@@ -729,26 +711,24 @@ class _PageBar extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        IconButton(
-          icon: const Icon(Icons.chevron_left),
-          tooltip: '上一页',
-          onPressed: onPrev,
-        ),
+        IconButton.ghost(
+  icon: const Icon(RadixIcons.chevronLeft),
+  onPressed: onPrev,
+),
         Expanded(
           child: Center(
             child: Text(
               '第 $page / $pageCount 页 · 共 $total 部',
               style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
               ),
             ),
           ),
         ),
-        IconButton(
-          icon: const Icon(Icons.chevron_right),
-          tooltip: '下一页',
-          onPressed: onNext,
-        ),
+        IconButton.ghost(
+  icon: const Icon(RadixIcons.chevronRight),
+  onPressed: onNext,
+),
       ],
     );
   }
@@ -823,7 +803,7 @@ class _CaptchaDialogState extends State<_CaptchaDialog> {
       final solved = await widget.submit(code);
       if (!mounted) return;
       if (solved) {
-        Navigator.of(context).pop(true);
+        closeOverlay<bool>(context, true);
         return;
       }
       setState(() {
@@ -847,12 +827,10 @@ class _CaptchaDialogState extends State<_CaptchaDialog> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return AlertDialog(
-      backgroundColor: colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
       title: Row(
         children: [
-          Icon(Icons.verified_user_outlined, size: 24,
-              color: colorScheme.secondary),
+          Icon(LucideIcons.shieldCheck, size: 24,
+              color: colorScheme.primary),
           const SizedBox(width: NexusSpacing.sm),
           Text('人机验证', style: NexusTypography.headlineSm),
         ],
@@ -866,7 +844,7 @@ class _CaptchaDialogState extends State<_CaptchaDialog> {
             Text(
               '该站点要求完成验证后才能浏览列表，输入图片中的字符即可，验证一次在本轮浏览中持续有效。',
               style: NexusTypography.labelSm.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: colorScheme.mutedForeground,
                 height: 1.5,
               ),
             ),
@@ -885,7 +863,7 @@ class _CaptchaDialogState extends State<_CaptchaDialog> {
                       ? Text(
                           _error ?? '验证码不可用',
                           style: NexusTypography.labelSm.copyWith(
-                            color: colorScheme.error,
+                            color: colorScheme.destructive,
                           ),
                         )
                       : GestureDetector(
@@ -903,11 +881,11 @@ class _CaptchaDialogState extends State<_CaptchaDialog> {
             if (_image != null)
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: _busy ? null : _refreshImage,
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('换一张'),
-                ),
+                child: Button.text(
+  onPressed: _busy ? null : _refreshImage,
+  leading: const Icon(LucideIcons.refreshCw, size: 16),
+  child: const Text('换一张'),
+),
               ),
             NexusInput(
               controller: _codeController,
@@ -922,7 +900,7 @@ class _CaptchaDialogState extends State<_CaptchaDialog> {
               Text(
                 _error!,
                 style: NexusTypography.labelSm.copyWith(
-                  color: colorScheme.error,
+                  color: colorScheme.destructive,
                 ),
               ),
             ],
@@ -938,7 +916,7 @@ class _CaptchaDialogState extends State<_CaptchaDialog> {
         const SizedBox(width: NexusSpacing.sm),
         NexusButton(
           label: '提交',
-          icon: Icons.check,
+          icon: RadixIcons.check,
           onPressed: _busy ? null : _submit,
         ),
       ],

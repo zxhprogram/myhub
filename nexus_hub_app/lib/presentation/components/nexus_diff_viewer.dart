@@ -1,14 +1,14 @@
 import 'package:diff_match_patch/diff_match_patch.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import 'nexus_button.dart';
 import 'nexus_card.dart';
 import 'nexus_input.dart';
+import 'nexus_toast.dart';
 
 enum _DiffMode { sideBySide, inline }
 
@@ -187,28 +187,29 @@ class _NexusDiffViewerState extends State<NexusDiffViewer> {
   }
 
   TextSpan _span(String text, _DiffType type, {bool highlight = false}) {
+    final colorScheme = Theme.of(context).colorScheme;
     final baseStyle = NexusTypography.bodyMd;
     Color? backgroundColor;
     Color? foregroundColor;
 
     switch (type) {
       case _DiffType.delete:
-        backgroundColor = NexusColors.errorContainer;
-        foregroundColor = NexusColors.error;
+        backgroundColor = colorScheme.destructive.withValues(alpha: 0.15);
+        foregroundColor = colorScheme.destructive;
       case _DiffType.insert:
-        backgroundColor = NexusColors.tertiaryContainer;
-        foregroundColor = NexusColors.tertiary;
+        backgroundColor = const Color(0xFF10B981).withValues(alpha: 0.15);
+        foregroundColor = const Color(0xFF10B981);
       case _DiffType.equal || _DiffType.modify:
         backgroundColor = null;
-        foregroundColor = NexusColors.onSurface;
+        foregroundColor = colorScheme.foreground;
     }
 
     if (!highlight) {
       backgroundColor = null;
       if (type != _DiffType.equal) {
         foregroundColor = type == _DiffType.delete
-            ? NexusColors.error
-            : NexusColors.tertiary;
+            ? colorScheme.destructive
+            : const Color(0xFF10B981);
       }
     }
 
@@ -257,9 +258,7 @@ class _NexusDiffViewerState extends State<NexusDiffViewer> {
     }
     await Clipboard.setData(ClipboardData(text: buffer.toString()));
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Diff copied to clipboard')));
+      nexusToast(context, 'Diff copied to clipboard');
     }
   }
 
@@ -409,7 +408,7 @@ class _NexusDiffViewerState extends State<NexusDiffViewer> {
             child: Text(
               'Enter two texts and click Compare',
               style: NexusTypography.bodyMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
+                color: Theme.of(context).colorScheme.mutedForeground,
               ),
             ),
           ),
@@ -461,6 +460,7 @@ class _SideBySideDiff extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         Expanded(
@@ -471,7 +471,7 @@ class _SideBySideDiff extends StatelessWidget {
             language: language,
           ),
         ),
-        const VerticalDivider(width: 1),
+        VerticalDivider(width: 1, color: colorScheme.border),
         Expanded(
           child: _DiffColumn(
             title: 'Modified',
@@ -500,21 +500,22 @@ class _DiffColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
           padding: const EdgeInsets.all(NexusSpacing.sm),
           decoration: BoxDecoration(
-            color: NexusColors.surfaceContainer,
+            color: colorScheme.muted,
             border: Border(
-              bottom: BorderSide(color: NexusColors.outlineVariant),
+              bottom: BorderSide(color: colorScheme.border),
             ),
           ),
           child: Text(
             title,
             style: NexusTypography.labelMd.copyWith(
-              color: NexusColors.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
             ),
             textAlign: TextAlign.center,
           ),
@@ -530,12 +531,14 @@ class _DiffColumn extends StatelessWidget {
               final spans = isOld ? line.oldSpans : line.newSpans;
 
               final backgroundColor = switch (line.type) {
-                _DiffType.equal => Colors.transparent,
-                _DiffType.delete =>
-                  isOld ? NexusColors.errorContainer : Colors.transparent,
-                _DiffType.insert =>
-                  isOld ? Colors.transparent : NexusColors.tertiaryContainer,
-                _DiffType.modify => Colors.transparent,
+                _DiffType.equal => null,
+                _DiffType.delete => isOld
+                    ? colorScheme.destructive.withValues(alpha: 0.15)
+                    : null,
+                _DiffType.insert => isOld
+                    ? null
+                    : const Color(0xFF10B981).withValues(alpha: 0.15),
+                _DiffType.modify => null,
               };
 
               return Container(
@@ -550,15 +553,15 @@ class _DiffColumn extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: NexusColors.surfaceContainerLow,
+                        color: colorScheme.muted,
                         border: Border(
-                          right: BorderSide(color: NexusColors.outlineVariant),
+                          right: BorderSide(color: colorScheme.border),
                         ),
                       ),
                       child: Text(
                         lineNumber?.toString() ?? '',
                         style: NexusTypography.labelSm.copyWith(
-                          color: NexusColors.onSurfaceVariant,
+                          color: colorScheme.mutedForeground,
                         ),
                         textAlign: TextAlign.right,
                       ),
@@ -604,6 +607,7 @@ class _InlineDiff extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ListView.builder(
       itemCount: lines.length,
       itemBuilder: (context, index) {
@@ -618,24 +622,24 @@ class _InlineDiff extends StatelessWidget {
           _DiffType.delete => line.oldSpans,
           _DiffType.equal || _DiffType.insert => line.newSpans,
           _DiffType.modify => [
-            ...line.oldSpans,
-            TextSpan(text: ' → ', style: NexusTypography.bodyMd),
-            ...line.newSpans,
-          ],
+              ...line.oldSpans,
+              TextSpan(text: ' → ', style: NexusTypography.bodyMd),
+              ...line.newSpans,
+            ],
         };
 
         final backgroundColor = switch (line.type) {
-          _DiffType.equal => Colors.transparent,
-          _DiffType.delete => NexusColors.errorContainer,
-          _DiffType.insert => NexusColors.tertiaryContainer,
-          _DiffType.modify => Colors.transparent,
+          _DiffType.equal => null,
+          _DiffType.delete => colorScheme.destructive.withValues(alpha: 0.15),
+          _DiffType.insert => const Color(0xFF10B981).withValues(alpha: 0.15),
+          _DiffType.modify => null,
         };
 
         final prefixColor = switch (line.type) {
-          _DiffType.equal => NexusColors.onSurfaceVariant,
-          _DiffType.delete => NexusColors.error,
-          _DiffType.insert => NexusColors.tertiary,
-          _DiffType.modify => NexusColors.primary,
+          _DiffType.equal => colorScheme.mutedForeground,
+          _DiffType.delete => colorScheme.destructive,
+          _DiffType.insert => const Color(0xFF10B981),
+          _DiffType.modify => colorScheme.primary,
         };
 
         return Container(
@@ -650,9 +654,9 @@ class _InlineDiff extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: NexusColors.surfaceContainerLow,
+                  color: colorScheme.muted,
                   border: Border(
-                    right: BorderSide(color: NexusColors.outlineVariant),
+                    right: BorderSide(color: colorScheme.border),
                   ),
                 ),
                 child: Row(
@@ -669,7 +673,7 @@ class _InlineDiff extends StatelessWidget {
                     Text(
                       _lineNumberText(line),
                       style: NexusTypography.labelSm.copyWith(
-                        color: NexusColors.onSurfaceVariant,
+                        color: colorScheme.mutedForeground,
                       ),
                     ),
                   ],
@@ -712,40 +716,37 @@ class _IgnoreWhitespaceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: value ? NexusColors.primaryContainer : Colors.transparent,
-      borderRadius: NexusRadii.mdRadius,
-      child: InkWell(
-        onTap: () => onChanged(!value),
-        borderRadius: NexusRadii.mdRadius,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: NexusSpacing.sm,
-            vertical: NexusSpacing.xs,
+    final colorScheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: NexusSpacing.sm,
+          vertical: NexusSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: value ? colorScheme.accent : null,
+          border: Border.all(
+            color: value ? colorScheme.primary : colorScheme.border,
           ),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: value ? NexusColors.primary : NexusColors.outlineVariant,
+          borderRadius: NexusRadii.mdRadius,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              value ? LucideIcons.squareCheck : LucideIcons.square,
+              size: 18,
+              color: value ? colorScheme.primary : colorScheme.foreground,
             ),
-            borderRadius: NexusRadii.mdRadius,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                value ? Icons.check_box : Icons.check_box_outline_blank,
-                size: 18,
-                color: value ? NexusColors.primary : NexusColors.onSurface,
+            const SizedBox(width: NexusSpacing.xs),
+            Text(
+              'Ignore Whitespace',
+              style: NexusTypography.bodyMd.copyWith(
+                color: value ? colorScheme.primary : colorScheme.foreground,
               ),
-              const SizedBox(width: NexusSpacing.xs),
-              Text(
-                'Ignore Whitespace',
-                style: NexusTypography.bodyMd.copyWith(
-                  color: value ? NexusColors.primary : NexusColors.onSurface,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -765,23 +766,22 @@ class _LanguageDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.sm),
-      decoration: BoxDecoration(
-        color: NexusColors.surfaceContainerLow,
-        borderRadius: NexusRadii.mdRadius,
-        border: Border.all(color: NexusColors.outlineVariant),
+    return Select<String>(
+      value: value,
+      onChanged: onChanged,
+      itemBuilder: (context, value) => Text(
+        value,
+        style: NexusTypography.bodyMd,
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isDense: true,
-          items: languages
-              .map((lang) => DropdownMenuItem(value: lang, child: Text(lang)))
-              .toList(),
-          onChanged: onChanged,
-          style: NexusTypography.bodyMd,
-          dropdownColor: NexusColors.surfaceContainerLowest,
+      popup: SelectPopup(
+        items: SelectItemList(
+          children: [
+            for (final lang in languages)
+              SelectItem(
+                value: lang,
+                builder: (context) => Text(lang),
+              ),
+          ],
         ),
       ),
     );
@@ -877,7 +877,7 @@ final Map<String, List<_SyntaxPattern>> _syntaxPatterns = {
     const Color(0xFF1565C0),
   ),
   'Python': [
-    _SyntaxPattern(RegExp(r'#[^\n]*'), Colors.grey),
+    _SyntaxPattern(RegExp(r'#[^\n]*'), const Color(0xFF9E9E9E)),
     _SyntaxPattern(RegExp(r'"""[\s\S]*?"""'), const Color(0xFF2E7D32)),
     _SyntaxPattern(RegExp(r"'''[\s\S]*?'''"), const Color(0xFF2E7D32)),
     _SyntaxPattern(RegExp(r'"(?:\\.|[^"\\])*"'), const Color(0xFF2E7D32)),
@@ -891,7 +891,7 @@ final Map<String, List<_SyntaxPattern>> _syntaxPatterns = {
     _SyntaxPattern(RegExp(r'\b\d+(?:\.\d+)?\b'), const Color(0xFF1565C0)),
   ],
   'HTML': [
-    _SyntaxPattern(RegExp(r'<!--[\s\S]*?-->'), Colors.grey),
+    _SyntaxPattern(RegExp(r'<!--[\s\S]*?-->'), const Color(0xFF9E9E9E)),
     _SyntaxPattern(RegExp(r'<\?[^>]*\?>'), const Color(0xFF7B1FA2)),
     _SyntaxPattern(RegExp(r'<[!/]?[\w-]+'), const Color(0xFF1565C0)),
     _SyntaxPattern(RegExp(r'\s[\w-]+(?==)'), const Color(0xFF7B1FA2)),
@@ -899,14 +899,14 @@ final Map<String, List<_SyntaxPattern>> _syntaxPatterns = {
     _SyntaxPattern(RegExp(r"'(?:\\.|[^'\\])*'"), const Color(0xFF2E7D32)),
   ],
   'CSS': [
-    _SyntaxPattern(RegExp(r'/\*[\s\S]*?\*/'), Colors.grey),
+    _SyntaxPattern(RegExp(r'/\*[\s\S]*?\*/'), const Color(0xFF9E9E9E)),
     _SyntaxPattern(RegExp(r'[.#]?[\w-]+\s*(?=\{)'), const Color(0xFF1565C0)),
     _SyntaxPattern(RegExp(r'\b[\w-]+(?=\s*:)'), const Color(0xFF7B1FA2)),
     _SyntaxPattern(RegExp(r':\s*[^;]+'), const Color(0xFF2E7D32)),
     _SyntaxPattern(RegExp(r'#[0-9a-fA-F]{3,8}'), const Color(0xFF1565C0)),
   ],
   'SQL': [
-    _SyntaxPattern(RegExp(r'--[^\n]*|/\*[\s\S]*?\*/'), Colors.grey),
+    _SyntaxPattern(RegExp(r'--[^\n]*|/\*[\s\S]*?\*/'), const Color(0xFF9E9E9E)),
     _SyntaxPattern(RegExp(r'"(?:\\.|[^"\\])*"'), const Color(0xFF2E7D32)),
     _SyntaxPattern(RegExp(r"'(?:\\.|[^'\\])*'"), const Color(0xFF2E7D32)),
     _SyntaxPattern(
@@ -918,7 +918,7 @@ final Map<String, List<_SyntaxPattern>> _syntaxPatterns = {
     _SyntaxPattern(RegExp(r'\b\d+(?:\.\d+)?\b'), const Color(0xFF1565C0)),
   ],
   'YAML': [
-    _SyntaxPattern(RegExp(r'#[^\n]*'), Colors.grey),
+    _SyntaxPattern(RegExp(r'#[^\n]*'), const Color(0xFF9E9E9E)),
     _SyntaxPattern(RegExp(r'^[\w-]+(?=\s*:)'), const Color(0xFF7B1FA2)),
     _SyntaxPattern(RegExp(r'"(?:\\.|[^"\\])*"'), const Color(0xFF2E7D32)),
     _SyntaxPattern(RegExp(r"'(?:\\.|[^'\\])*'"), const Color(0xFF2E7D32)),
@@ -942,7 +942,7 @@ List<_SyntaxPattern> _cLikePatterns(
   Color numberColor,
 ) {
   return [
-    _SyntaxPattern(RegExp(r'//[^\n]*|/\*[\s\S]*?\*/'), Colors.grey),
+    _SyntaxPattern(RegExp(r'//[^\n]*|/\*[\s\S]*?\*/'), const Color(0xFF9E9E9E)),
     _SyntaxPattern(RegExp(r'"(?:\\.|[^"\\])*"'), stringColor),
     _SyntaxPattern(RegExp(r"'(?:\\.|[^'\\])*'"), stringColor),
     _SyntaxPattern(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../../data/models/video_models.dart';
 import '../../../data/services/video_site_service.dart';
@@ -63,13 +63,16 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
     if (detail == null) return;
     final source = detail.sources[_selectedSource];
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => VideoPlayPage(
+      PageRouteBuilder<void>(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            VideoPlayPage(
           seriesTitle: detail.title,
           sourceName: source.name,
           episodes: source.episodes,
           initialEpisode: episodeIndex,
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+            FadeTransition(opacity: animation, child: child),
       ),
     );
   }
@@ -78,25 +81,32 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surfaceContainerLow,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          _detail?.title ?? widget.series.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: NexusTypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: '重新加载',
-            onPressed: _loading ? null : _load,
+      backgroundColor: colorScheme.card,
+      headers: [
+        Container(
+          color: colorScheme.muted,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _detail?.title ?? widget.series.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: NexusTypography.bodyMd.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              IconButton.ghost(
+                icon: const Icon(LucideIcons.refreshCw),
+                onPressed: _loading ? null : _load,
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _buildBody(context),
+        ),
+      ],
+      child: _buildBody(context),
     );
   }
 
@@ -106,7 +116,7 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
     }
     if (_error != null) {
       return NexusEmptyState(
-        icon: Icons.cloud_off_outlined,
+        icon: LucideIcons.cloudOff,
         title: '加载失败',
         subtitle: _error!,
       );
@@ -114,13 +124,13 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
     final detail = _detail;
     if (detail == null) {
       return const NexusEmptyState(
-        icon: Icons.movie_outlined,
+        icon: LucideIcons.film,
         title: '没有数据',
       );
     }
     if (!detail.hasEpisodes) {
       return const NexusEmptyState(
-        icon: Icons.videocam_off_outlined,
+        icon: LucideIcons.videoOff,
         title: '暂无可播放资源',
         subtitle: '该剧在数据源上没有任何播放源。',
       );
@@ -135,7 +145,7 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
         Text(
           detail.synopsis.isEmpty ? '暂无简介' : detail.synopsis,
           style: NexusTypography.bodyMd.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: Theme.of(context).colorScheme.mutedForeground,
             height: 1.6,
           ),
         ),
@@ -180,10 +190,10 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                   : detail.coverUrl,
               fit: BoxFit.cover,
               errorBuilder: (context, _) => ColoredBox(
-                color: colorScheme.surfaceContainerHigh,
+                color: colorScheme.accent,
                 child: Icon(
-                  Icons.movie_outlined,
-                  color: colorScheme.onSurfaceVariant,
+                  LucideIcons.film,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ),
@@ -217,7 +227,7 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: NexusTypography.labelMd.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.mutedForeground,
                   ),
                 ),
               ],
@@ -228,7 +238,7 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: NexusTypography.labelMd.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.mutedForeground,
                   ),
                 ),
               ],
@@ -268,13 +278,13 @@ class _MetaChip extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer.withValues(alpha: 0.35),
+        color: colorScheme.secondary.withValues(alpha: 0.35),
         borderRadius: NexusRadii.fullRadius,
       ),
       child: Text(
         label,
         style: NexusTypography.labelSm.copyWith(
-          color: colorScheme.onSurfaceVariant,
+          color: colorScheme.mutedForeground,
         ),
       ),
     );
@@ -297,16 +307,15 @@ class _SourceChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: NexusRadii.fullRadius,
-      onTap: onTap,
-      child: Container(
+    return GestureDetector(
+  onTap: onTap,
+  child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: NexusSpacing.md,
           vertical: NexusSpacing.xs + 2,
         ),
         decoration: BoxDecoration(
-          color: selected ? colorScheme.secondary : colorScheme.surfaceContainerHigh,
+          color: selected ? colorScheme.secondary : colorScheme.accent,
           borderRadius: NexusRadii.fullRadius,
         ),
         child: Row(
@@ -315,7 +324,7 @@ class _SourceChip extends StatelessWidget {
             Text(
               label,
               style: NexusTypography.labelMd.copyWith(
-                color: selected ? colorScheme.onSecondary : colorScheme.onSurface,
+                color: selected ? colorScheme.secondaryForeground : colorScheme.foreground,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -324,14 +333,14 @@ class _SourceChip extends StatelessWidget {
               '$count',
               style: NexusTypography.labelSm.copyWith(
                 color: selected
-                    ? colorScheme.onSecondary.withValues(alpha: 0.8)
-                    : colorScheme.onSurfaceVariant,
+                    ? colorScheme.secondaryForeground.withValues(alpha: 0.8)
+                    : colorScheme.mutedForeground,
               ),
             ),
           ],
         ),
       ),
-    );
+);
   }
 }
 
@@ -350,10 +359,9 @@ class _EpisodeGrid extends StatelessWidget {
       runSpacing: NexusSpacing.sm,
       children: [
         for (final episode in episodes)
-          InkWell(
-            borderRadius: NexusRadii.mdRadius,
-            onTap: () => onTap(episode.index - 1),
-            child: Container(
+          GestureDetector(
+  onTap: () => onTap(episode.index - 1),
+  child: Container(
               constraints: const BoxConstraints(minWidth: 56),
               padding: const EdgeInsets.symmetric(
                 horizontal: NexusSpacing.sm,
@@ -361,20 +369,20 @@ class _EpisodeGrid extends StatelessWidget {
               ),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh,
+                color: colorScheme.accent,
                 border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  color: colorScheme.border.withValues(alpha: 0.5),
                 ),
                 borderRadius: NexusRadii.mdRadius,
               ),
               child: Text(
                 episode.label,
                 style: NexusTypography.labelMd.copyWith(
-                  color: colorScheme.onSurface,
+                  color: colorScheme.foreground,
                 ),
               ),
             ),
-          ),
+),
       ],
     );
   }

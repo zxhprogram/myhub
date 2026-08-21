@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:easy_mail/src/models/mail_message.dart';
 // ignore: implementation_imports
 import 'package:easy_mail/src/models/mime_part.dart';
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 
 import '../../theme/colors.dart';
@@ -46,7 +46,7 @@ class MailBodyView extends StatelessWidget {
       html,
       textStyle: NexusTypography.bodyLg.copyWith(
         height: 1.5,
-        color: NexusColors.onSurface,
+        color: Theme.of(context).colorScheme.foreground,
       ),
       onTapUrl: (url) => _openUrl(context, url),
     );

@@ -1,22 +1,11 @@
-import 'package:flutter/material.dart' as material;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Shared shadcn_flutter-based building blocks for the Zhihu sub-app.
-///
-/// The sub-app is built exclusively from shadcn_flutter components (plus
-/// plain Flutter layout primitives); the Material import here exists only
-/// so [ZhihuShadcnHost] can read the ambient Material brightness and keep
-/// the shadcn color scheme in sync with the app theme.
 
-/// Installs the shadcn_flutter theme infrastructure for the Zhihu sub-app.
-///
-/// Desktop windows already sit inside the desktop layer's [ShadcnLayer];
-/// the mobile routing shell does not. Following the AiChatPage pattern,
-/// this host reuses the ambient shadcn theme when present (recoloring it to
-/// follow the Material brightness) and installs its own [ShadcnLayer]
-/// otherwise, so [builder] can always rely on `Theme.of(context)` resolving
-/// to the shadcn theme.
+/// Scopes the Zhihu sub-app build. The shadcn theme infrastructure is
+/// installed app-wide by `ShadcnApp`, so this host is now a plain builder
+/// passthrough kept for call-site stability.
 class ZhihuShadcnHost extends StatelessWidget {
   const ZhihuShadcnHost({super.key, required this.builder});
 
@@ -24,22 +13,7 @@ class ZhihuShadcnHost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark =
-        material.Theme.of(context).brightness == material.Brightness.dark;
-    final scheme = dark ? ColorSchemes.darkSlate : ColorSchemes.lightSlate;
-    final ambient = context.getInheritedWidgetOfExactType<Theme>();
-    if (ambient != null) {
-      return Theme(
-        data: ambient.data.copyWith(colorScheme: () => scheme),
-        child: Builder(builder: builder),
-      );
-    }
-    return ShadcnLayer(
-      theme: dark
-          ? const ThemeData.dark(radius: 0.5, scaling: 1)
-          : const ThemeData(radius: 0.5, scaling: 1),
-      child: Builder(builder: builder),
-    );
+    return Builder(builder: builder);
   }
 }
 

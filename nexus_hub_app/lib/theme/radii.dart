@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 /// Nexus Hub border radius tokens.
 abstract final class NexusRadii {

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
@@ -52,12 +52,12 @@ class RssReaderPage extends StatelessWidget {
               Text(
                 'Stay updated with your favorite sources',
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.mutedForeground,
                 ),
               ),
             ],
           ),
-          NexusButton(label: 'Add Feed', icon: Icons.add, onPressed: () {}),
+          NexusButton(label: 'Add Feed', icon: RadixIcons.plus, onPressed: () {}),
         ],
       ),
       child: SingleChildScrollView(
@@ -65,7 +65,7 @@ class RssReaderPage extends StatelessWidget {
           children: [
             const NexusInput(
               hintText: 'Search articles...',
-              prefixIcon: Icon(Icons.search, size: 20),
+              prefixIcon: Icon(RadixIcons.magnifyingGlass, size: 20),
             ),
             const SizedBox(height: NexusSpacing.md),
             ...feeds.map(
@@ -115,7 +115,7 @@ class _FeedCard extends StatelessWidget {
             margin: const EdgeInsets.only(top: 6),
             decoration: BoxDecoration(
               color: feed.isRead
-                  ? colorScheme.outlineVariant
+                  ? colorScheme.border
                   : colorScheme.secondary,
               borderRadius: NexusRadii.fullRadius,
             ),
@@ -149,10 +149,10 @@ class _FeedCard extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.open_in_new, size: 18),
-          ),
+          IconButton.ghost(
+  onPressed: () {},
+  icon: const Icon(RadixIcons.externalLink, size: 18),
+),
         ],
       ),
     );

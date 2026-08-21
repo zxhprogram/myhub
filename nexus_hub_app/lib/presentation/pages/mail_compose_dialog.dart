@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/mail_account_model.dart';
@@ -72,10 +72,11 @@ class _MailComposeDialogState extends State<MailComposeDialog> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Dialog(
-      backgroundColor: colorScheme.surfaceContainerLowest,
-      insetPadding: const EdgeInsets.all(NexusSpacing.lg),
-      shape: RoundedRectangleBorder(borderRadius: NexusRadii.lgRadius),
+    return Card(
+      padding: EdgeInsets.zero,
+      fillColor: colorScheme.card,
+      borderRadius: NexusRadii.lgRadius,
+      borderWidth: 0,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900, maxHeight: 680),
         child: Padding(
@@ -101,17 +102,17 @@ class _MailComposeDialogState extends State<MailComposeDialog> {
   Widget _buildHeader(ColorScheme colorScheme) {
     return Row(
       children: [
-        Icon(Icons.edit_note, size: 28, color: colorScheme.secondary),
+        Icon(LucideIcons.notebookPen, size: 28, color: colorScheme.secondary),
         const SizedBox(width: NexusSpacing.sm),
         Text(
           'New Message',
           style: NexusTypography.headlineSm.copyWith(fontWeight: FontWeight.w600),
         ),
         const Spacer(),
-        IconButton(
-          icon: const Icon(Icons.close, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        IconButton.ghost(
+  icon: const Icon(RadixIcons.cross2, size: 20),
+  onPressed: () => closeOverlay<void>(context),
+),
       ],
     );
   }
@@ -125,7 +126,7 @@ class _MailComposeDialogState extends State<MailComposeDialog> {
           child: Text(
             _account.emailAddress,
             style: NexusTypography.bodyMd.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme.mutedForeground,
             ),
           ),
         ),
@@ -137,14 +138,14 @@ class _MailComposeDialogState extends State<MailComposeDialog> {
             maxLines: 1,
             onChanged: (_) => setState(() {}),
           ),
-          trailing: TextButton.icon(
-            onPressed: () => setState(() => _showCc = !_showCc),
-            icon: Icon(
-              _showCc ? Icons.expand_less : Icons.expand_more,
+          trailing: Button.text(
+  onPressed: () => setState(() => _showCc = !_showCc),
+  leading: Icon(
+              _showCc ? RadixIcons.chevronUp : RadixIcons.chevronDown,
               size: 18,
             ),
-            label: const Text('Cc'),
-          ),
+  child: const Text('Cc'),
+),
         ),
         if (_showCc)
           _buildFieldRow(
@@ -182,7 +183,7 @@ class _MailComposeDialogState extends State<MailComposeDialog> {
             child: Text(
               label,
               style: NexusTypography.labelMd.copyWith(
-                color: NexusColors.onSurfaceVariant,
+                color: Theme.of(context).colorScheme.mutedForeground,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -217,13 +218,13 @@ class _MailComposeDialogState extends State<MailComposeDialog> {
               margin: const EdgeInsets.only(bottom: NexusSpacing.sm),
               padding: const EdgeInsets.all(NexusSpacing.sm),
               decoration: BoxDecoration(
-                color: colorScheme.errorContainer,
+                color: colorScheme.destructive,
                 borderRadius: NexusRadii.mdRadius,
               ),
               child: Text(
                 sendError,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onErrorContainer,
+                  color: colorScheme.destructiveForeground,
                 ),
               ),
             ),
@@ -235,7 +236,7 @@ class _MailComposeDialogState extends State<MailComposeDialog> {
                 variant: NexusButtonVariant.outlined,
                 onPressed: isSending
                     ? null
-                    : () => Navigator.of(context).pop(),
+                    : () => closeOverlay<void>(context),
               ),
               const SizedBox(width: NexusSpacing.md),
               NexusButton(
@@ -276,7 +277,7 @@ class _MailComposeDialogState extends State<MailComposeDialog> {
       htmlBody: htmlBody,
     );
     if (success && mounted) {
-      Navigator.of(context).pop();
+      closeOverlay<void>(context);
     }
   }
 

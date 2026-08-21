@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 // ignore: implementation_imports
 import 'package:easy_mail/src/models/mail_message.dart';
@@ -54,15 +54,15 @@ class MailState {
   final configError = signal<String?>(null);
 
   final folders = signal<List<MailFolder>>([
-    const MailFolder(id: 'INBOX', title: 'Inbox', icon: Icons.inbox),
-    const MailFolder(id: 'SENT', title: 'Sent', icon: Icons.send_outlined),
+    const MailFolder(id: 'INBOX', title: 'Inbox', icon: LucideIcons.inbox),
+    const MailFolder(id: 'SENT', title: 'Sent', icon: LucideIcons.send),
     const MailFolder(
       id: 'DRAFTS',
       title: 'Drafts',
-      icon: Icons.drafts_outlined,
+      icon: LucideIcons.mailOpen,
     ),
-    const MailFolder(id: 'TRASH', title: 'Trash', icon: Icons.delete_outlined),
-    const MailFolder(id: 'SPAM', title: 'Spam', icon: Icons.report_outlined),
+    const MailFolder(id: 'TRASH', title: 'Trash', icon: LucideIcons.trash2),
+    const MailFolder(id: 'SPAM', title: 'Spam', icon: LucideIcons.flag),
   ]);
 
   final labels = signal<List<String>>(['Work', 'Personal']);
