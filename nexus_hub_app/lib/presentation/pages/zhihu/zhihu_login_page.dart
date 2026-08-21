@@ -1,13 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../../data/services/zhihu_auth_store.dart';
 import '../../../data/services/zhihu_service.dart';
-import '../../../theme/typography.dart';
-import '../../components/nexus_empty_state.dart';
+import '../../components/zhihu_ui.dart';
 
 /// WebView-based Zhihu sign-in (WebView2 on Windows).
 ///
@@ -136,12 +135,7 @@ class _ZhihuLoginPageState extends State<ZhihuLoginPage> {
         await ZhihuAuthStore.setUser(me);
       } catch (_) {}
       if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(content: Text('登录成功，已保存知乎会话')),
-        );
+      zhihuShowToast(context, '登录成功，已保存知乎会话');
       await Future<void>.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -165,8 +159,8 @@ class _ZhihuLoginPageState extends State<ZhihuLoginPage> {
         urlRequest: URLRequest(url: WebUri('about:blank')),
       );
     } catch (_) {
-      // Parking is best-effort; a failed navigation changes nothing for
-      // the already-captured session.
+      // Parking is best-effort; a failed navigation changes nothing for the
+      // already-captured session.
     }
   }
 
@@ -200,35 +194,64 @@ class _ZhihuLoginPageState extends State<ZhihuLoginPage> {
   Future<void> _manualCheck() async {
     await _checkLogin();
     if (_captured || !mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(content: Text('还未检测到登录状态，请先在页面中完成登录')),
-      );
+    zhihuShowToast(context, '还未检测到登录状态，请先在页面中完成登录');
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surfaceContainerLow,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: '取消',
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          '登录知乎',
-          style: NexusTypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          TextButton(onPressed: _manualCheck, child: const Text('我已完成登录')),
-        ],
-      ),
-      body: _webviewFailed ? _buildFallback(context) : _buildWebView(),
+    return ZhihuShadcnHost(
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Container(
+          color: theme.colorScheme.background,
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
+                  child: Row(
+                    children: [
+                      IconButton.ghost(
+                        icon: const Icon(LucideIcons.x, size: 16),
+                        size: ButtonSize.small,
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                      const Gap(4),
+                      Text(
+                        '登录知乎',
+                        style: theme.typography.small.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      Button.ghost(
+                        style: const ButtonStyle.ghost(
+                          size: ButtonSize.small,
+                          density: ButtonDensity.dense,
+                        ),
+                        onPressed: _manualCheck,
+                        child: const Text('我已完成登录'),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(height: 1, color: theme.colorScheme.border),
+                Expanded(
+                  child: _webviewFailed
+                      ? ZhihuEmptyState(
+                          icon: LucideIcons.globe,
+                          title: '内置浏览器不可用',
+                          subtitle:
+                              '未检测到 WebView2 运行时，无法在此完成登录。请安装 Edge/WebView2 后重试。',
+                        )
+                      : _buildWebView(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -246,14 +269,6 @@ class _ZhihuLoginPageState extends State<ZhihuLoginPage> {
       },
       onLoadStop: (_, _) => _checkLogin(),
       onUpdateVisitedHistory: (_, _, _) => _checkLogin(),
-    );
-  }
-
-  Widget _buildFallback(BuildContext context) {
-    return NexusEmptyState(
-      icon: Icons.language,
-      title: '内置浏览器不可用',
-      subtitle: '未检测到 WebView2 运行时，无法在此完成登录。请安装 Edge/WebView2 后重试。',
     );
   }
 }

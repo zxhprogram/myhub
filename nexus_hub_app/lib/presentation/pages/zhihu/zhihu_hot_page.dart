@@ -1,17 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../../data/models/zhihu_models.dart';
 import '../../../data/services/zhihu_auth_store.dart';
 import '../../../data/services/zhihu_service.dart';
-import '../../../theme/radii.dart';
-import '../../../theme/spacing.dart';
-import '../../../theme/typography.dart';
-import '../../components/nexus_badge.dart';
-import '../../components/nexus_button.dart';
-import '../../components/nexus_card.dart';
-import '../../components/nexus_empty_state.dart';
 import '../../components/zhihu_detail_pane.dart';
-import '../../layout/page_scaffold.dart';
+import '../../components/zhihu_ui.dart';
 import 'zhihu_article_page.dart';
 import 'zhihu_feed_detail_page.dart';
 import 'zhihu_feed_pane.dart';
@@ -27,6 +20,11 @@ enum _ZhihuTab { hot, feed }
 /// article, rendered natively (no WebView); login itself embeds the real
 /// sign-in page so the user clears the QR/captcha checks by hand and the
 /// resulting session cookies are captured for API access.
+///
+/// The whole sub-app is built from shadcn_flutter components (installed by
+/// [ZhihuShadcnHost]) and tuned for the desktop: tight paddings, dense
+/// list cards and a wide two-column layout (list left, reading pane
+/// right).
 class ZhihuHotPage extends StatefulWidget {
   const ZhihuHotPage({super.key});
 
@@ -173,53 +171,28 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return PageScaffold(
-      header: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('知乎', style: NexusTypography.headlineXl),
-                const SizedBox(height: NexusSpacing.xs),
-                Text(
-                  ZhihuAuthStore.isLoggedIn
-                      ? '已登录，可浏览热榜与推荐 Feed'
-                      : '匿名可浏览热榜，登录后可查看推荐 Feed',
-                  style: NexusTypography.bodyMd.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+    return ZhihuShadcnHost(
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Container(
+          color: theme.colorScheme.background,
+          child: SafeArea(
+            child: Padding(
+              padding: ZhihuDense.pagePadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context),
+                  const Gap(8),
+                  _buildTabSelector(context),
+                  const Gap(8),
+                  Expanded(child: _buildContent(context)),
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: NexusSpacing.md),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_authReady) _buildAuthControl(context),
-              const SizedBox(width: NexusSpacing.sm),
-              NexusButton(
-                label: '刷新',
-                icon: Icons.refresh,
-                variant: NexusButtonVariant.outlined,
-                onPressed: _refresh,
-              ),
-            ],
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildTabSelector(context),
-          const SizedBox(height: NexusSpacing.md),
-          Expanded(child: _buildContent(context)),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -228,6 +201,120 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
   /// the embedded desktop window and the mobile routing shell.
   bool get _isWide => MediaQuery.sizeOf(context).width >= _kWideBreakpoint;
 
+  Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Text(
+          '知乎',
+          style: theme.typography.large.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const Gap(10),
+        Expanded(
+          child: Text(
+            ZhihuAuthStore.isLoggedIn
+                ? '已登录，可浏览热榜与推荐 Feed'
+                : '匿名可浏览热榜，登录后可查看推荐 Feed',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.typography.xSmall.copyWith(
+              color: theme.colorScheme.mutedForeground,
+            ),
+          ),
+        ),
+        if (_authReady) ...[
+          _buildAuthControl(context),
+          const Gap(6),
+        ],
+        Button.outline(
+          leading: const Icon(LucideIcons.refreshCw, size: 14),
+          style: const ButtonStyle.outline(
+            size: ButtonSize.small,
+            density: ButtonDensity.dense,
+          ),
+          onPressed: _refresh,
+          child: const Text('刷新'),
+        ),
+      ],
+    );
+  }
+
+  /// Small user chip with logout when logged in, a login button otherwise.
+  Widget _buildAuthControl(BuildContext context) {
+    final theme = Theme.of(context);
+    final user = ZhihuAuthStore.user;
+    if (ZhihuAuthStore.isLoggedIn) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ZhihuAvatar(
+            imageUrl: user?.avatarUrl ?? '',
+            name: user?.name ?? '',
+            size: 22,
+          ),
+          const Gap(6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 120),
+            child: Text(
+              user?.name.isEmpty == false ? user!.name : '已登录',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.typography.small.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const Gap(2),
+          Tooltip(
+            tooltip: (context) => const Text('退出登录'),
+            child: IconButton.ghost(
+              icon: const Icon(LucideIcons.logOut, size: 15),
+              size: ButtonSize.small,
+              onPressed: _logout,
+            ),
+          ),
+        ],
+      );
+    }
+    return Button.outline(
+      leading: const Icon(LucideIcons.logIn, size: 14),
+      style: const ButtonStyle.outline(
+        size: ButtonSize.small,
+        density: ButtonDensity.dense,
+      ),
+      onPressed: _openLogin,
+      child: const Text('登录'),
+    );
+  }
+
+  Widget _buildTabSelector(BuildContext context) {
+    return Row(
+      children: [
+        for (final tab in _ZhihuTab.values) ...[
+          SelectedButton(
+            value: _tab == tab,
+            onPressed: () => _selectTab(tab),
+            style: const ButtonStyle.ghost(density: ButtonDensity.dense),
+            selectedStyle: const ButtonStyle.secondary(
+              density: ButtonDensity.dense,
+            ),
+            child: _TabLabel(
+              icon: switch (tab) {
+                _ZhihuTab.hot => LucideIcons.flame,
+                _ZhihuTab.feed => LucideIcons.rss,
+              },
+              label: switch (tab) {
+                _ZhihuTab.hot => '热榜',
+                _ZhihuTab.feed => '推荐 Feed',
+              },
+            ),
+          ),
+          if (tab != _ZhihuTab.values.last) const Gap(4),
+        ],
+      ],
+    );
+  }
+
   Widget _buildContent(BuildContext context) {
     if (!_isWide) {
       return _tab == _ZhihuTab.hot
@@ -235,6 +322,7 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
           : ZhihuFeedPane(key: _feedKey, onLoginRequested: _openLogin);
     }
 
+    final theme = Theme.of(context);
     final selection = _selection;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -250,8 +338,9 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
                   onItemSelected: _openFeedItem,
                 ),
         ),
-        const SizedBox(width: NexusSpacing.md),
-        const VerticalDivider(width: 1),
+        const Gap(8),
+        Container(width: 1, color: theme.colorScheme.border),
+        const Gap(8),
         Expanded(child: _buildReadingPane(context, selection)),
       ],
     );
@@ -261,7 +350,6 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
     BuildContext context,
     _ZhihuDetailSelection? selection,
   ) {
-    final colorScheme = Theme.of(context).colorScheme;
     if (selection == null) {
       return ZhihuDetailPane(
         title: _tab == _ZhihuTab.hot ? '热榜详情' : '推荐 Feed 详情',
@@ -269,31 +357,16 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
         // The placeholder is a plain Center; give it bounded constraints so
         // it centers instead of shrink-wrapping inside a scroll view.
         enableScroll: false,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.article_outlined,
-                size: 48,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
-              ),
-              const SizedBox(height: NexusSpacing.md),
-              Text(
-                '尚未选择内容',
-                style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
+        child: ZhihuEmptyState(
+          icon: LucideIcons.newspaper,
+          title: '尚未选择内容',
         ),
       );
     }
     // The detail pages render their own complete pane (header, actions and
-    // a self-scrolling body) when `pane: true`; they only need a parent
-    // with bounded height, which the wide layout's Expanded provides, and
-    // an onBack to clear the selection.
+    // a self-scrolling body); they only need a parent with bounded height,
+    // which the wide layout's Expanded provides, and an onBack to clear the
+    // selection.
     return switch (selection.kind) {
       _ZhihuDetailKind.hotQuestion => ZhihuQuestionPage(
         item: selection.hotItem!,
@@ -314,134 +387,60 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
     };
   }
 
-  /// Small user chip with logout when logged in, a login button otherwise.
-  Widget _buildAuthControl(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final user = ZhihuAuthStore.user;
-    if (ZhihuAuthStore.isLoggedIn) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ClipOval(
-            child: SizedBox(
-              width: 26,
-              height: 26,
-              child: Image.network(
-                user?.avatarUrl ?? '',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: colorScheme.surfaceContainerHigh,
-                  child: Icon(
-                    Icons.person_outline,
-                    size: 16,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: NexusSpacing.sm),
-          Text(
-            user?.name.isEmpty == false ? user!.name : '已登录',
-            style: NexusTypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, size: 18),
-            tooltip: '退出登录',
-            onPressed: _logout,
-          ),
-        ],
-      );
-    }
-    return NexusButton(label: '登录', icon: Icons.login, onPressed: _openLogin);
-  }
-
-  Widget _buildTabSelector(BuildContext context) {
-    return Row(
-      children: [
-        for (final tab in _ZhihuTab.values)
-          Padding(
-            padding: const EdgeInsets.only(right: NexusSpacing.sm),
-            child: _ZhihuTabChip(
-              label: switch (tab) {
-                _ZhihuTab.hot => '热榜',
-                _ZhihuTab.feed => '推荐 Feed',
-              },
-              isSelected: _tab == tab,
-              onTap: () => _selectTab(tab),
-            ),
-          ),
-      ],
-    );
-  }
-
   Widget _buildHotPane(BuildContext context) {
-    if (_isLoading) return _buildLoading(context);
-    if (_hasError) return _buildError();
-    if (_items.isEmpty) {
-      return NexusCard(
-        child: NexusEmptyState(
-          icon: Icons.local_fire_department_outlined,
-          title: '暂无内容',
-          subtitle: '刷新以获取最新的知乎热榜。',
-          action: NexusButton(
-            label: '刷新',
-            icon: Icons.refresh,
-            variant: NexusButtonVariant.outlined,
-            onPressed: _refresh,
-          ),
-        ),
-      );
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(size: 18));
     }
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: ListView.separated(
-        padding: const EdgeInsets.only(bottom: NexusSpacing.xl),
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: _items.length,
-        separatorBuilder: (_, _) => const SizedBox(height: NexusSpacing.sm),
-        itemBuilder: (context, index) {
-          final item = _items[index];
-          return _HotCard(
-            item: item,
-            selected: item.id == _selection?.itemKey,
-            onTap: () => _openHotItem(item),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildLoading(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return NexusCard(
-      child: Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: colorScheme.primary.withValues(alpha: 0.6),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildError() {
-    return NexusCard(
-      child: NexusEmptyState(
-        icon: Icons.cloud_off,
+    if (_hasError) {
+      return ZhihuEmptyState(
+        icon: LucideIcons.cloudOff,
         title: '加载失败',
         subtitle: '无法连接知乎，请检查网络后重试。',
-        action: NexusButton(label: '重试', icon: Icons.refresh, onPressed: _load),
-      ),
+        action: Button.outline(
+          leading: const Icon(LucideIcons.refreshCw, size: 14),
+          style: const ButtonStyle.outline(
+            size: ButtonSize.small,
+            density: ButtonDensity.dense,
+          ),
+          onPressed: _load,
+          child: const Text('重试'),
+        ),
+      );
+    }
+    if (_items.isEmpty) {
+      return ZhihuEmptyState(
+        icon: LucideIcons.flame,
+        title: '暂无内容',
+        subtitle: '刷新以获取最新的知乎热榜。',
+        action: Button.outline(
+          leading: const Icon(LucideIcons.refreshCw, size: 14),
+          style: const ButtonStyle.outline(
+            size: ButtonSize.small,
+            density: ButtonDensity.dense,
+          ),
+          onPressed: _refresh,
+          child: const Text('刷新'),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.only(bottom: 24),
+      itemCount: _items.length,
+      separatorBuilder: (_, _) => const Gap(ZhihuDense.listGap),
+      itemBuilder: (context, index) {
+        final item = _items[index];
+        return _HotCard(
+          item: item,
+          selected: item.id == _selection?.itemKey,
+          onTap: () => _openHotItem(item),
+        );
+      },
     );
   }
 }
 
-/// A single hot-list card: rank, title, excerpt, heat badge and metrics,
-/// plus an optional thumbnail.
+/// A single hot-list card: rank, title, excerpt and a compact metrics row
+/// (label tag, heat, answer/follower counts), plus an optional thumbnail.
 class _HotCard extends StatelessWidget {
   const _HotCard({
     required this.item,
@@ -459,92 +458,117 @@ class _HotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return NexusCard(
-      onTap: onTap,
-      highlight: selected,
-      padding: const EdgeInsets.all(NexusSpacing.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 30,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                '${item.rank}',
-                textAlign: TextAlign.center,
-                style: NexusTypography.headlineSm.copyWith(
-                  color: item.rank <= 3
-                      ? _topRankColor
-                      : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                  fontWeight: item.rank <= 3
-                      ? FontWeight.w700
-                      : FontWeight.w500,
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isTop = item.rank <= 3;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: OutlinedContainer(
+          backgroundColor: selected
+              ? scheme.primary.withValues(alpha: 0.07)
+              : scheme.card,
+          borderColor: selected
+              ? scheme.primary.withValues(alpha: 0.6)
+              : scheme.border,
+          borderWidth: selected ? 1.4 : 1,
+          borderRadius: theme.borderRadiusMd,
+          padding: ZhihuDense.cardPadding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 18,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Text(
+                    '${item.rank}',
+                    textAlign: TextAlign.center,
+                    style: theme.typography.small.copyWith(
+                      color: isTop ? _topRankColor : scheme.mutedForeground,
+                      fontWeight: isTop ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: NexusSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: NexusTypography.bodyMd.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (item.excerpt.isNotEmpty) ...[
-                  const SizedBox(height: NexusSpacing.xs),
-                  Text(
-                    item.excerpt,
-                    style: NexusTypography.labelMd.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                const SizedBox(height: NexusSpacing.sm),
-                Wrap(
-                  spacing: NexusSpacing.sm,
-                  runSpacing: NexusSpacing.xs,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+              const Gap(8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (item.cardLabel.isNotEmpty)
-                      NexusBadge(
-                        label: item.cardLabel,
-                        backgroundColor: _topRankColor.withValues(alpha: 0.12),
-                        foregroundColor: _topRankColor,
+                    Text(
+                      item.title,
+                      style: theme.typography.small.copyWith(
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
                       ),
-                    if (item.detailText.isNotEmpty)
-                      NexusBadge(label: item.detailText),
-                    if (item.isArticle) const NexusBadge(label: '文章'),
-                    if (!item.isArticle && item.answerCount > 0)
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (item.excerpt.isNotEmpty &&
+                        item.excerpt != '[视频]') ...[
+                      const Gap(2),
                       Text(
-                        '${item.answerCount} 回答',
-                        style: NexusTypography.labelSm,
+                        item.excerpt,
+                        style: theme.typography.xSmall.copyWith(
+                          color: scheme.mutedForeground,
+                          height: 1.45,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ],
+                    const Gap(5),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 3,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (item.cardLabel.isNotEmpty)
+                          ZhihuTag(
+                            item.cardLabel,
+                            foreground: _topRankColor,
+                            background: _topRankColor.withValues(alpha: 0.1),
+                          ),
+                        if (item.detailText.isNotEmpty)
+                          ZhihuMetric(
+                            icon: LucideIcons.flame,
+                            label: item.detailText,
+                            color: isTop ? _topRankColor : null,
+                          ),
+                        if (item.isArticle)
+                          const ZhihuTag('文章')
+                        else ...[
+                          if (item.answerCount > 0)
+                            ZhihuMetric(
+                              icon: LucideIcons.messageSquare,
+                              label: '${item.answerCount} 回答',
+                            ),
+                          if (item.followerCount > 0)
+                            ZhihuMetric(
+                              icon: LucideIcons.eye,
+                              label: '${item.followerCount} 关注',
+                            ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
+              ),
+              if (item.thumbnail.isNotEmpty) ...[
+                const Gap(8),
+                _HotThumbnail(imageUrl: item.thumbnail),
               ],
-            ),
+            ],
           ),
-          if (item.thumbnail.isNotEmpty) ...[
-            const SizedBox(width: NexusSpacing.md),
-            _HotThumbnail(imageUrl: item.thumbnail),
-          ],
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Optional 96x72 card cover with a graceful placeholder on load errors.
+/// Optional 84x60 card cover with a graceful placeholder on load errors.
 class _HotThumbnail extends StatelessWidget {
   const _HotThumbnail({required this.imageUrl});
 
@@ -552,25 +576,49 @@ class _HotThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return ClipRRect(
-      borderRadius: NexusRadii.lgRadius,
+      borderRadius: BorderRadius.circular(6),
       child: SizedBox(
-        width: 96,
-        height: 72,
+        width: ZhihuDense.thumbWidth,
+        height: ZhihuDense.thumbHeight,
         child: Image.network(
           imageUrl,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => Container(
-            color: colorScheme.surfaceContainerHigh,
+            color: theme.colorScheme.muted,
             child: Icon(
-              Icons.image_outlined,
-              size: 20,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              LucideIcons.imageOff,
+              size: 16,
+              color: theme.colorScheme.mutedForeground,
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Icon + label inside the dense tab pills.
+class _TabLabel extends StatelessWidget {
+  const _TabLabel({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: theme.colorScheme.mutedForeground),
+        const Gap(4),
+        Text(
+          label,
+          style: theme.typography.small.copyWith(fontWeight: FontWeight.w500),
+        ),
+      ],
     );
   }
 }
@@ -628,56 +676,4 @@ class _ZhihuDetailSelection {
   /// visually highlighted while the pane shows the same entry. Ids are
   /// unique per entry type.
   String get itemKey => feedItem?.id ?? hotItem!.id;
-}
-
-/// Pill-style selectable chip used for the 热榜 / 推荐 Feed tab selector.
-class _ZhihuTabChip extends StatelessWidget {
-  const _ZhihuTabChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: isSelected ? colorScheme.primary : Colors.transparent,
-      borderRadius: NexusRadii.fullRadius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: NexusRadii.fullRadius,
-        hoverColor: isSelected
-            ? null
-            : colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: NexusSpacing.sm,
-            vertical: 4,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: NexusRadii.fullRadius,
-            border: Border.all(
-              color: isSelected
-                  ? Colors.transparent
-                  : colorScheme.outlineVariant.withValues(alpha: 0.6),
-            ),
-          ),
-          child: Text(
-            label,
-            style: NexusTypography.labelSm.copyWith(
-              color: isSelected
-                  ? colorScheme.onPrimary
-                  : colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

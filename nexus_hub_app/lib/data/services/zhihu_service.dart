@@ -621,7 +621,7 @@ class ZhihuService {
 
     final content = node['content'];
     final contentHtml = content is String
-        ? content
+        ? zhihuSanitizeContentHtml(content)
         : content is List
         ? _pinContentToHtml(content)
         : '';

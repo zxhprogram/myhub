@@ -1,16 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../../data/models/zhihu_models.dart';
 import '../../../data/services/zhihu_service.dart';
-import '../../../theme/spacing.dart';
-import '../../../theme/typography.dart';
-import '../../components/nexus_button.dart';
-import '../../components/nexus_card.dart';
-import '../../components/nexus_empty_state.dart';
 import '../../components/zhihu_detail_pane.dart';
+import '../../components/zhihu_ui.dart';
 
 /// Question detail: the hot-list entry as header, followed by its answers
 /// loaded page by page.
@@ -20,8 +15,9 @@ import '../../components/zhihu_detail_pane.dart';
 /// requirement. Links inside the content open in the system browser.
 ///
 /// With [pane] the page renders inside a [ZhihuDetailPane] without its own
-/// Scaffold/app bar, so it can be embedded as the right-hand content of the
-/// sub-app's wide two-column layout.
+/// page chrome, so it can be embedded as the right-hand content of the
+/// sub-app's wide two-column layout; standalone (narrow) mode wraps the
+/// same pane in a [ZhihuShadcnHost] with a back affordance.
 class ZhihuQuestionPage extends StatefulWidget {
   const ZhihuQuestionPage({
     super.key,
@@ -34,7 +30,7 @@ class ZhihuQuestionPage extends StatefulWidget {
   /// stats while the answers download.
   final ZhihuHotItem item;
 
-  /// Renders as an embedded pane (no Scaffold/app bar) when true.
+  /// Renders as an embedded pane when true.
   final bool pane;
 
   /// Shown in the pane header's back button in pane mode (e.g. clearing the
@@ -132,95 +128,93 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
         _loadingMore = false;
       });
       // A failed append keeps earlier answers visible; surface the error
-      // as a transient snack bar instead of replacing the page.
+      // as a transient toast instead of replacing the page.
       if (mounted && _answers.isNotEmpty) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text('加载更多失败：$e')));
+        zhihuShowToast(context, '加载更多失败：$e');
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final body = _buildBody(context);
     if (widget.pane) {
-      return ZhihuDetailPane(
-        title: widget.item.title,
-        subtitle: widget.item.answerCount > 0
-            ? '${widget.item.answerCount} 回答'
-            : null,
-        onBack: widget.onBack,
-        // The body is a self-scrolling answer list; the pane header stays
-        // pinned while the list scrolls underneath it. Expand it to the
-        // remaining pane height so the ListView gets a finite viewport.
-        enableScroll: false,
-        expandChild: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: '重新加载',
-            onPressed: _loadingFirst ? null : _loadFirst,
-          ),
-          IconButton(
-            icon: const Icon(Icons.open_in_browser),
-            tooltip: '在浏览器中打开',
-            onPressed: () => zhihuOpenInBrowser(widget.item.webUrl),
-          ),
-        ],
-        child: body,
-      );
+      return _buildPane(context);
     }
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surfaceContainerLow,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          widget.item.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: NexusTypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
+    return ZhihuShadcnHost(
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Container(
+          color: theme.colorScheme.background,
+          child: SafeArea(child: _buildPane(context)),
+        );
+      },
+    );
+  }
+
+  Widget _buildPane(BuildContext context) {
+    return ZhihuDetailPane(
+      title: widget.item.title,
+      subtitle: widget.item.answerCount > 0
+          ? '${widget.item.answerCount} 回答'
+          : null,
+      onBack: widget.pane
+          ? widget.onBack
+          : () => Navigator.of(context).maybePop(),
+      // The body is a self-scrolling answer list; the pane header stays
+      // pinned while the list scrolls underneath it. Expand it to the
+      // remaining pane height so the ListView gets a finite viewport.
+      enableScroll: false,
+      expandChild: true,
+      actions: [
+        IconButton.ghost(
+          icon: const Icon(LucideIcons.refreshCw, size: 15),
+          size: ButtonSize.small,
+          onPressed: _loadingFirst ? null : _loadFirst,
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: '重新加载',
-            onPressed: _loadingFirst ? null : _loadFirst,
-          ),
-          IconButton(
-            icon: const Icon(Icons.open_in_browser),
-            tooltip: '在浏览器中打开',
-            onPressed: () => zhihuOpenInBrowser(widget.item.webUrl),
-          ),
-        ],
-      ),
-      body: body,
+        IconButton.ghost(
+          icon: const Icon(LucideIcons.externalLink, size: 15),
+          size: ButtonSize.small,
+          onPressed: () => zhihuOpenInBrowser(widget.item.webUrl),
+        ),
+      ],
+      child: _buildBody(context),
     );
   }
 
   Widget _buildBody(BuildContext context) {
     if (_loadingFirst) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2.5));
+      return const Center(child: CircularProgressIndicator(size: 18));
     }
     if (_error != null && _answers.isEmpty) {
-      return NexusEmptyState(
-        icon: Icons.cloud_off_outlined,
+      return ZhihuEmptyState(
+        icon: LucideIcons.cloudOff,
         title: '加载失败',
-        subtitle: _error!,
-        action: NexusButton(label: '重试', icon: Icons.refresh, onPressed: _loadFirst),
+        subtitle: _error,
+        action: Button.outline(
+          leading: const Icon(LucideIcons.refreshCw, size: 14),
+          style: const ButtonStyle.outline(
+            size: ButtonSize.small,
+            density: ButtonDensity.dense,
+          ),
+          onPressed: _loadFirst,
+          child: const Text('重试'),
+        ),
       );
     }
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.all(NexusSpacing.md),
+      padding: ZhihuDense.pagePadding,
       itemCount: _answers.length + 2,
       itemBuilder: (context, index) {
-        if (index == 0) return _buildQuestionHeader(context);
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: ZhihuDense.listGap),
+            child: _buildQuestionHeader(context),
+          );
+        }
         if (index <= _answers.length) {
           return Padding(
-            padding: const EdgeInsets.only(top: NexusSpacing.sm),
+            padding: const EdgeInsets.only(top: ZhihuDense.listGap),
             child: _AnswerCard(answer: _answers[index - 1]),
           );
         }
@@ -230,34 +224,61 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
   }
 
   Widget _buildQuestionHeader(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     final item = widget.item;
-    return NexusCard(
+    return OutlinedContainer(
+      borderRadius: theme.borderRadiusMd,
+      padding: ZhihuDense.readingPadding,
+      backgroundColor: theme.colorScheme.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             item.title,
-            style: NexusTypography.bodyLg.copyWith(fontWeight: FontWeight.w600),
+            style: theme.typography.base.copyWith(
+              fontWeight: FontWeight.w700,
+              height: 1.4,
+            ),
           ),
-          const SizedBox(height: NexusSpacing.sm),
+          const Gap(6),
           Wrap(
-            spacing: NexusSpacing.md,
-            runSpacing: NexusSpacing.xs,
+            spacing: 10,
+            runSpacing: 3,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              if (item.detailText.isNotEmpty) Text('热度 ${item.detailText}'),
-              if (item.answerCount > 0) Text('${item.answerCount} 回答'),
-              if (item.followerCount > 0) Text('${item.followerCount} 关注'),
+              if (item.detailText.isNotEmpty)
+                ZhihuMetric(
+                  icon: LucideIcons.flame,
+                  label: item.detailText,
+                  color: const Color(0xFFF56A00),
+                ),
+              if (item.answerCount > 0)
+                ZhihuMetric(
+                  icon: LucideIcons.messageSquare,
+                  label: '${item.answerCount} 回答',
+                ),
+              if (item.followerCount > 0)
+                ZhihuMetric(
+                  icon: LucideIcons.eye,
+                  label: '${item.followerCount} 关注',
+                ),
+              if (item.commentCount > 0)
+                ZhihuMetric(
+                  icon: LucideIcons.messageCircle,
+                  label: '${item.commentCount} 评论',
+                ),
             ],
           ),
-          if (item.excerpt.isNotEmpty &&
-              item.excerpt != '[视频]') ...[
-            const SizedBox(height: NexusSpacing.sm),
+          if (item.excerpt.isNotEmpty && item.excerpt != '[视频]') ...[
+            const Gap(4),
             Text(
               item.excerpt,
-              style: NexusTypography.bodyMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+              style: theme.typography.xSmall.copyWith(
+                color: theme.colorScheme.mutedForeground,
+                height: 1.5,
               ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ],
@@ -266,39 +287,36 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
   }
 
   Widget _buildFooter(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     if (_loadingMore) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: NexusSpacing.lg),
-        child: Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(child: CircularProgressIndicator(size: 16)),
       );
     }
     if (_hasMore) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: NexusSpacing.lg),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Center(
-          child: NexusButton(
-            label: '加载更多回答',
-            icon: Icons.expand_more,
-            variant: NexusButtonVariant.outlined,
+          child: Button.outline(
+            leading: const Icon(LucideIcons.chevronDown, size: 14),
+            style: const ButtonStyle.outline(
+              size: ButtonSize.small,
+              density: ButtonDensity.dense,
+            ),
             onPressed: _loadMore,
+            child: const Text('加载更多回答'),
           ),
         ),
       );
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: NexusSpacing.lg),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Center(
         child: Text(
           '— 已经到底了 —',
-          style: NexusTypography.labelSm.copyWith(
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+          style: theme.typography.xSmall.copyWith(
+            color: theme.colorScheme.mutedForeground,
           ),
         ),
       ),
@@ -306,8 +324,8 @@ class _ZhihuQuestionPageState extends State<ZhihuQuestionPage> {
   }
 }
 
-/// A single answer card: author, engagement metrics and the rich-text body
-/// rendered natively with [HtmlWidget].
+/// A single answer card: author line, the rich-text body rendered natively
+/// with [HtmlWidget], and a compact metrics footer.
 class _AnswerCard extends StatelessWidget {
   const _AnswerCard({required this.answer});
 
@@ -315,141 +333,107 @@ class _AnswerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return NexusCard(
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return OutlinedContainer(
+      borderRadius: theme.borderRadiusMd,
+      padding: ZhihuDense.readingPadding,
+      backgroundColor: scheme.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              ZhihuAuthorAvatar(imageUrl: answer.authorAvatarUrl),
-              const SizedBox(width: NexusSpacing.sm),
+              ZhihuAvatar(
+                imageUrl: answer.authorAvatarUrl,
+                name: answer.authorName,
+                size: 22,
+              ),
+              const Gap(6),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      answer.authorName.isEmpty ? '匿名用户' : answer.authorName,
-                      style: NexusTypography.bodyMd.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (answer.authorHeadline.isNotEmpty)
-                      Text(
-                        answer.authorHeadline,
-                        style: NexusTypography.labelSm.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            answer.authorName.isEmpty
+                                ? '匿名用户'
+                                : answer.authorName,
+                            style: theme.typography.small.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        if (answer.authorHeadline.isNotEmpty) ...[
+                          const Gap(6),
+                          Expanded(
+                            child: Text(
+                              answer.authorHeadline,
+                              style: theme.typography.xSmall.copyWith(
+                                color: scheme.mutedForeground,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (answer.updatedAtMs > 0) ...[
+                      const Gap(1),
+                      Text(
+                        '发布于 ${DateFormat('yyyy-MM-dd HH:mm').format(
+                          DateTime.fromMillisecondsSinceEpoch(
+                            answer.updatedAtMs,
+                          ),
+                        )}',
+                        style: theme.typography.xSmall.copyWith(
+                          color: scheme.mutedForeground,
+                        ),
                       ),
+                    ],
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: NexusSpacing.sm),
-          Wrap(
-            spacing: NexusSpacing.md,
-            runSpacing: NexusSpacing.xs,
-            children: [
-              if (answer.voteupCount > 0)
-                ZhihuMetricRow(icon: Icons.thumb_up_outlined, label: '${answer.voteupCount} 赞同'),
-              if (answer.commentCount > 0)
-                ZhihuMetricRow(icon: Icons.mode_comment_outlined, label: '${answer.commentCount} 评论'),
-              if (answer.updatedAtMs > 0)
-                ZhihuMetricRow(
-                  icon: Icons.schedule,
-                  label: DateFormat('MM-dd HH:mm').format(
-                    DateTime.fromMillisecondsSinceEpoch(answer.updatedAtMs),
-                  ),
+              const Gap(8),
+              SecondaryBadge(
+                child: Text(
+                  '${answer.voteupCount} 赞同',
+                  style: theme.typography.xSmall,
                 ),
+              ),
             ],
           ),
           if (answer.contentHtml.isNotEmpty) ...[
-            const SizedBox(height: NexusSpacing.md),
+            const Gap(8),
             HtmlWidget(
               answer.contentHtml,
-              textStyle: NexusTypography.bodyMd.copyWith(height: 1.6),
+              textStyle: theme.typography.small.copyWith(height: 1.65),
               onTapUrl: zhihuOpenInBrowser,
             ),
           ] else ...[
-            const SizedBox(height: NexusSpacing.sm),
+            const Gap(6),
             Text(
               '（该回答没有文本内容，可能在浏览器中查看）',
-              style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.onSurfaceVariant,
+              style: theme.typography.xSmall.copyWith(
+                color: scheme.mutedForeground,
               ),
+            ),
+          ],
+          if (answer.commentCount > 0) ...[
+            const Gap(6),
+            ZhihuMetric(
+              icon: LucideIcons.messageCircle,
+              label: '${answer.commentCount} 条评论',
             ),
           ],
         ],
       ),
     );
   }
-}
-
-/// Circular 32x32 author avatar with a person placeholder on load errors.
-class ZhihuAuthorAvatar extends StatelessWidget {
-  const ZhihuAuthorAvatar({super.key, required this.imageUrl});
-
-  final String imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return ClipOval(
-      child: SizedBox(
-        width: 32,
-        height: 32,
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: colorScheme.surfaceContainerHigh,
-            child: Icon(
-              Icons.person_outline,
-              size: 18,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class ZhihuMetricRow extends StatelessWidget {
-  const ZhihuMetricRow({super.key, required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 14,
-          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-        ),
-        const SizedBox(width: NexusSpacing.xs),
-        Text(label, style: NexusTypography.labelSm),
-      ],
-    );
-  }
-}
-
-/// Opens [url] in the system browser; used for links inside answer bodies
-/// and the app bar action. Always returns true so [HtmlWidget] does not
-/// attempt its own navigation.
-Future<bool> zhihuOpenInBrowser(String url) async {
-  final uri = Uri.tryParse(url);
-  if (uri == null || !uri.hasScheme) return true;
-  await launchUrl(uri, mode: LaunchMode.externalApplication);
-  return true;
 }

@@ -7,6 +7,56 @@
 /// milliseconds depending on the responding host.
 library;
 
+/// Cleans Zhihu rich-text HTML (answer / article / feed bodies) so images
+/// actually render natively.
+///
+/// Zhihu ships every content image twice:
+///
+/// * once inside `<noscript>` as a no-JS fallback. HTML parsers treat
+///   `noscript` content as plain text, so the body would render a literal
+///   `<img src="…">` tag — with a perfectly correct URL — as text;
+/// * once as a lazy-loaded `<img>` whose `src` is an inline
+///   `data:image/svg+xml` placeholder while the loadable URL sits in the
+///   `data-actualsrc` (720w preview) or `data-original` (full size)
+///   attributes.
+///
+/// The sanitizer therefore strips the `noscript` copies and promotes the
+/// lazy placeholder to a real image URL. Applied in [ZhihuAnswer.fromJson],
+/// [ZhihuArticle.fromJson] and the service's feed parsing.
+String zhihuSanitizeContentHtml(String html) {
+  if (html.isEmpty) return html;
+  var result = html.replaceAll(
+    RegExp(r'<noscript[^>]*>[\s\S]*?</noscript>', caseSensitive: false),
+    '',
+  );
+  result = result.replaceAllMapped(
+    RegExp(r'<img\b[^>]*>', caseSensitive: false),
+    (match) => _unlazyImage(match.group(0)!),
+  );
+  return result;
+}
+
+/// Returns the value of attribute [name] from a single-tag [tag] string,
+/// honoring double or single quotes; null when absent.
+String? _imageAttr(String tag, String name) {
+  final match = RegExp("$name=(?:\"([^\"]*)\"|'([^']*)')").firstMatch(tag);
+  if (match == null) return null;
+  return match.group(1) ?? match.group(2);
+}
+
+/// Swaps an `<img>`'s inline-SVG lazy placeholder `src` for the URL in
+/// `data-actualsrc` / `data-original`; other tags pass through untouched.
+String _unlazyImage(String tag) {
+  if (!tag.contains('data:image/svg')) return tag;
+  final url =
+      _imageAttr(tag, 'data-actualsrc') ?? _imageAttr(tag, 'data-original');
+  if (url == null || url.isEmpty) return tag;
+  return tag.replaceFirst(
+    RegExp('src=("[^"]*"|\'[^\']*\')'),
+    'src="$url"',
+  );
+}
+
 /// A single entry of the Zhihu hot list (热榜).
 class ZhihuHotItem {
   const ZhihuHotItem({
@@ -117,7 +167,7 @@ class ZhihuAnswer {
       authorAvatarUrl: _asString(author['avatar_url']),
       voteupCount: _asInt(json['voteup_count']),
       commentCount: _asInt(json['comment_count']),
-      contentHtml: _asString(json['content']),
+      contentHtml: zhihuSanitizeContentHtml(_asString(json['content'])),
       updatedAtMs: _asMs(updated),
     );
   }
@@ -163,7 +213,7 @@ class ZhihuArticle {
       authorAvatarUrl: _asString(author['avatar_url']),
       voteupCount: _asInt(json['voteupCount']),
       commentCount: _asInt(json['commentCount']),
-      contentHtml: _asString(json['content']),
+      contentHtml: zhihuSanitizeContentHtml(_asString(json['content'])),
       updatedAtMs: _asMs(_asInt(json['updated'])),
     );
   }

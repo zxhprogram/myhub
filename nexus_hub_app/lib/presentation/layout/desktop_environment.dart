@@ -701,9 +701,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
         fit: StackFit.expand,
         children: [
           base,
-          Container(
-            color: colorScheme.background.withValues(alpha: 0.35),
-          ),
+          Container(color: colorScheme.background.withValues(alpha: 0.35)),
         ],
       );
     });
@@ -1123,16 +1121,20 @@ class _DesktopIcon extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(48 * 0.23),
                       color: isHovering
-                          ? colorScheme.surfaceContainerLow
-                              .withValues(alpha: isDark ? 0.5 : 0.6)
-                          : colorScheme.surfaceContainerLow
-                              .withValues(alpha: isDark ? 0.25 : 0.35),
+                          ? colorScheme.surfaceContainerLow.withValues(
+                              alpha: isDark ? 0.5 : 0.6,
+                            )
+                          : colorScheme.surfaceContainerLow.withValues(
+                              alpha: isDark ? 0.25 : 0.35,
+                            ),
                       border: Border.all(
                         color: isHovering
-                            ? colorScheme.outlineVariant
-                                .withValues(alpha: isDark ? 0.6 : 0.7)
-                            : colorScheme.outlineVariant
-                                .withValues(alpha: isDark ? 0.3 : 0.4),
+                            ? colorScheme.outlineVariant.withValues(
+                                alpha: isDark ? 0.6 : 0.7,
+                              )
+                            : colorScheme.outlineVariant.withValues(
+                                alpha: isDark ? 0.3 : 0.4,
+                              ),
                       ),
                     ),
                     child: ClipRRect(
@@ -1292,10 +1294,7 @@ class _DockIconState extends State<_DockIcon> {
                       size: iconSize,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 120),
-                        child: Icon(
-                          widget.icon,
-                          size: _isHovering ? 26 : 22,
-                        ),
+                        child: Icon(widget.icon, size: _isHovering ? 26 : 22),
                       ),
                     ),
                   ),
@@ -1309,9 +1308,7 @@ class _DockIconState extends State<_DockIcon> {
                 margin: const EdgeInsets.only(top: 4),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(
-                    alpha: widget.isActive
-                        ? (_isHovering ? 0.9 : 0.6)
-                        : 0.0,
+                    alpha: widget.isActive ? (_isHovering ? 0.9 : 0.6) : 0.0,
                   ),
                   shape: BoxShape.circle,
                 ),
@@ -1466,25 +1463,13 @@ class _DockIconState extends State<_DockIcon> {
       ),
       items: [
         if (widget.isActive) ...[
-          const PopupMenuItem(
-            value: 'hide',
-            child: Text('隐藏'),
-          ),
-          const PopupMenuItem(
-            value: 'quit',
-            child: Text('退出'),
-          ),
+          const PopupMenuItem(value: 'hide', child: Text('隐藏')),
+          const PopupMenuItem(value: 'quit', child: Text('退出')),
         ] else ...[
-          const PopupMenuItem(
-            value: 'open',
-            child: Text('打开'),
-          ),
+          const PopupMenuItem(value: 'open', child: Text('打开')),
         ],
         const PopupMenuDivider(),
-        const PopupMenuItem(
-          value: 'options',
-          child: Text('选项'),
-        ),
+        const PopupMenuItem(value: 'options', child: Text('选项')),
       ],
     ).then((value) {
       if (value == null) return;

@@ -1,16 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../../data/models/zhihu_models.dart';
 import '../../../data/services/zhihu_auth_store.dart';
 import '../../../data/services/zhihu_service.dart';
-import '../../../theme/radii.dart';
-import '../../../theme/spacing.dart';
-import '../../../theme/typography.dart';
-import '../../components/nexus_button.dart';
-import '../../components/nexus_card.dart';
-import '../../components/nexus_empty_state.dart';
+import '../../components/zhihu_ui.dart';
 import 'zhihu_feed_detail_page.dart';
-import 'zhihu_question_page.dart' show ZhihuAuthorAvatar;
 
 /// The personal recommend feed (推荐 Feed) pane shown next to the hot
 /// list. Requires a stored web session; when logged out the pane turns
@@ -118,138 +112,122 @@ class ZhihuFeedPaneState extends State<ZhihuFeedPane> {
       if (!mounted) return;
       setState(() => _loadingMore = false);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text('加载更多失败：$e')));
+        zhihuShowToast(context, '加载更多失败：$e');
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     if (!ZhihuAuthStore.isLoggedIn) {
-      return NexusCard(
-        child: NexusEmptyState(
-          icon: Icons.account_circle_outlined,
-          title: '登录后查看推荐 Feed',
-          subtitle: '推荐流需要知乎登录态。点击登录后在页面中完成扫码或验证，登录成功后即可浏览。',
-          action: widget.onLoginRequested == null
-              ? null
-              : NexusButton(
-                  label: '登录知乎',
-                  icon: Icons.login,
-                  onPressed: () => widget.onLoginRequested!(),
+      return ZhihuEmptyState(
+        icon: LucideIcons.circleUser,
+        title: '登录后查看推荐 Feed',
+        subtitle: '推荐流需要知乎登录态。点击登录后在页面中完成扫码或验证，登录成功后即可浏览。',
+        action: widget.onLoginRequested == null
+            ? null
+            : Button.primary(
+                leading: const Icon(LucideIcons.logIn, size: 14),
+                style: const ButtonStyle.primary(
+                  size: ButtonSize.small,
+                  density: ButtonDensity.dense,
                 ),
-        ),
+                onPressed: () => widget.onLoginRequested!(),
+                child: const Text('登录知乎'),
+              ),
       );
     }
     if (_loadingFirst) {
-      return NexusCard(
-        child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: colorScheme.primary.withValues(alpha: 0.6),
-            ),
-          ),
-        ),
-      );
+      return const Center(child: CircularProgressIndicator(size: 18));
     }
     if (_error != null && _items.isEmpty) {
-      return NexusCard(
-        child: NexusEmptyState(
-          icon: Icons.cloud_off,
-          title: 'Feed 加载失败',
-          subtitle: _error!,
-          action: NexusButton(
-            label: '重试',
-            icon: Icons.refresh,
-            onPressed: _loadFirst,
+      return ZhihuEmptyState(
+        icon: LucideIcons.cloudOff,
+        title: 'Feed 加载失败',
+        subtitle: _error!,
+        action: Button.outline(
+          leading: const Icon(LucideIcons.refreshCw, size: 14),
+          style: const ButtonStyle.outline(
+            size: ButtonSize.small,
+            density: ButtonDensity.dense,
           ),
+          onPressed: _loadFirst,
+          child: const Text('重试'),
         ),
       );
     }
     if (_items.isEmpty) {
-      return NexusCard(
-        child: NexusEmptyState(
-          icon: Icons.feed_outlined,
-          title: '暂无推荐内容',
-          subtitle: '刷新以重新获取推荐 Feed。',
-          action: NexusButton(
-            label: '刷新',
-            icon: Icons.refresh,
-            variant: NexusButtonVariant.outlined,
-            onPressed: _loadFirst,
+      return ZhihuEmptyState(
+        icon: LucideIcons.rss,
+        title: '暂无推荐内容',
+        subtitle: '刷新以重新获取推荐 Feed。',
+        action: Button.outline(
+          leading: const Icon(LucideIcons.refreshCw, size: 14),
+          style: const ButtonStyle.outline(
+            size: ButtonSize.small,
+            density: ButtonDensity.dense,
           ),
+          onPressed: _loadFirst,
+          child: const Text('刷新'),
         ),
       );
     }
-    return RefreshIndicator(
-      onRefresh: _loadFirst,
-      child: ListView.separated(
-        padding: const EdgeInsets.only(bottom: NexusSpacing.xl),
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: _items.length + 1,
-        separatorBuilder: (_, _) => const SizedBox(height: NexusSpacing.sm),
-        itemBuilder: (context, index) {
-          if (index < _items.length) {
-            final item = _items[index];
-            return _FeedCard(
-              item: item,
-              selected: item.id == widget.selectedItemId,
-              onTap: () {
-                final onSelected = widget.onItemSelected;
-                if (onSelected != null) {
-                  onSelected(item);
-                } else {
-                  _openItem(item);
-                }
-              },
-            );
-          }
-          return _buildFooter(context);
-        },
-      ),
+    return ListView.separated(
+      padding: const EdgeInsets.only(bottom: 24),
+      itemCount: _items.length + 1,
+      separatorBuilder: (_, _) => const Gap(ZhihuDense.listGap),
+      itemBuilder: (context, index) {
+        if (index < _items.length) {
+          final item = _items[index];
+          return _FeedCard(
+            item: item,
+            selected: item.id == widget.selectedItemId,
+            onTap: () {
+              final onSelected = widget.onItemSelected;
+              if (onSelected != null) {
+                onSelected(item);
+              } else {
+                _openItem(item);
+              }
+            },
+          );
+        }
+        return _buildFooter(context);
+      },
     );
   }
 
   Widget _buildFooter(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     if (_loadingMore) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: NexusSpacing.lg),
-        child: Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(child: CircularProgressIndicator(size: 16)),
       );
     }
     if (_hasMore) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: NexusSpacing.lg),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Center(
-          child: NexusButton(
-            label: '加载更多',
-            icon: Icons.expand_more,
-            variant: NexusButtonVariant.outlined,
+          child: Button.outline(
+            leading: const Icon(LucideIcons.chevronDown, size: 14),
+            style: const ButtonStyle.outline(
+              size: ButtonSize.small,
+              density: ButtonDensity.dense,
+            ),
             onPressed: _loadMore,
+            child: const Text('加载更多'),
           ),
         ),
       );
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: NexusSpacing.lg),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Center(
         child: Text(
           '— 没有更多推荐了 —',
-          style: NexusTypography.labelSm.copyWith(
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+          style: theme.typography.xSmall.copyWith(
+            color: theme.colorScheme.mutedForeground,
           ),
         ),
       ),
@@ -265,8 +243,9 @@ class ZhihuFeedPaneState extends State<ZhihuFeedPane> {
   }
 }
 
-/// A single feed card: author, question/article title, excerpt preview,
-/// metrics and an optional thumbnail.
+/// A single feed card: question/article title, excerpt preview, and a
+/// compact author row (avatar, name, headline) with engagement metrics,
+/// plus an optional thumbnail.
 class _FeedCard extends StatelessWidget {
   const _FeedCard({
     required this.item,
@@ -289,100 +268,125 @@ class _FeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return NexusCard(
-      onTap: onTap,
-      highlight: selected,
-      padding: const EdgeInsets.all(NexusSpacing.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: OutlinedContainer(
+          backgroundColor: selected
+              ? scheme.primary.withValues(alpha: 0.07)
+              : scheme.card,
+          borderColor: selected
+              ? scheme.primary.withValues(alpha: 0.6)
+              : scheme.border,
+          borderWidth: selected ? 1.4 : 1,
+          borderRadius: theme.borderRadiusMd,
+          padding: ZhihuDense.cardPadding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ZhihuAuthorAvatar(imageUrl: item.authorAvatarUrl),
-                    const SizedBox(width: NexusSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        item.authorName.isEmpty ? '匿名用户' : item.authorName,
-                        style: NexusTypography.labelMd.copyWith(
-                          fontWeight: FontWeight.w600,
+                    if (item.title.isNotEmpty) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.title,
+                              style: theme.typography.small.copyWith(
+                                fontWeight: FontWeight.w600,
+                                height: 1.4,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Gap(6),
+                          ZhihuTag(_typeLabel),
+                        ],
+                      ),
+                    ] else ...[
+                      ZhihuTag(_typeLabel),
+                    ],
+                    if (item.excerpt.isNotEmpty) ...[
+                      const Gap(2),
+                      Text(
+                        item.excerpt,
+                        style: theme.typography.xSmall.copyWith(
+                          color: scheme.mutedForeground,
+                          height: 1.45,
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    ],
+                    const Gap(5),
+                    Row(
+                      children: [
+                        ZhihuAvatar(
+                          imageUrl: item.authorAvatarUrl,
+                          name: item.authorName,
+                          size: 16,
+                        ),
+                        const Gap(4),
+                        Flexible(
+                          child: Text(
+                            item.authorName.isEmpty ? '匿名用户' : item.authorName,
+                            style: theme.typography.xSmall.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (item.authorHeadline.isNotEmpty) ...[
+                          const Gap(4),
+                          Expanded(
+                            child: Text(
+                              item.authorHeadline,
+                              style: theme.typography.xSmall.copyWith(
+                                color: scheme.mutedForeground,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                        const Gap(8),
+                        if (item.voteupCount > 0)
+                          ZhihuMetric(
+                            icon: LucideIcons.arrowBigUp,
+                            label: '${item.voteupCount}',
+                          ),
+                        const Gap(8),
+                        if (item.commentCount > 0)
+                          ZhihuMetric(
+                            icon: LucideIcons.messageCircle,
+                            label: '${item.commentCount}',
+                          ),
+                      ],
                     ),
-                    const SizedBox(width: NexusSpacing.sm),
-                    Text(_typeLabel, style: NexusTypography.labelSm),
                   ],
                 ),
-                if (item.title.isNotEmpty) ...[
-                  const SizedBox(height: NexusSpacing.sm),
-                  Text(
-                    item.title,
-                    style: NexusTypography.bodyMd.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                if (item.excerpt.isNotEmpty) ...[
-                  const SizedBox(height: NexusSpacing.xs),
-                  Text(
-                    item.excerpt,
-                    style: NexusTypography.labelMd.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                const SizedBox(height: NexusSpacing.sm),
-                Row(
-                  children: [
-                    if (item.voteupCount > 0) ...[
-                      Icon(
-                        Icons.thumb_up_outlined,
-                        size: 14,
-                        color: colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
-                      const SizedBox(width: NexusSpacing.xs),
-                      Text('${item.voteupCount}', style: NexusTypography.labelSm),
-                      const SizedBox(width: NexusSpacing.md),
-                    ],
-                    if (item.commentCount > 0) ...[
-                      Icon(
-                        Icons.mode_comment_outlined,
-                        size: 14,
-                        color: colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
-                      const SizedBox(width: NexusSpacing.xs),
-                      Text('${item.commentCount}', style: NexusTypography.labelSm),
-                    ],
-                  ],
-                ),
+              ),
+              if (item.thumbnail.isNotEmpty) ...[
+                const Gap(8),
+                _FeedThumbnail(imageUrl: item.thumbnail),
               ],
-            ),
+            ],
           ),
-          if (item.thumbnail.isNotEmpty) ...[
-            const SizedBox(width: NexusSpacing.md),
-            _FeedThumbnail(imageUrl: item.thumbnail),
-          ],
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Optional 96x72 card cover with a graceful placeholder on load errors.
+/// Optional 84x60 card cover with a graceful placeholder on load errors.
 class _FeedThumbnail extends StatelessWidget {
   const _FeedThumbnail({required this.imageUrl});
 
@@ -390,21 +394,21 @@ class _FeedThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
     return ClipRRect(
-      borderRadius: NexusRadii.lgRadius,
+      borderRadius: BorderRadius.circular(6),
       child: SizedBox(
-        width: 96,
-        height: 72,
+        width: ZhihuDense.thumbWidth,
+        height: ZhihuDense.thumbHeight,
         child: Image.network(
           imageUrl,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => Container(
-            color: colorScheme.surfaceContainerHigh,
+            color: theme.colorScheme.muted,
             child: Icon(
-              Icons.image_outlined,
-              size: 20,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              LucideIcons.imageOff,
+              size: 16,
+              color: theme.colorScheme.mutedForeground,
             ),
           ),
         ),
