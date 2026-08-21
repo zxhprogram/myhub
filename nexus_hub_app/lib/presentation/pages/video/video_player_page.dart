@@ -602,49 +602,52 @@ class _SourceSwitcherButton extends StatelessWidget {
         PopoverConfiguration(
           alignment: Alignment.topLeft,
           anchorAlignment: Alignment.bottomLeft,
-          builder: (context) => MenuPopup(
-            children: [
-              for (final source in VideoSiteConfigStorage.sources)
-                MenuButton(
-                  leading: source.id == config.id
-                      ? Icon(
-                          RadixIcons.check,
-                          size: 16,
-                          color: colorScheme.primary,
-                        )
-                      : null,
-                  onPressed: (context) {
-                    if (source.id == config.id) return;
-                    onSelected(source.id);
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        source.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        source.domain,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: NexusTypography.labelSm.copyWith(
-                          color: colorScheme.mutedForeground,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              const MenuDivider(),
+          builder: (context) => MenuGroup(
+          direction: Axis.vertical,
+          onDismissed: () => closeOverlay(context),
+          builder: (context, children) => MenuPopup(children: children),
+          children: [
+            for (final source in VideoSiteConfigStorage.sources)
               MenuButton(
-                leading: const Icon(RadixIcons.gear, size: 16),
-                onPressed: (context) => onManage(),
-                child: const Text('管理数据源…'),
+                leading: source.id == config.id
+                    ? Icon(
+                        RadixIcons.check,
+                        size: 16,
+                        color: colorScheme.primary,
+                      )
+                    : null,
+                onPressed: (context) {
+                  if (source.id == config.id) return;
+                  onSelected(source.id);
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      source.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      source.domain,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: NexusTypography.labelSm.copyWith(
+                        color: colorScheme.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            const MenuDivider(),
+            MenuButton(
+              leading: const Icon(RadixIcons.gear, size: 16),
+              onPressed: (context) => onManage(),
+              child: const Text('管理数据源…'),
+            ),
+          ],
+        ),
         ),
       ),
       child: Container(

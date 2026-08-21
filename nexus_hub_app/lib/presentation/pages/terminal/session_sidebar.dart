@@ -115,7 +115,10 @@ class TerminalSidebar extends StatelessWidget {
               PopoverConfiguration(
                 alignment: Alignment.center,
                 anchorAlignment: Alignment.topRight,
-                builder: (context) => MenuPopup(
+                builder: (context) => MenuGroup(
+                  direction: Axis.vertical,
+                  onDismissed: () => closeOverlay(context),
+                  builder: (context, children) => MenuPopup(children: children),
                   children: [
                     MenuButton(
                       leading: const Icon(
