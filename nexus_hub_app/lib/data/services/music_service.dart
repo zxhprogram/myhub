@@ -17,10 +17,10 @@ enum MusicServer {
 /// Service that talks to the mu-jie.cc musicBox API (`fy-musicbox-api`).
 ///
 /// The API is a meting-style music aggregator. Song stream URLs are
-/// meting endpoints that redirect (302) to the real CDN audio when the
-/// request carries an audio `Accept` header — the headless WebView audio
-/// element handles this transparently, so track [MusicTrack.url] values
-/// can be used directly as `<audio src>`.
+/// meting endpoints that redirect (302) to the real CDN audio. The CDN
+/// only serves requests carrying the mu-jie.cc site Referer (any other
+/// value — including none — gets a 403), which the music player engine
+/// adds via per-media HTTP headers.
 class MusicService {
   MusicService({Dio? dio})
       : _dio = dio ??

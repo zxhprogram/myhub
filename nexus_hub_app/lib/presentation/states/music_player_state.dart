@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/music_playlist_model.dart';
@@ -17,12 +16,12 @@ enum MusicBrowseMode { playlists, search }
 
 /// Signals-backed singleton for the online music player.
 ///
-/// Playback is delegated to an HTML5 `<audio>` element running inside a
-/// headless WebView, so tracks keep streaming even after the player window
-/// is closed — mirroring how macOS apps keep playing in the background.
-/// The Dart side only sends control commands (play/pause/seek/volume) via
-/// `evaluateJavascript` and receives progress events back through a
-/// JavaScript handler.
+/// Playback runs on a media_kit (libmpv) [Player] — no browser engine is
+/// involved, and tracks keep streaming even after the player window is
+/// closed. Track [MusicTrack.url] values are meting endpoints that
+/// redirect (302) to the netease CDN, which only serves requests carrying
+/// the mu-jie.cc site Referer (no Referer or any other domain gets a
+/// 403), so every track is opened with explicit [_audioHeaders].
 ///
 /// Track data is sourced from the mu-jie.cc musicBox API.
 class MusicPlayerState {
@@ -89,12 +88,21 @@ class MusicPlayerState {
     return idx >= 0 && idx < list.length ? list[idx] : null;
   }
 
-  HeadlessInAppWebView? _webview;
-  InAppWebViewController? _controller;
+  Player? _player;
   Future<void>? _boot;
+  final List<StreamSubscription<void>> _subscriptions = [];
+  Timer? _loadWatchdog;
 
-  /// Boots the headless audio tab. Idempotent — the first call creates the
-  /// WebView, later calls return the same future.
+  /// Headers required by the stream CDN — without the mu-jie.cc Referer
+  /// every audio request is answered with HTTP 403.
+  static const Map<String, String> _audioHeaders = {
+    'Referer': 'https://mu-jie.cc/musicBox/',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+  };
+
+  /// Boots the audio engine. Idempotent — the first call creates the
+  /// [Player], later calls return the same future.
   Future<void> init() => _boot ??= _bootEngine();
 
   /// Loads recommended playlists from the API. Called once when the music
@@ -173,30 +181,34 @@ class MusicPlayerState {
   }
 
   Future<void> _bootEngine() async {
-    final pageReady = Completer<void>();
-    final webview = HeadlessInAppWebView(
-      initialData: InAppWebViewInitialData(data: _audioHtml),
-      initialSettings: InAppWebViewSettings(
-        // The Flutter play button is the user gesture; the audio element
-        // itself never receives one, so it must not require it.
-        mediaPlaybackRequiresUserGesture: false,
-      ),
-      onWebViewCreated: (controller) {
-        _controller = controller;
-        controller.addJavaScriptHandler(
-          handlerName: 'audioEvent',
-          callback: (args) => _onAudioEvent(args),
-        );
-      },
-      onLoadStop: (_, _) {
-        if (!pageReady.isCompleted) pageReady.complete();
-      },
-    );
-    _webview = webview;
-    await webview.run();
-    // Give the audio page a moment to load; on timeout the first command
-    // simply retries when the user interacts again.
-    await pageReady.future.timeout(const Duration(seconds: 5), onTimeout: () {});
+    final player = Player();
+    _player = player;
+    await player.setVolume(volume.value * 100);
+    _subscriptions.addAll([
+      player.stream.playing.listen((value) {
+        isPlaying.value = value;
+        if (value) {
+          isBuffering.value = false;
+          _loadWatchdog?.cancel();
+        }
+      }),
+      player.stream.buffering.listen((value) => isBuffering.value = value),
+      player.stream.position.listen((position) {
+        if (position > Duration.zero) _loadWatchdog?.cancel();
+        positionSeconds.value = position.inMilliseconds / 1000;
+      }),
+      player.stream.duration.listen((duration) {
+        final seconds = duration.inMilliseconds / 1000;
+        if (seconds > 0) {
+          durationSeconds.value = seconds;
+          _loadWatchdog?.cancel();
+        }
+      }),
+      player.stream.completed.listen((completed) {
+        if (completed) _handleTrackEnded();
+      }),
+      player.stream.error.listen((_) => _handleLoadFailure()),
+    ]);
   }
 
   /// Starts streaming [index], replacing whatever was playing.
@@ -207,9 +219,16 @@ class MusicPlayerState {
     positionSeconds.value = 0;
     durationSeconds.value = 0;
     isBuffering.value = true;
+    errorMessage.value = null;
     await init();
-    await _runJs("playerLoad('${list[index].url}')");
-    await _runJs('playerSetVolume(${volume.value})');
+    // libmpv reports some load failures only through its log (surfaced
+    // as error-stream events), but a few fail silently — watch for the
+    // first sign of life and treat its absence as a failed load.
+    _loadWatchdog?.cancel();
+    _loadWatchdog = Timer(const Duration(seconds: 15), _handleLoadFailure);
+    await _player?.open(
+      Media(list[index].url, httpHeaders: _audioHeaders),
+    );
   }
 
   /// Plays the first track when nothing is loaded, otherwise toggles
@@ -220,9 +239,9 @@ class MusicPlayerState {
       return;
     }
     if (isPlaying.value) {
-      _runJs('playerPause()');
+      _player?.pause();
     } else {
-      _runJs('playerPlay()');
+      _player?.play();
     }
   }
 
@@ -264,13 +283,13 @@ class MusicPlayerState {
   /// Moves the playback head to [seconds] within the loaded track.
   void seekTo(double seconds) {
     positionSeconds.value = seconds;
-    _runJs('playerSeek($seconds)');
+    _player?.seek(Duration(milliseconds: (seconds * 1000).round()));
   }
 
   /// Sets the output volume in the 0..1 range.
   void setVolume(double value) {
     volume.value = value.clamp(0.0, 1.0).toDouble();
-    _runJs('playerSetVolume(${volume.value})');
+    _player?.setVolume(volume.value * 100);
   }
 
   void toggleShuffle() => shuffle.value = !shuffle.value;
@@ -283,12 +302,18 @@ class MusicPlayerState {
     };
   }
 
-  /// Stops the audio engine and releases the headless browser tab.
+  /// Stops the audio engine and releases the player.
   Future<void> disposeEngine() async {
-    await _webview?.dispose();
-    _webview = null;
-    _controller = null;
+    _loadWatchdog?.cancel();
+    _loadWatchdog = null;
+    for (final subscription in _subscriptions) {
+      await subscription.cancel();
+    }
+    _subscriptions.clear();
+    final player = _player;
+    _player = null;
     _boot = null;
+    await player?.dispose();
     isPlaying.value = false;
     isBuffering.value = false;
   }
@@ -298,8 +323,8 @@ class MusicPlayerState {
     switch (repeatMode.value) {
       case MusicRepeatMode.one:
         positionSeconds.value = 0;
-        _runJs('playerSeek(0)');
-        _runJs('playerPlay()');
+        _player?.seek(Duration.zero);
+        _player?.play();
       case MusicRepeatMode.all:
         next();
       case MusicRepeatMode.off:
@@ -312,86 +337,14 @@ class MusicPlayerState {
     }
   }
 
-  /// Decodes progress reports coming from the audio element.
-  void _onAudioEvent(List<dynamic> args) {
-    if (args.isEmpty) return;
-    final Map<String, dynamic> event;
-    try {
-      event = jsonDecode(args.first.toString()) as Map<String, dynamic>;
-    } catch (_) {
-      return;
-    }
-    final name = event['event'] as String?;
-    final currentTime =
-        (event['currentTime'] as num?)?.toDouble() ?? positionSeconds.value;
-    final duration =
-        (event['duration'] as num?)?.toDouble() ?? durationSeconds.value;
-    switch (name) {
-      case 'timeupdate':
-        positionSeconds.value = currentTime;
-      case 'durationchange':
-        if (duration > 0) durationSeconds.value = duration;
-      case 'play' || 'playing':
-        isPlaying.value = true;
-        isBuffering.value = false;
-      case 'pause':
-        isPlaying.value = false;
-      case 'waiting' || 'loadstart':
-        isBuffering.value = true;
-      case 'ended':
-        _handleTrackEnded();
-      case 'error':
-        isPlaying.value = false;
-        isBuffering.value = false;
-    }
+  /// Marks the current track as unloadable. Only reacts while the track
+  /// never produced audio (mid-playback hiccups are left to libmpv's own
+  /// recovery, matching the silent stall of a dropped stream).
+  void _handleLoadFailure() {
+    _loadWatchdog?.cancel();
+    if (durationSeconds.value > 0 || positionSeconds.value > 0) return;
+    isPlaying.value = false;
+    isBuffering.value = false;
+    errorMessage.value = '音频加载失败，该歌曲可能暂时不可用';
   }
-
-  Future<void> _runJs(String source) async {
-    try {
-      await _controller?.evaluateJavascript(source: source);
-    } catch (_) {
-      // The audio tab may not be ready yet; the next command retries.
-    }
-  }
-
-  /// Minimal page hosting the audio element and its control bridge.
-  static const String _audioHtml = '''
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body>
-<audio id="player" preload="auto"></audio>
-<script>
-(function() {
-  var player = document.getElementById('player');
-  function send(event) {
-    try {
-      window.flutter_inappwebview.callHandler('audioEvent', JSON.stringify({
-        event: event,
-        currentTime: player.currentTime || 0,
-        duration: isFinite(player.duration) ? player.duration : 0
-      }));
-    } catch (e) { /* bridge not ready yet */ }
-  }
-  ['timeupdate', 'durationchange', 'play', 'pause', 'waiting', 'playing',
-   'loadstart', 'ended', 'error'].forEach(function(evt) {
-    player.addEventListener(evt, function() { send(evt); });
-  });
-  window.playerLoad = function(url) {
-    player.src = url;
-    var p = player.play();
-    if (p && p.catch) p.catch(function() {});
-  };
-  window.playerPlay = function() {
-    var p = player.play();
-    if (p && p.catch) p.catch(function() {});
-  };
-  window.playerPause = function() { player.pause(); };
-  window.playerSeek = function(t) { try { player.currentTime = t; } catch (e) {} };
-  window.playerSetVolume = function(v) { try { player.volume = v; } catch (e) {} };
-})();
-</script>
-</body>
-</html>
-''';
 }

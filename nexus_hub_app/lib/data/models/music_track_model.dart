@@ -16,12 +16,12 @@ class MusicTrack {
   final String artist;
   final String album;
 
-  /// Direct stream URL played by the embedded browser audio engine.
+  /// Direct stream URL played by the audio engine.
   ///
   /// For the mu-jie.cc musicBox API this is a meting endpoint URL that
-  /// redirects (302) to the real audio CDN when requested with an audio
-  /// `Accept` header — the headless WebView's `<audio>` element does this
-  /// automatically.
+  /// redirects (302) to the real audio CDN. The CDN requires the
+  /// mu-jie.cc Referer on the request, which the player engine adds via
+  /// per-media HTTP headers.
   final String url;
 
   /// Cover-art image URL, empty when not provided by the source.
