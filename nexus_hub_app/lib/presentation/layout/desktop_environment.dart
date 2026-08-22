@@ -20,6 +20,7 @@ import '../pages/ai_chat_page.dart';
 import '../pages/bookmarks_page.dart';
 import '../pages/calendar_page.dart';
 import '../pages/camera_page.dart';
+import '../pages/clash/clash_app_page.dart';
 import '../pages/clipboard_history_page.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/dev_tools_page.dart';
@@ -330,6 +331,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const EbookLibraryPage(),
       gradientStart: const Color(0xFF64D2FF),
       gradientEnd: const Color(0xFF1E5AF0),
+    ),
+    DesktopAppItem(
+      label: 'Clash',
+      icon: LucideIcons.shield,
+      route: '/clash',
+      pageBuilder: (_) => const ClashAppPage(),
+      gradientStart: const Color(0xFF60A5FA),
+      gradientEnd: const Color(0xFF4338CA),
     ),
   ];
 

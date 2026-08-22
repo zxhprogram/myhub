@@ -5,6 +5,7 @@ import 'presentation/layout/app_shell.dart';
 import 'presentation/pages/ai_chat_page.dart';
 import 'presentation/pages/bookmarks_page.dart';
 import 'presentation/pages/camera_page.dart';
+import 'presentation/pages/clash/clash_app_page.dart';
 import 'presentation/pages/clipboard_history_page.dart';
 import 'presentation/pages/dashboard_page.dart';
 import 'presentation/pages/dev_tools_page.dart';
@@ -96,6 +97,10 @@ class AppRouter {
           GoRoute(
             path: '/ebooks',
             builder: (context, state) => const EbookLibraryPage(),
+          ),
+          GoRoute(
+            path: '/clash',
+            builder: (context, state) => const ClashAppPage(),
           ),
         ],
       ),
