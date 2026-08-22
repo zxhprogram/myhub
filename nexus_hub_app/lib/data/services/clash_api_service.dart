@@ -173,6 +173,81 @@ class ClashApiService {
     throw const ClashApiException('无效的 /connections 响应');
   }
 
+  /// `GET /providers/proxies` — external proxy providers.
+  Future<List<ClashProxyProvider>> fetchProxyProviders() async {
+    final data = await _getJson('/providers/proxies');
+    if (data is! Map<String, dynamic>) return const [];
+    final providers = data['providers'];
+    if (providers is! Map<String, dynamic>) return const [];
+    return providers.values
+        .map(
+          (item) =>
+              item is Map<String, dynamic>
+                  ? ClashProxyProvider.fromJson(item)
+                  : null,
+        )
+        .whereType<ClashProxyProvider>()
+        .toList();
+  }
+
+  /// `PUT /providers/proxies/:name` — refresh one provider from its source.
+  Future<void> updateProxyProvider(String name) async {
+    try {
+      await _dio.put<void>(
+        '/providers/proxies/${Uri.encodeComponent(name)}',
+      );
+    } on DioException catch (error) {
+      _fail(error);
+    }
+  }
+
+  /// `GET /providers/proxies/:name/healthcheck` — latency of every node in
+  /// the provider (FlClash's provider health check action).
+  Future<Map<String, int>> healthcheckProxyProvider(String name) async {
+    try {
+      final response = await _dio.get<dynamic>(
+        '/providers/proxies/${Uri.encodeComponent(name)}/healthcheck',
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return data.map(
+          (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0),
+        );
+      }
+      return const {};
+    } on DioException catch (error) {
+      _fail(error);
+    }
+  }
+
+  /// `GET /providers/rules` — external rule providers.
+  Future<List<ClashRuleProvider>> fetchRuleProviders() async {
+    final data = await _getJson('/providers/rules');
+    if (data is! Map<String, dynamic>) return const [];
+    final providers = data['providers'];
+    if (providers is! Map<String, dynamic>) return const [];
+    return providers.values
+        .map(
+          (item) =>
+              item is Map<String, dynamic>
+                  ? ClashRuleProvider.fromJson(item)
+                  : null,
+        )
+        .whereType<ClashRuleProvider>()
+        .toList();
+  }
+
+  /// `PUT /providers/rules/:name` — refresh one rule provider.
+  Future<void> updateRuleProvider(String name) async {
+    try {
+      await _dio.put<void>(
+        '/providers/rules/${Uri.encodeComponent(name)}',
+      );
+    } on DioException catch (error) {
+      _fail(error);
+    }
+  }
+
   /// `PUT /proxies/:group` — select the active node of a group.
   Future<void> selectProxy(String group, String name) async {
     try {
@@ -237,6 +312,14 @@ class ClashApiService {
   Stream<ClashTraffic> streamTraffic(CancelToken cancelToken) {
     return _streamJsonLines('/traffic', null, cancelToken).map(
       ClashTraffic.fromJson,
+    );
+  }
+
+  /// `GET /memory` — one `{"inuse": ..}` JSON object per second (mihomo
+  /// extension, FlClash's dashboard memory widget).
+  Stream<int> streamMemory(CancelToken cancelToken) {
+    return _streamJsonLines('/memory', null, cancelToken).map(
+      (json) => (json['inuse'] as num?)?.toInt() ?? 0,
     );
   }
 

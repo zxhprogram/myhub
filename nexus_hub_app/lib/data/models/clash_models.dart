@@ -44,6 +44,13 @@ enum ClashLogLevel {
 
   const ClashLogLevel(this.value);
 
+  String get label => switch (this) {
+    ClashLogLevel.debug => '调试',
+    ClashLogLevel.info => '信息',
+    ClashLogLevel.warning => '警告',
+    ClashLogLevel.error => '错误',
+  };
+
   static ClashLogLevel parse(String? value) {
     return ClashLogLevel.values.firstWhere(
       (level) => level.value == value?.toLowerCase(),
@@ -421,24 +428,46 @@ class ClashRule {
   String get display => payload.isEmpty ? type : '$type, $payload';
 }
 
-/// Runtime configuration of `GET /configs` (only the dashboard-relevant
-/// subset; the full patch surface is FlClash's overwrite editor).
+/// Runtime configuration of `GET /configs`.
+///
+/// Covers the general fields the settings screen can hot-patch through
+/// `PATCH /configs` (FlClash's `PatchClashConfig` surface) plus the parsed
+/// `tun` / `dns` sections.
 class ClashRunningConfig {
   const ClashRunningConfig({
     this.mode = ClashProxyMode.rule,
     this.mixedPort,
     this.port,
     this.socksPort,
+    this.redirPort,
+    this.tproxyPort,
     this.allowLan = false,
     this.logLevel = ClashLogLevel.info,
+    this.ipv6 = false,
+    this.unifiedDelay = false,
+    this.tcpConcurrent = false,
+    this.findProcessMode = 'rule',
+    this.tun,
+    this.dns,
   });
 
   final ClashProxyMode mode;
   final int? mixedPort;
   final int? port;
   final int? socksPort;
+  final int? redirPort;
+  final int? tproxyPort;
   final bool allowLan;
   final ClashLogLevel logLevel;
+  final bool ipv6;
+  final bool unifiedDelay;
+  final bool tcpConcurrent;
+
+  /// `rule` / `always` / `off`.
+  final String findProcessMode;
+
+  final ClashTunSettings? tun;
+  final ClashDnsSettings? dns;
 
   factory ClashRunningConfig.fromJson(Map<String, dynamic> json) {
     int? portOf(String key) {
@@ -447,13 +476,27 @@ class ClashRunningConfig {
       return null;
     }
 
+    final tunJson = json['tun'];
+    final dnsJson = json['dns'];
     return ClashRunningConfig(
       mode: ClashProxyMode.parse(json['mode']?.toString()),
       mixedPort: portOf('mixed-port'),
       port: portOf('port'),
       socksPort: portOf('socks-port'),
+      redirPort: portOf('redir-port'),
+      tproxyPort: portOf('tproxy-port'),
       allowLan: json['allow-lan'] as bool? ?? false,
       logLevel: ClashLogLevel.parse(json['log-level']?.toString()),
+      ipv6: json['ipv6'] as bool? ?? false,
+      unifiedDelay: json['unified-delay'] as bool? ?? false,
+      tcpConcurrent: json['tcp-concurrent'] as bool? ?? false,
+      findProcessMode: json['find-process-mode']?.toString() ?? 'rule',
+      tun: tunJson is Map
+          ? ClashTunSettings.fromMap(Map<String, dynamic>.from(tunJson))
+          : null,
+      dns: dnsJson is Map
+          ? ClashDnsSettings.fromMap(Map<String, dynamic>.from(dnsJson))
+          : null,
     );
   }
 
@@ -466,6 +509,345 @@ class ClashRunningConfig {
     final socks = socksPort;
     if (socks != null && socks > 0) return '$socks';
     return '-';
+  }
+
+  /// The inbound port as a number, when any listener is active.
+  int? get inboundPortValue {
+    final mixed = mixedPort;
+    if (mixed != null && mixed > 0) return mixed;
+    final http = port;
+    if (http != null && http > 0) return http;
+    final socks = socksPort;
+    if (socks != null && socks > 0) return socks;
+    return null;
+  }
+}
+
+/// TUN inbound settings, ported from FlClash's `Tun` patch model.
+///
+/// Sent as the `tun` payload of `PATCH /configs`; the controller replaces the
+/// whole `tun` block, so edits always ship the merged map via [toMap].
+class ClashTunSettings {
+  const ClashTunSettings({
+    this.enable = false,
+    this.stack = 'gvisor',
+    this.device,
+    this.autoRoute = true,
+    this.autoDetectInterface = true,
+    this.dnsHijack = const ['any:53'],
+  });
+
+  final bool enable;
+
+  /// `system` / `gvisor` / `mixed`.
+  final String stack;
+  final String? device;
+  final bool autoRoute;
+  final bool autoDetectInterface;
+  final List<String> dnsHijack;
+
+  factory ClashTunSettings.fromMap(Map<String, dynamic> map) {
+    return ClashTunSettings(
+      enable: map['enable'] as bool? ?? false,
+      stack: map['stack']?.toString() ?? 'gvisor',
+      device: map['device']?.toString(),
+      autoRoute: map['auto-route'] as bool? ?? true,
+      autoDetectInterface: map['auto-detect-interface'] as bool? ?? true,
+      dnsHijack: (map['dns-hijack'] as List<dynamic>? ?? const [])
+          .map((item) => item.toString())
+          .toList(),
+    );
+  }
+
+  ClashTunSettings copyWith({
+    bool? enable,
+    String? stack,
+    String? device,
+    bool? autoRoute,
+    List<String>? dnsHijack,
+  }) {
+    return ClashTunSettings(
+      enable: enable ?? this.enable,
+      stack: stack ?? this.stack,
+      device: device ?? this.device,
+      autoRoute: autoRoute ?? this.autoRoute,
+      autoDetectInterface: autoDetectInterface,
+      dnsHijack: dnsHijack ?? this.dnsHijack,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'enable': enable,
+    'stack': stack,
+    if (device != null && device!.isNotEmpty) 'device': device,
+    'auto-route': autoRoute,
+    'auto-detect-interface': autoDetectInterface,
+    if (dnsHijack.isNotEmpty) 'dns-hijack': dnsHijack,
+  };
+}
+
+/// DNS settings, ported from FlClash's `Dns` patch model.
+///
+/// The external controller cannot hot-patch DNS, so an override is merged
+/// into the profile YAML on activation (FlClash's `overrideDns` behavior).
+/// Kebab-case keys double as both the YAML field names and the persistence
+/// format.
+class ClashDnsSettings {
+  const ClashDnsSettings({
+    this.enable = true,
+    this.listen = '',
+    this.enhancedMode = 'fake-ip',
+    this.fakeIpRange = '198.18.0.1/16',
+    this.fakeIpFilter = const [],
+    this.defaultNameserver = const [],
+    this.nameserver = const [],
+    this.fallback = const [],
+    this.nameserverPolicy = const {},
+    this.useHosts = false,
+    this.ipv6 = false,
+    this.respectRules = false,
+  });
+
+  final bool enable;
+  final String listen;
+
+  /// `fake-ip` / `redir-host`.
+  final String enhancedMode;
+  final String fakeIpRange;
+  final List<String> fakeIpFilter;
+  final List<String> defaultNameserver;
+  final List<String> nameserver;
+  final List<String> fallback;
+  final Map<String, List<String>> nameserverPolicy;
+  final bool useHosts;
+  final bool ipv6;
+  final bool respectRules;
+
+  factory ClashDnsSettings.fromMap(Map<String, dynamic> map) {
+    List<String> strings(String key) => (map[key] as List<dynamic>? ?? const [])
+        .map((item) => item.toString())
+        .toList();
+    final policyJson = map['nameserver-policy'];
+    return ClashDnsSettings(
+      enable: map['enable'] as bool? ?? true,
+      listen: map['listen']?.toString() ?? '',
+      enhancedMode: map['enhanced-mode']?.toString() ?? 'fake-ip',
+      fakeIpRange: map['fake-ip-range']?.toString() ?? '198.18.0.1/16',
+      fakeIpFilter: strings('fake-ip-filter'),
+      defaultNameserver: strings('default-nameserver'),
+      nameserver: strings('nameserver'),
+      fallback: strings('fallback'),
+      nameserverPolicy: policyJson is Map
+          ? policyJson.map(
+              (k, v) => MapEntry(
+                k.toString(),
+                v is List ? v.map((item) => item.toString()).toList() : const [],
+              ),
+            )
+          : const {},
+      useHosts: map['use-hosts'] as bool? ?? false,
+      ipv6: map['ipv6'] as bool? ?? false,
+      respectRules: map['respect-rules'] as bool? ?? false,
+    );
+  }
+
+  /// Default override template shown when DNS override is first enabled —
+  /// the same defaults FlClash ships.
+  factory ClashDnsSettings.defaultOverride() => const ClashDnsSettings(
+    enable: true,
+    listen: '',
+    enhancedMode: 'fake-ip',
+    fakeIpRange: '198.18.0.1/16',
+    fakeIpFilter: ['*.lan', '*.local', '+.stun.*.*', '+.stun.*.*.*'],
+    defaultNameserver: ['223.5.5.5', '119.29.29.29'],
+    nameserver: ['https://doh.pub/dns-query', 'https://dns.alidns.com/dns-query'],
+  );
+
+  Map<String, dynamic> toMap() => {
+    'enable': enable,
+    if (listen.isNotEmpty) 'listen': listen,
+    'enhanced-mode': enhancedMode,
+    if (enhancedMode == 'fake-ip') 'fake-ip-range': fakeIpRange,
+    if (fakeIpFilter.isNotEmpty) 'fake-ip-filter': fakeIpFilter,
+    if (defaultNameserver.isNotEmpty) 'default-nameserver': defaultNameserver,
+    if (nameserver.isNotEmpty) 'nameserver': nameserver,
+    if (fallback.isNotEmpty) 'fallback': fallback,
+    if (nameserverPolicy.isNotEmpty)
+      'nameserver-policy': {
+        for (final entry in nameserverPolicy.entries) entry.key: entry.value,
+      },
+    'use-hosts': useHosts,
+    'ipv6': ipv6,
+    'respect-rules': respectRules,
+  };
+
+  ClashDnsSettings copyWith({bool? enable}) => ClashDnsSettings(
+    enable: enable ?? this.enable,
+    listen: listen,
+    enhancedMode: enhancedMode,
+    fakeIpRange: fakeIpRange,
+    fakeIpFilter: fakeIpFilter,
+    defaultNameserver: defaultNameserver,
+    nameserver: nameserver,
+    fallback: fallback,
+    nameserverPolicy: nameserverPolicy,
+    useHosts: useHosts,
+    ipv6: ipv6,
+    respectRules: respectRules,
+  );
+}
+
+/// A proxy provider entry of `GET /providers/proxies`, ported from FlClash's
+/// `ExternalProvider` (its providers management screen).
+class ClashProxyProvider {
+  const ClashProxyProvider({
+    required this.name,
+    this.vehicleType = '',
+    this.proxyCount = 0,
+    this.subscriptionInfo,
+    this.updatedAt,
+  });
+
+  final String name;
+
+  /// `HTTP` / `File` / `Inline` / `Compatible`.
+  final String vehicleType;
+  final int proxyCount;
+  final ClashSubscriptionInfo? subscriptionInfo;
+  final DateTime? updatedAt;
+
+  factory ClashProxyProvider.fromJson(Map<String, dynamic> json) {
+    final infoJson = json['subscriptionInfo'];
+    return ClashProxyProvider(
+      name: json['name']?.toString() ?? '',
+      vehicleType: json['vehicleType']?.toString() ?? '',
+      proxyCount: (json['proxies'] as List<dynamic>? ?? const []).length,
+      subscriptionInfo: infoJson is Map<String, dynamic>
+          ? ClashSubscriptionInfo.fromJson(infoJson)
+          : null,
+      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+    );
+  }
+
+  /// Core-generated providers cannot be refreshed from a remote source.
+  bool get canUpdate =>
+      vehicleType != 'Compatible' && vehicleType != 'Inline' && vehicleType != 'Fallback';
+}
+
+/// A rule provider entry of `GET /providers/rules`.
+class ClashRuleProvider {
+  const ClashRuleProvider({
+    required this.name,
+    this.vehicleType = '',
+    this.behavior = '',
+    this.ruleCount = 0,
+    this.updatedAt,
+  });
+
+  final String name;
+  final String vehicleType;
+  final String behavior;
+  final int ruleCount;
+  final DateTime? updatedAt;
+
+  factory ClashRuleProvider.fromJson(Map<String, dynamic> json) {
+    return ClashRuleProvider(
+      name: json['name']?.toString() ?? '',
+      vehicleType: json['vehicleType']?.toString() ?? '',
+      behavior: json['behavior']?.toString() ?? '',
+      ruleCount: (json['ruleCount'] as num?)?.toInt() ?? 0,
+      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+    );
+  }
+
+  bool get canUpdate => vehicleType != 'Compatible' && vehicleType != 'Inline';
+}
+
+/// Exit IP detection result, ported from FlClash's `IpInfo` (the dashboard
+/// network detection widget).
+class ClashNetworkInfo {
+  const ClashNetworkInfo({required this.ip, this.country = ''});
+
+  final String ip;
+  final String country;
+}
+
+/// Dashboard card kinds, ported from FlClash's editable dashboard widget grid
+/// (`AppSettingProps.dashboardWidgets`): the user chooses which cards are
+/// visible and in which order.
+enum ClashDashboardWidget {
+  status('核心状态'),
+  speed('实时速率'),
+  trafficChart('吞吐量图表'),
+  trafficUsage('流量统计'),
+  connections('活动连接'),
+  memory('核心内存'),
+  network('网络检测'),
+  tun('TUN 开关'),
+  systemProxy('系统代理'),
+  actions('快捷操作');
+
+  const ClashDashboardWidget(this.label);
+
+  final String label;
+
+  static ClashDashboardWidget parse(String? name) {
+    return ClashDashboardWidget.values.firstWhere(
+      (widget) => widget.name == name,
+      orElse: () => ClashDashboardWidget.status,
+    );
+  }
+
+  static List<ClashDashboardWidget> parseList(List<String> names) =>
+      names.map(parse).toList();
+}
+
+/// Default dashboard layout for a fresh install, matching FlClash's default
+/// widget set.
+const clashDefaultDashboardWidgets = [
+  ClashDashboardWidget.status,
+  ClashDashboardWidget.speed,
+  ClashDashboardWidget.trafficChart,
+  ClashDashboardWidget.connections,
+  ClashDashboardWidget.memory,
+  ClashDashboardWidget.network,
+  ClashDashboardWidget.tun,
+  ClashDashboardWidget.systemProxy,
+  ClashDashboardWidget.actions,
+];
+
+/// Proxies view layout, ported from FlClash `ProxiesType` (tab / list).
+enum ClashProxiesLayout {
+  tabs('分组标签'),
+  list('分组列表');
+
+  const ClashProxiesLayout(this.label);
+
+  final String label;
+
+  static ClashProxiesLayout parse(String? name) {
+    return ClashProxiesLayout.values.firstWhere(
+      (layout) => layout.name == name,
+      orElse: () => ClashProxiesLayout.tabs,
+    );
+  }
+}
+
+/// Proxies ordering, ported from FlClash `SortType` (default / delay / name).
+enum ClashProxiesSort {
+  defaultOrder('配置顺序'),
+  delay('按延迟'),
+  name('按名称');
+
+  const ClashProxiesSort(this.label);
+
+  final String label;
+
+  static ClashProxiesSort parse(String? name) {
+    return ClashProxiesSort.values.firstWhere(
+      (sort) => sort.name == name,
+      orElse: () => ClashProxiesSort.defaultOrder,
+    );
   }
 }
 
@@ -560,6 +942,10 @@ class ClashProfile {
     this.subscriptionInfo,
     this.config = '',
     this.selectedMap = const {},
+    this.autoUpdate = false,
+    this.autoUpdateIntervalMinutes = 360,
+    this.addedRules = const [],
+    this.disabledRules = const [],
   });
 
   final String id;
@@ -579,8 +965,22 @@ class ClashProfile {
   /// activation the way FlClash's `patchSelectGroup` does.
   final Map<String, String> selectedMap;
 
-  /// Ported from FlClash `Profile.type` (url type vs local file type); every
-  /// profile of this app originates from a subscription URL.
+  /// Periodic background refresh (FlClash `Profile.autoUpdate`).
+  final bool autoUpdate;
+
+  /// Refresh interval in minutes; 0 disables the timer (FlClash
+  /// `Profile.autoUpdateDuration`).
+  final int autoUpdateIntervalMinutes;
+
+  /// Rule overwrite, ported from FlClash's standard overwrite: rules
+  /// prepended to the profile's own rules (higher priority).
+  final List<String> addedRules;
+
+  /// Rule overwrite: profile rules that should be dropped on apply.
+  final List<String> disabledRules;
+
+  /// Ported from FlClash `Profile.type` (url type vs local file type); local
+  /// imports keep [url] empty and can therefore not be refreshed.
   bool get isFromUrl => url.isNotEmpty;
 
   ClashProfile copyWith({
@@ -590,6 +990,10 @@ class ClashProfile {
     ClashSubscriptionInfo? subscriptionInfo,
     String? config,
     Map<String, String>? selectedMap,
+    bool? autoUpdate,
+    int? autoUpdateIntervalMinutes,
+    List<String>? addedRules,
+    List<String>? disabledRules,
   }) {
     return ClashProfile(
       id: id,
@@ -600,6 +1004,11 @@ class ClashProfile {
       subscriptionInfo: subscriptionInfo ?? this.subscriptionInfo,
       config: config ?? this.config,
       selectedMap: selectedMap ?? this.selectedMap,
+      autoUpdate: autoUpdate ?? this.autoUpdate,
+      autoUpdateIntervalMinutes:
+          autoUpdateIntervalMinutes ?? this.autoUpdateIntervalMinutes,
+      addedRules: addedRules ?? this.addedRules,
+      disabledRules: disabledRules ?? this.disabledRules,
     );
   }
 
@@ -624,6 +1033,15 @@ class ClashProfile {
       selectedMap: selectedJson is Map<String, dynamic>
           ? selectedJson.map((k, v) => MapEntry(k, v.toString()))
           : const {},
+      autoUpdate: json['autoUpdate'] as bool? ?? false,
+      autoUpdateIntervalMinutes:
+          (json['autoUpdateIntervalMinutes'] as num?)?.toInt() ?? 360,
+      addedRules: (json['addedRules'] as List<dynamic>? ?? const [])
+          .map((item) => item.toString())
+          .toList(),
+      disabledRules: (json['disabledRules'] as List<dynamic>? ?? const [])
+          .map((item) => item.toString())
+          .toList(),
     );
   }
 
@@ -636,6 +1054,10 @@ class ClashProfile {
     'subscriptionInfo': subscriptionInfo?.toJson(),
     'config': config,
     'selectedMap': selectedMap,
+    'autoUpdate': autoUpdate,
+    'autoUpdateIntervalMinutes': autoUpdateIntervalMinutes,
+    'addedRules': addedRules,
+    'disabledRules': disabledRules,
   };
 }
 

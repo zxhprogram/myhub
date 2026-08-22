@@ -11,11 +11,13 @@ import 'clash_dashboard_view.dart';
 import 'clash_logs_view.dart';
 import 'clash_profiles_view.dart';
 import 'clash_proxies_view.dart';
+import 'clash_requests_view.dart';
+import 'clash_rules_view.dart';
 import 'clash_settings_view.dart';
 
 /// Sidebar entry of the Clash console, ported from FlClash's
 /// `Navigation.getItems()` (dashboard / proxies / profiles / connections /
-/// logs).
+/// requests / logs / rules / tools).
 class _ClashNavItem {
   const _ClashNavItem({required this.label, required this.icon});
 
@@ -28,7 +30,9 @@ const _navItems = [
   _ClashNavItem(label: '代理', icon: LucideIcons.layers),
   _ClashNavItem(label: '订阅', icon: LucideIcons.cloudDownload),
   _ClashNavItem(label: '连接', icon: LucideIcons.cable),
+  _ClashNavItem(label: '请求', icon: LucideIcons.radioTower),
   _ClashNavItem(label: '日志', icon: LucideIcons.list),
+  _ClashNavItem(label: '规则', icon: LucideIcons.listOrdered),
   _ClashNavItem(label: '设置', icon: LucideIcons.settings),
 ];
 
@@ -156,11 +160,13 @@ class _ClashAppPageState extends State<ClashAppPage> {
 
   Widget _buildView() {
     return switch (_viewIndex) {
-      0 => ClashDashboardView(onOpenSettings: () => setState(() => _viewIndex = 5)),
+      0 => ClashDashboardView(onOpenSettings: () => setState(() => _viewIndex = 7)),
       1 => const ClashProxiesView(),
       2 => ClashProfilesView(onOpenProxies: () => setState(() => _viewIndex = 1)),
       3 => const ClashConnectionsView(),
-      4 => const ClashLogsView(),
+      4 => const ClashRequestsView(),
+      5 => const ClashLogsView(),
+      6 => const ClashRulesView(),
       _ => const ClashSettingsView(),
     };
   }

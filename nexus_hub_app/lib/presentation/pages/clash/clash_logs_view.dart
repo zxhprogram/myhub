@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
@@ -6,10 +9,11 @@ import '../../states/clash_state.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/typography.dart';
 import '../../components/nexus_button.dart';
+import '../../components/nexus_toast.dart';
 
 /// Log screen, ported from FlClash's `LogsView`: level filter, text search,
-/// auto-scroll-to-end toggle and clear. The filter is ported from FlClash's
-/// `LogsStateExt.list`.
+/// auto-scroll-to-end toggle, clear and export to file. The filter is ported
+/// from FlClash's `LogsStateExt.list`.
 class ClashLogsView extends StatefulWidget {
   const ClashLogsView({super.key});
 
@@ -39,6 +43,38 @@ class _ClashLogsViewState extends State<ClashLogsView> {
       return log.payload.toLowerCase().contains(query) ||
           log.level.value.contains(query);
     }).toList();
+  }
+
+  /// Exports the filtered log lines to a file (FlClash's `Logs.exportLogs`).
+  Future<void> _exportLogs(BuildContext context) async {
+    final logs = _filtered(ClashState.instance.logs.value);
+    if (logs.isEmpty) {
+      nexusToast(context, '没有可导出的日志', isError: true);
+      return;
+    }
+    final stamp = DateTime.now();
+    final fileName =
+        'clash-logs-${stamp.year}${stamp.month.toString().padLeft(2, '0')}${stamp.day.toString().padLeft(2, '0')}-${stamp.hour.toString().padLeft(2, '0')}${stamp.minute.toString().padLeft(2, '0')}.txt';
+    const typeGroup = XTypeGroup(label: '文本文件', extensions: ['txt']);
+    final location = await getSaveLocation(
+      suggestedName: fileName,
+      acceptedTypeGroups: [typeGroup],
+    );
+    if (location == null) return;
+    final text = [
+      for (final log in logs)
+        '[${log.level.value}] ${log.time.toIso8601String()} ${log.payload}',
+    ].join('\n');
+    try {
+      await File(location.path).writeAsString(text);
+      if (context.mounted) {
+        nexusToast(context, '日志已导出');
+      }
+    } catch (error) {
+      if (context.mounted) {
+        nexusToast(context, '导出失败：$error', isError: true);
+      }
+    }
   }
 
   void _scrollToEnd() {
@@ -99,6 +135,13 @@ class _ClashLogsViewState extends State<ClashLogsView> {
                     ? NexusButtonVariant.tonal
                     : NexusButtonVariant.outlined,
                 onPressed: () => setState(() => _autoScroll = !_autoScroll),
+              ),
+              const SizedBox(width: NexusSpacing.sm),
+              NexusButton(
+                label: '导出',
+                icon: LucideIcons.fileDown,
+                variant: NexusButtonVariant.outlined,
+                onPressed: () => _exportLogs(context),
               ),
               const SizedBox(width: NexusSpacing.sm),
               NexusButton(

@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
@@ -7,12 +8,14 @@ import '../../../data/services/clash_api_service.dart'
 import '../../states/clash_state.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/typography.dart';
+import '../../components/nexus_badge.dart';
 import '../../components/nexus_card.dart';
 import '../../components/nexus_empty_state.dart';
 
-/// Proxies screen, ported from FlClash's `ProxiesView`: group tabs, node
-/// grid, node selection, per-node and per-group delay testing with FlClash's
-/// delay coloring and "timeout last" ordering.
+/// Proxies screen, ported from FlClash's `ProxiesView`: two layouts (tab grid
+/// / group list, FlClash `ProxiesType`), ordering modes (FlClash `SortType`),
+/// node selection, per-node and per-group delay testing with FlClash's delay
+/// coloring, plus the external providers management dialog.
 class ClashProxiesView extends StatefulWidget {
   const ClashProxiesView({super.key});
 
@@ -23,7 +26,8 @@ class ClashProxiesView extends StatefulWidget {
 class _ClashProxiesViewState extends State<ClashProxiesView> {
   final TextEditingController _searchController = TextEditingController();
 
-  bool _sortByDelay = false;
+  /// Expanded groups of the list layout.
+  final Set<String> _expandedGroups = {};
 
   @override
   void dispose() {
@@ -42,6 +46,7 @@ class _ClashProxiesViewState extends State<ClashProxiesView> {
   List<ClashProxy> _visibleNodes(
     ClashProxyGroup group,
     Map<String, int> delays,
+    ClashProxiesSort sort,
   ) {
     final query = _searchController.text.toLowerCase().trim();
     var nodes = group.proxies.where((proxy) {
@@ -49,15 +54,19 @@ class _ClashProxiesViewState extends State<ClashProxiesView> {
           proxy.name.toLowerCase().contains(query) ||
           proxy.type.toLowerCase().contains(query);
     }).toList();
-    if (_sortByDelay) {
-      int delayOf(ClashProxy proxy) =>
-          delays[proxy.name] ?? proxy.latestDelay;
-      nodes.sort((a, b) {
-        final priorityA = _delayPriority(delayOf(a));
-        final priorityB = _delayPriority(delayOf(b));
-        if (priorityA != priorityB) return priorityA.compareTo(priorityB);
-        return delayOf(a).compareTo(delayOf(b));
-      });
+    int delayOf(ClashProxy proxy) => delays[proxy.name] ?? proxy.latestDelay;
+    switch (sort) {
+      case ClashProxiesSort.delay:
+        nodes.sort((a, b) {
+          final priorityA = _delayPriority(delayOf(a));
+          final priorityB = _delayPriority(delayOf(b));
+          if (priorityA != priorityB) return priorityA.compareTo(priorityB);
+          return delayOf(a).compareTo(delayOf(b));
+        });
+      case ClashProxiesSort.name:
+        nodes.sort((a, b) => a.name.compareTo(b.name));
+      case ClashProxiesSort.defaultOrder:
+        break;
     }
     return nodes;
   }
@@ -67,7 +76,6 @@ class _ClashProxiesViewState extends State<ClashProxiesView> {
     return Watch((_) {
       final state = ClashState.instance;
       final groups = state.proxyGroups.value;
-      final selected = state.selectedGroup;
       final fromProfile = state.proxiesFromProfile.value;
 
       if (groups.isEmpty) {
@@ -90,24 +98,150 @@ class _ClashProxiesViewState extends State<ClashProxiesView> {
             ),
             const SizedBox(height: NexusSpacing.md),
           ],
-          _buildGroupTabs(context, groups),
+          _buildToolbar(context, state),
           const SizedBox(height: NexusSpacing.md),
-          if (selected != null) ...[
-            _buildGroupHeader(context, selected, offline: fromProfile),
-            const SizedBox(height: NexusSpacing.md),
-            Expanded(
-              child: _buildNodeGrid(
-                context,
-                selected,
-                state.nodeDelays.value,
-                state.testingNodes.value,
-                offline: fromProfile,
-              ),
-            ),
-          ],
+          Expanded(
+            child: switch (state.proxiesLayout.value) {
+              ClashProxiesLayout.tabs => _buildTabsLayout(context, state),
+              ClashProxiesLayout.list => _buildListLayout(context, state),
+            },
+          ),
         ],
       );
     });
+  }
+
+  Widget _buildToolbar(BuildContext context, ClashState state) {
+    return Row(
+      children: [
+        // Layout switcher (FlClash's tab / list layout toggle).
+        for (final layout in ClashProxiesLayout.values) ...[
+          _ToolbarChip(
+            label: layout.label,
+            selected: state.proxiesLayout.value == layout,
+            onTap: () => state.setProxiesLayout(layout),
+          ),
+          const SizedBox(width: NexusSpacing.xs),
+        ],
+        const SizedBox(width: NexusSpacing.sm),
+        // Sort menu (FlClash's proxies settings sheet).
+        for (final sort in ClashProxiesSort.values) ...[
+          _ToolbarChip(
+            label: sort.label,
+            selected: state.proxiesSort.value == sort,
+            onTap: () => state.setProxiesSort(sort),
+          ),
+          const SizedBox(width: NexusSpacing.xs),
+        ],
+        const Spacer(),
+        SizedBox(
+          width: 170,
+          child: TextField(
+            controller: _searchController,
+            hintText: '搜索节点…',
+            onChanged: (_) => setState(() {}),
+          ),
+        ),
+        const SizedBox(width: NexusSpacing.sm),
+        _HeaderIconButton(
+          icon: LucideIcons.package,
+          tooltip: '外部提供者',
+          onPressed: () => _showProvidersDialog(context),
+        ),
+        const SizedBox(width: NexusSpacing.sm),
+        _HeaderIconButton(
+          icon: LucideIcons.refreshCw,
+          tooltip: '刷新',
+          onPressed: () => state.refreshProxies(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabsLayout(BuildContext context, ClashState state) {
+    final groups = state.proxyGroups.value;
+    final selected = state.selectedGroup;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildGroupTabs(context, groups),
+        const SizedBox(height: NexusSpacing.md),
+        if (selected != null) ...[
+          _buildGroupHeader(
+            context,
+            selected,
+            offline: state.proxiesFromProfile.value,
+          ),
+          const SizedBox(height: NexusSpacing.md),
+          Expanded(
+            child: _buildNodeGrid(
+              context,
+              selected,
+              state.nodeDelays.value,
+              state.testingNodes.value,
+              state.proxiesSort.value,
+              offline: state.proxiesFromProfile.value,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// List layout (FlClash `ProxiesType.list`): every group is an expandable
+  /// section instead of one tab strip.
+  Widget _buildListLayout(BuildContext context, ClashState state) {
+    final groups = state.proxyGroups.value;
+    if (_expandedGroups.isEmpty) {
+      _expandedGroups.add(state.selectedGroupName.value ?? groups.first.name);
+    }
+
+    return ListView.separated(
+      itemCount: groups.length,
+      separatorBuilder: (_, _) => const SizedBox(height: NexusSpacing.sm),
+      itemBuilder: (context, index) {
+        final group = groups[index];
+        final expanded = _expandedGroups.contains(group.name);
+        return NexusCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ListGroupHeader(
+                group: group,
+                expanded: expanded,
+                onToggle: () => setState(() {
+                  expanded
+                      ? _expandedGroups.remove(group.name)
+                      : _expandedGroups.add(group.name);
+                }),
+                onTestDelay: state.proxiesFromProfile.value
+                    ? null
+                    : () => state.testGroupDelays(group),
+              ),
+              if (expanded)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    NexusSpacing.md,
+                    0,
+                    NexusSpacing.md,
+                    NexusSpacing.md,
+                  ),
+                  child: _buildNodeGrid(
+                    context,
+                    group,
+                    state.nodeDelays.value,
+                    state.testingNodes.value,
+                    state.proxiesSort.value,
+                    offline: state.proxiesFromProfile.value,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildGroupTabs(
@@ -185,28 +319,6 @@ class _ClashProxiesViewState extends State<ClashProxiesView> {
             ],
           ),
         ),
-        SizedBox(
-          width: 180,
-          child: TextField(
-            controller: _searchController,
-            hintText: '搜索节点…',
-            onChanged: (_) => setState(() {}),
-          ),
-        ),
-        const SizedBox(width: NexusSpacing.sm),
-        _HeaderIconButton(
-          icon: LucideIcons.filter,
-          tooltip: _sortByDelay ? '恢复配置顺序' : '按延迟排序',
-          active: _sortByDelay,
-          onPressed: () => setState(() => _sortByDelay = !_sortByDelay),
-        ),
-        const SizedBox(width: NexusSpacing.sm),
-        _HeaderIconButton(
-          icon: LucideIcons.refreshCw,
-          tooltip: '刷新',
-          onPressed: () => ClashState.instance.refreshProxies(),
-        ),
-        const SizedBox(width: NexusSpacing.sm),
         _HeaderIconButton(
           icon: LucideIcons.zap,
           tooltip: offline ? '连接核心后可测延迟' : '测试本组延迟',
@@ -229,10 +341,11 @@ class _ClashProxiesViewState extends State<ClashProxiesView> {
     BuildContext context,
     ClashProxyGroup group,
     Map<String, int> delays,
-    Set<String> testing, {
+    Set<String> testing,
+    ClashProxiesSort sort, {
     bool offline = false,
   }) {
-    final nodes = _visibleNodes(group, delays);
+    final nodes = _visibleNodes(group, delays, sort);
     if (nodes.isEmpty) {
       return Center(
         child: Text(
@@ -248,6 +361,8 @@ class _ClashProxiesViewState extends State<ClashProxiesView> {
       builder: (context, constraints) {
         final columns = (constraints.maxWidth / 190).floor().clamp(1, 6);
         return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
             mainAxisSpacing: NexusSpacing.sm,
@@ -284,6 +399,148 @@ class _ClashProxiesViewState extends State<ClashProxiesView> {
       // Selection rejected by the core; the periodic refresh restores the
       // previous state.
     }
+  }
+
+  void _showProvidersDialog(BuildContext context) {
+    ClashState.instance.refreshProxyProviders();
+    showOverlay(
+      context,
+      DialogConfiguration(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (dialogContext) => const _ProvidersDialog(),
+      ),
+    );
+  }
+}
+
+/// Selectable pill used in the proxies toolbar (layout / sort switcher).
+class _ToolbarChip extends StatelessWidget {
+  const _ToolbarChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: NexusSpacing.sm + 2,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? colorScheme.primary.withValues(alpha: 0.12)
+                : colorScheme.card,
+            borderRadius: BorderRadius.circular(9999),
+            border: Border.all(
+              color: selected
+                  ? colorScheme.primary.withValues(alpha: 0.5)
+                  : colorScheme.border,
+            ),
+          ),
+          child: Text(
+            label,
+            style: NexusTypography.labelMd.copyWith(
+              color: selected
+                  ? colorScheme.primary
+                  : colorScheme.mutedForeground,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Collapsible group header of the list layout (FlClash's accordion groups).
+class _ListGroupHeader extends StatelessWidget {
+  const _ListGroupHeader({
+    required this.group,
+    required this.expanded,
+    required this.onToggle,
+    this.onTestDelay,
+  });
+
+  final ClashProxyGroup group;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final VoidCallback? onTestDelay;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: onToggle,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.all(NexusSpacing.md),
+        child: Row(
+          children: [
+            Icon(
+              expanded
+                  ? LucideIcons.chevronDown
+                  : LucideIcons.chevronRight,
+              size: 16,
+              color: colorScheme.mutedForeground,
+            ),
+            const SizedBox(width: NexusSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(group.name, style: NexusTypography.bodyLg),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${group.type.label} · ${group.proxies.length} 个节点 · 当前：'
+                    '${group.realNow.isEmpty ? '-' : group.realNow}',
+                    style: NexusTypography.labelMd.copyWith(
+                      color: colorScheme.mutedForeground,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (onTestDelay != null) ...[
+              const SizedBox(width: NexusSpacing.sm),
+              GestureDetector(
+                onTap: onTestDelay,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: colorScheme.card,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: colorScheme.border),
+                    ),
+                    child: Icon(
+                      LucideIcons.zap,
+                      size: 14,
+                      color: colorScheme.mutedForeground,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -337,13 +594,11 @@ class _HeaderIconButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     this.onPressed,
-    this.active = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onPressed;
-  final bool active;
 
   @override
   Widget build(BuildContext context) {
@@ -358,23 +613,15 @@ class _HeaderIconButton extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: active
-                ? colorScheme.primary.withValues(alpha: 0.12)
-                : colorScheme.card,
+            color: colorScheme.card,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: active
-                  ? colorScheme.primary.withValues(alpha: 0.5)
-                  : colorScheme.border,
-            ),
+            border: Border.all(color: colorScheme.border),
           ),
           child: Icon(
             icon,
             size: 15,
-            color: active
-                ? colorScheme.primary
-                : colorScheme.mutedForeground
-                    .withValues(alpha: enabled ? 1.0 : 0.5),
+            color: colorScheme.mutedForeground
+                .withValues(alpha: enabled ? 1.0 : 0.5),
           ),
         ),
       ),
@@ -483,5 +730,159 @@ class _ProxyCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// External proxy providers manager, ported from FlClash's `ProvidersView`:
+/// every provider with its vehicle type, node count, subscription quota,
+/// last update time and an update / health-check action.
+class _ProvidersDialog extends StatelessWidget {
+  const _ProvidersDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Watch((_) {
+      final state = ClashState.instance;
+      final providers = state.proxyProviders.value;
+
+      return AlertDialog(
+        title: Text('外部代理提供者', style: NexusTypography.headlineSm),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 480),
+          child: providers.isEmpty
+              ? SizedBox(
+                  height: 120,
+                  child: Center(
+                    child: Text(
+                      '当前配置没有外部代理提供者（proxy-providers）。',
+                      style: NexusTypography.bodyMd.copyWith(
+                        color: colorScheme.mutedForeground,
+                      ),
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: providers.length,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: NexusSpacing.sm),
+                  itemBuilder: (context, index) =>
+                      _ProviderRow(provider: providers[index]),
+                ),
+        ),
+        actions: [
+          Button.text(
+            onPressed: () => state.refreshProxyProviders(),
+            child: const Text('刷新'),
+          ),
+          Button.primary(
+            onPressed: () => closeOverlay(context),
+            child: const Text('关闭'),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _ProviderRow extends StatelessWidget {
+  const _ProviderRow({required this.provider});
+
+  final ClashProxyProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final state = ClashState.instance;
+
+    return Watch((_) {
+      final busy = state.updatingProviders.value.contains(provider.name);
+      final info = provider.subscriptionInfo;
+
+      return Container(
+        padding: const EdgeInsets.all(NexusSpacing.md),
+        decoration: BoxDecoration(
+          color: colorScheme.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: colorScheme.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          provider.name,
+                          style: NexusTypography.bodyMd.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      NexusBadge(
+                        label: provider.vehicleType,
+                        backgroundColor: colorScheme.primary.withValues(
+                          alpha: 0.1,
+                        ),
+                        foregroundColor: colorScheme.primary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    [
+                      '${provider.proxyCount} 个节点',
+                      if (provider.updatedAt != null)
+                        '更新于 ${DateFormat('MM-dd HH:mm').format(provider.updatedAt!)}',
+                      if (info != null && info.hasQuota)
+                        '已用 ${formatClashBytes(info.used)} / ${formatClashBytes(info.total)}',
+                    ].join('  ·  '),
+                    style: NexusTypography.labelMd.copyWith(
+                      color: colorScheme.mutedForeground,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: NexusSpacing.sm),
+            busy
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(size: 12),
+                  )
+                : provider.canUpdate
+                    ? GestureDetector(
+                        onTap: () => state.updateProxyProvider(provider.name),
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              LucideIcons.refreshCw,
+                              size: 14,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox(width: 30),
+          ],
+        ),
+      );
+    });
   }
 }
