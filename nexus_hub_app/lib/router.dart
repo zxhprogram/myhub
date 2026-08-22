@@ -8,6 +8,7 @@ import 'presentation/pages/camera_page.dart';
 import 'presentation/pages/clipboard_history_page.dart';
 import 'presentation/pages/dashboard_page.dart';
 import 'presentation/pages/dev_tools_page.dart';
+import 'presentation/pages/ebook/ebook_library_page.dart';
 import 'presentation/pages/google_news_page.dart';
 import 'presentation/pages/mail_page.dart';
 import 'presentation/pages/music_player_page.dart';
@@ -91,6 +92,10 @@ class AppRouter {
           GoRoute(
             path: '/zhihu',
             builder: (context, state) => const ZhihuHotPage(),
+          ),
+          GoRoute(
+            path: '/ebooks',
+            builder: (context, state) => const EbookLibraryPage(),
           ),
         ],
       ),

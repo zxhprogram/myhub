@@ -48,6 +48,16 @@ dependencies:
   # AES-CBC decryption of the stream URL embedded in the cloud player page.
   pointycastle: ^4.0.0
   gpt_markdown: ^1.1.8
+  # Ebook Reader sub-app: PDF rendering (PDFium, Windows supported).
+  pdfrx: ^2.4.7
+  # EPUB unpacking (pure Dart ZIP reader).
+  archive: ^4.0.0
+  # EPUB container.xml / OPF manifest parsing.
+  xml: ^6.5.0
+  # EPUB chapter XHTML DOM processing (lenient real-world HTML parsing).
+  html: ^0.15.4
+  # GBK fallback decoding for legacy Chinese TXT novels.
+  fast_gbk: ^1.0.0
 
 dev_dependencies:
   flutter_test:

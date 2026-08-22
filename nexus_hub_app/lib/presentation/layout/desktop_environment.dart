@@ -23,6 +23,7 @@ import '../pages/camera_page.dart';
 import '../pages/clipboard_history_page.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/dev_tools_page.dart';
+import '../pages/ebook/ebook_library_page.dart';
 import '../pages/google_news_page.dart';
 import '../pages/java_decompiler_page.dart';
 import '../pages/mail_page.dart';
@@ -321,6 +322,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const ZhihuHotPage(),
       gradientStart: const Color(0xFF38A3FF),
       gradientEnd: const Color(0xFF0066FF),
+    ),
+    DesktopAppItem(
+      label: 'Ebook Reader',
+      icon: LucideIcons.bookOpenText,
+      route: '/ebooks',
+      pageBuilder: (_) => const EbookLibraryPage(),
+      gradientStart: const Color(0xFF64D2FF),
+      gradientEnd: const Color(0xFF1E5AF0),
     ),
   ];
 
