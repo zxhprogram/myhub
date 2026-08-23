@@ -93,5 +93,13 @@ dependency_overrides:
   flutter_inappwebview_windows:
     path: ../third_party/flutter_inappwebview_windows
 
+  # flutter_alacritty 2.4.1 ships Rust bindings generated with
+  # flutter_rust_bridge 2.12.0. The runtime version must match the codegen
+  # version exactly or `RustLib.init()` aborts app startup with
+  # "codegen version ... should be the same as runtime version". Left free,
+  # pub resolves the newest 2.x (e.g. 2.13.0) and breaks the launch — pin it
+  # and bump this together when upgrading flutter_alacritty.
+  flutter_rust_bridge: "2.12.0"
+
 flutter:
   uses-material-design: true

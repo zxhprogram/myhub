@@ -8,6 +8,7 @@ import 'package:easy_mail/src/models/mail_message.dart';
 import '../../data/models/mail_account_model.dart';
 import '../../data/models/mail_item_model.dart';
 import '../../data/repositories/mail_repository.dart';
+import '../../theme/density.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -113,7 +114,7 @@ class _MailToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      height: 64,
+      height: NexusDensityController.toolbarHeight,
       padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.lg),
       decoration: BoxDecoration(
         color: colorScheme.card,
@@ -433,7 +434,7 @@ class _MessageList extends StatelessWidget {
     return Watch((context) {
       final colorScheme = Theme.of(context).colorScheme;
       return Container(
-        height: 56,
+        height: NexusDensityController.listHeaderHeight,
         padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: colorScheme.border)),

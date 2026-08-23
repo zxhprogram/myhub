@@ -12,6 +12,9 @@ import '../../data/models/desktop_item.dart';
 import '../../data/models/weather_model.dart';
 import '../../data/services/weather_service.dart';
 
+import '../../theme/density.dart';
+import '../../data/services/clash_system_proxy.dart';
+import '../../data/services/network_monitor_service.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import '../components/desktop_folder.dart';
@@ -342,6 +345,20 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     ),
   ];
 
+  /// Apps always shown in the dock regardless of running state. The full
+  /// app list stays on the desktop icons; the dock keeps only these
+  /// favorites plus any other currently-running apps.
+  static const List<String> _dockPinnedRoutes = [
+    '/',
+    '/tasks',
+    '/ai-chat',
+    '/mail',
+    '/terminal',
+    '/clash',
+    '/music',
+    '/ebooks',
+  ];
+
   /// Key to access the [WindowNavigatorHandle] for adding/removing windows.
   final GlobalKey _navigatorKey = GlobalKey();
 
@@ -353,11 +370,12 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   @override
   void initState() {
     super.initState();
-    // Load persisted theme, wallpaper and desktop state.
+    // Load persisted theme, wallpaper, desktop state and density.
     ThemeState.instance.init();
     WallpaperState.instance.init();
     PomodoroState.instance.init();
     TerminalState.instance.init();
+    NexusDensityController.init();
     DesktopState.instance.init(
       defaults: _appItems
           .map(
@@ -407,12 +425,16 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     }
 
     final controller = WindowController(
+      // Restore bounds used when the user un-maximizes; windows open
+      // maximized (relative full-viewport rect resolved by the navigator,
+      // which subtracts the menu bar via maximizedInsets).
       bounds: Rect.fromLTWH(
         60 + (_windowCounter % 5) * 40,
         40 + _kMenuBarHeight + (_windowCounter % 5) * 40, // below menu bar
         900,
         600,
       ),
+      maximized: const Rect.fromLTWH(0, 0, 1, 1),
       resizable: true,
       draggable: true,
       closable: true,
@@ -489,6 +511,15 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
     // Add window to the navigator
     _navigatorHandle?.pushWindow(window);
+  }
+
+  /// Opens an app window by route (used by menu bar status widgets).
+  void _openAppByRoute(String route) {
+    final appItem = _appItems.cast<DesktopAppItem?>().firstWhere(
+      (a) => a!.route == route,
+      orElse: () => null,
+    );
+    if (appItem != null) _openAppWindow(appItem);
   }
 
   /// Handles reorder events from [ReorderableBuilder].
@@ -593,7 +624,12 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
           child: _buildDesktopContent(context),
         ),
         // Menu bar on top of everything, including windows (like macOS).
-        const Positioned(top: 0, left: 0, right: 0, child: _MenuBar()),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _MenuBar(onOpenApp: _openAppByRoute),
+        ),
       ],
     );
   }
@@ -765,36 +801,57 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   Widget _buildDock(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
+    final pinned = _dockPinnedRoutes
+        .map((route) => _resolveAppItem(route))
+        .whereType<DesktopAppItem>()
+        .toList();
+    final runningExtras = _appItems
+        .where((app) =>
+            _openWindows.containsKey(app.route) &&
+            !pinned.any((p) => p.route == app.route))
+        .toList();
+    final dockApps = [...pinned, ...runningExtras];
+
+    // The max width keeps the dock centered when content fits and turns it
+    // into a horizontal scroll area when it does not.
     return Center(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-          child: Container(
-            height: 80,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: colorScheme.card.withValues(alpha: 0.18),
-              border: Border.all(
-                color: colorScheme.border.withValues(alpha: 0.2),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width - 24,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+            child: Container(
+              height: 80,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: colorScheme.card.withValues(alpha: 0.18),
+                border: Border.all(
+                  color: colorScheme.border.withValues(alpha: 0.2),
+                ),
+                borderRadius: BorderRadius.circular(22),
               ),
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (int i = 0; i < _appItems.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 2),
-                  _DockIcon(
-                    icon: _appItems[i].icon,
-                    gradientStart: _appItems[i].gradientStart,
-                    gradientEnd: _appItems[i].gradientEnd,
-                    label: _appItems[i].label,
-                    isActive: _openWindows.containsKey(_appItems[i].route),
-                    onTap: () => _openAppWindow(_appItems[i]),
-                  ),
-                ],
-              ],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (int i = 0; i < dockApps.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 2),
+                      _DockIcon(
+                        icon: dockApps[i].icon,
+                        gradientStart: dockApps[i].gradientStart,
+                        gradientEnd: dockApps[i].gradientEnd,
+                        label: dockApps[i].label,
+                        isActive: _openWindows.containsKey(dockApps[i].route),
+                        onTap: () => _openAppWindow(dockApps[i]),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -805,7 +862,10 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
 /// macOS-style menu bar at the top of the desktop with a live clock.
 class _MenuBar extends StatelessWidget {
-  const _MenuBar();
+  const _MenuBar({this.onOpenApp});
+
+  /// Opens an app window by route from status widgets (pomodoro, clash).
+  final void Function(String route)? onOpenApp;
 
   @override
   Widget build(BuildContext context) {
@@ -854,9 +914,15 @@ class _MenuBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          // Right: weather + theme toggle + live clock
+          // Right: live status area + weather + toggles + clock. The status
+          // widgets keep glanceable system info one fixed glance away.
+          _ClashStatusMenuWidget(onOpenApp: onOpenApp),
+          const _NetworkRateMenuWidget(),
+          _PomodoroMenuWidget(onOpenApp: onOpenApp),
+          const SizedBox(width: 8),
           const _WeatherWidget(),
           const SizedBox(width: 8),
+          const _DensityToggleButton(),
           _MenuIconButton(
             icon: isDark ? LucideIcons.moon : LucideIcons.sun,
             onTap: () => ThemeState.instance.toggle(),
@@ -890,6 +956,239 @@ class _MenuIconButton extends StatelessWidget {
       ),
       onPressed: onTap,
     );
+  }
+}
+
+/// Foreground color for menu bar content, readable over any wallpaper.
+Color _menuBarForeground(BuildContext context, {double alpha = 0.8}) {
+  final isDark = Theme.of(context).colorScheme.brightness == Brightness.dark;
+  return isDark
+      ? const Color(0xFFFFFFFF).withValues(alpha: alpha)
+      : const Color(0xFF000000).withValues(alpha: alpha);
+}
+
+TextStyle _menuBarTextStyle(
+  BuildContext context, {
+  double alpha = 0.8,
+  FontWeight weight = FontWeight.w500,
+}) {
+  return TextStyle(
+    color: _menuBarForeground(context, alpha: alpha),
+    fontSize: 12,
+    fontWeight: weight,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+}
+
+/// Formats a bytes-per-second rate compactly for the menu bar.
+String _formatRate(double bytesPerSecond) {
+  if (bytesPerSecond < 1024) return '${bytesPerSecond.round()}B';
+  if (bytesPerSecond < 1024 * 1024) {
+    return '${(bytesPerSecond / 1024).round()}KB';
+  }
+  return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)}MB';
+}
+
+/// Live network up/down rates polled once per second from the native monitor.
+///
+/// Renders nothing while the monitor DLL is unavailable (non-Windows).
+class _NetworkRateMenuWidget extends StatefulWidget {
+  const _NetworkRateMenuWidget();
+
+  @override
+  State<_NetworkRateMenuWidget> createState() => _NetworkRateMenuWidgetState();
+}
+
+class _NetworkRateMenuWidgetState extends State<_NetworkRateMenuWidget> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!NetworkMonitorService.instance.isRunning) return;
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final service = NetworkMonitorService.instance;
+    if (!service.isRunning) return const SizedBox.shrink();
+    final style = _menuBarTextStyle(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.arrowDown, size: 12, color: style.color),
+          const SizedBox(width: 2),
+          Text(_formatRate(service.recvSpeed.toDouble()), style: style),
+          const SizedBox(width: 6),
+          Icon(LucideIcons.arrowUp, size: 12, color: style.color),
+          const SizedBox(width: 2),
+          Text(_formatRate(service.sentSpeed.toDouble()), style: style),
+        ],
+      ),
+    );
+  }
+}
+
+/// Active Pomodoro countdown pinned to the menu bar so it stays visible no
+/// matter which windows are open. Tapping toggles pause/resume.
+class _PomodoroMenuWidget extends StatelessWidget {
+  const _PomodoroMenuWidget({this.onOpenApp});
+
+  final void Function(String route)? onOpenApp;
+
+  @override
+  Widget build(BuildContext context) {
+    final pomodoro = PomodoroState.instance;
+    return Watch((context) {
+      final running = pomodoro.isRunning.value;
+      final remaining = pomodoro.remainingSeconds.value;
+      // Hidden while idle at the start of a session.
+      if (!running && remaining == pomodoro.totalSeconds) {
+        return const SizedBox.shrink();
+      }
+      final text =
+          '${(remaining ~/ 60).toString().padLeft(2, '0')}:'
+          '${(remaining % 60).toString().padLeft(2, '0')}';
+
+      return ContextMenu(
+        items: [
+          MenuButton(
+            onPressed: (context) => pomodoro.toggle(),
+            child: Text(running ? '暂停' : '继续'),
+          ),
+          MenuButton(
+            onPressed: (context) => pomodoro.reset(),
+            child: const Text('重置'),
+          ),
+          if (onOpenApp != null)
+            MenuButton(
+              onPressed: (context) => onOpenApp!('/pomodoro'),
+              child: const Text('打开番茄钟'),
+            ),
+        ],
+        child: GestureDetector(
+          onTap: pomodoro.toggle,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  LucideIcons.timer,
+                  size: 13,
+                  color: _menuBarForeground(context, alpha: running ? 1 : 0.65),
+                ),
+                const SizedBox(width: 4),
+                Text(text, style: _menuBarTextStyle(context, weight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// System-proxy status from the Windows registry, polled every 10 seconds.
+class _ClashStatusMenuWidget extends StatelessWidget {
+  const _ClashStatusMenuWidget({this.onOpenApp});
+
+  final void Function(String route)? onOpenApp;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ClashStatusIcon(onOpenApp: onOpenApp);
+  }
+}
+
+class _ClashStatusIcon extends StatefulWidget {
+  const _ClashStatusIcon({this.onOpenApp});
+
+  final void Function(String route)? onOpenApp;
+
+  @override
+  State<_ClashStatusIcon> createState() => _ClashStatusIconState();
+}
+
+class _ClashStatusIconState extends State<_ClashStatusIcon> {
+  Timer? _timer;
+  bool? _enabled;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!ClashSystemProxyService.instance.isSupported) return;
+    _refresh();
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _refresh());
+  }
+
+  void _refresh() {
+    ClashSystemProxyService.instance.isEnabled().then((value) {
+      if (mounted) setState(() => _enabled = value);
+    }).catchError((_) {
+      if (mounted) setState(() => _enabled = null);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = _enabled;
+    if (enabled == null) return const SizedBox.shrink();
+    final color = enabled
+        ? const Color(0xFF30D158)
+        : _menuBarForeground(context, alpha: 0.45);
+
+    return ContextMenu(
+      items: [
+        if (widget.onOpenApp != null)
+          MenuButton(
+            onPressed: (context) => widget.onOpenApp!('/clash'),
+            child: const Text('打开 Clash'),
+          ),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.only(right: 10),
+        child: Icon(LucideIcons.shield, size: 14, color: color),
+      ),
+    );
+  }
+}
+
+/// Menu bar switch between comfortable and compact UI density.
+class _DensityToggleButton extends StatelessWidget {
+  const _DensityToggleButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Watch((context) {
+      final compact = NexusDensityController.isCompact;
+      return IconButton.ghost(
+        icon: Icon(
+          LucideIcons.rows3,
+          size: 16,
+          color: _menuBarForeground(context, alpha: compact ? 1 : 0.55),
+        ),
+        onPressed: () => NexusDensityController.toggle(),
+      );
+    });
   }
 }
 
@@ -1375,11 +1674,10 @@ class _DockIconState extends State<_DockIcon> {
 
   @override
   Widget build(BuildContext context) {
-    final iconSize = _isHovering ? 56.0 : 48.0;
-    final iconRadius = iconSize * 0.23;
-
+    // Fixed layout slot; hover scaling uses AnimatedScale so neighbours
+    // never shift (the macOS feel without layout jitter).
     return SizedBox(
-      width: _isHovering ? 68 : 52,
+      width: 56,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -1423,30 +1721,28 @@ class _DockIconState extends State<_DockIcon> {
                     _isHovering = false;
                     _showPreview = false;
                   }),
-                  child: AnimatedContainer(
+                  child: AnimatedScale(
                     duration: const Duration(milliseconds: 120),
                     curve: Curves.easeOut,
-                    width: iconSize,
-                    height: iconSize,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(iconRadius),
-                      boxShadow: [
-                        BoxShadow(
-                          color: widget.gradientEnd.withValues(
-                            alpha: _isHovering ? 0.5 : 0.3,
+                    scale: _isHovering ? 1.16 : 1.0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(48 * 0.23),
+                        boxShadow: [
+                          BoxShadow(
+                            color: widget.gradientEnd.withValues(
+                              alpha: _isHovering ? 0.5 : 0.3,
+                            ),
+                            blurRadius: _isHovering ? 12 : 6,
+                            offset: const Offset(0, 2),
                           ),
-                          blurRadius: _isHovering ? 12 : 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: _MacOsSquircle(
-                      gradientStart: widget.gradientStart,
-                      gradientEnd: widget.gradientEnd,
-                      size: iconSize,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 120),
-                        child: Icon(widget.icon, size: _isHovering ? 26 : 22),
+                        ],
+                      ),
+                      child: _MacOsSquircle(
+                        gradientStart: widget.gradientStart,
+                        gradientEnd: widget.gradientEnd,
+                        size: 48,
+                        child: Icon(widget.icon, size: 24),
                       ),
                     ),
                   ),
@@ -1472,7 +1768,7 @@ class _DockIconState extends State<_DockIcon> {
           // App label - positioned above the icon (overflow outside dock)
           if (_isHovering)
             Positioned(
-              bottom: iconSize + 12, // icon height + dot area + gap
+              bottom: 60, // icon height + dot area + gap
               left: 0,
               right: 0,
               child: Center(
@@ -1501,7 +1797,7 @@ class _DockIconState extends State<_DockIcon> {
           // Window preview - positioned above label
           if (_showPreview && widget.isActive)
             Positioned(
-              bottom: iconSize + 12 + 22 + 4,
+              bottom: 86,
               // icon + dot area + label height + gap
               left: 0,
               right: 0,
