@@ -18,6 +18,8 @@ import '../../data/services/network_monitor_service.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import '../components/desktop_folder.dart';
+import '../components/desktop_folder_name_dialog.dart';
+import '../components/nexus_toast.dart';
 import '../components/wallpaper_picker_dialog.dart';
 import '../pages/ai_chat_page.dart';
 import '../pages/bookmarks_page.dart';
@@ -552,16 +554,27 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     state.reorder(oldIndex, newIndex);
   }
 
+  /// Existing folder names (lowercased) for duplicate-name validation.
+  Set<String> _existingFolderNames({String? excludeId}) {
+    return DesktopState.instance.items.value
+        .where((item) =>
+            item.type == DesktopItemType.folder && item.id != excludeId)
+        .map((item) => (item.folderName ?? '').trim().toLowerCase())
+        .toSet();
+  }
+
   /// Shows a dialog to create a new folder on the desktop.
   Future<void> _showNewFolderDialog(BuildContext context) async {
-    final name = await _showPromptDialog(
+    final name = await showDesktopFolderNameDialog(
       context,
       title: '新建文件夹',
       confirmLabel: '创建',
+      initialName: '新建文件夹',
+      existingNames: _existingFolderNames(),
     );
-    if (name != null && name.isNotEmpty) {
-      DesktopState.instance.createFolder(name);
-    }
+    if (name == null || !mounted) return;
+    DesktopState.instance.createFolder(name);
+    nexusToast(this.context, '已创建文件夹「$name」');
   }
 
   /// Shows a dialog to rename a folder.
@@ -570,15 +583,16 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     String folderId,
     String currentName,
   ) async {
-    final name = await _showPromptDialog(
+    final name = await showDesktopFolderNameDialog(
       context,
       title: '重命名文件夹',
       confirmLabel: '确认',
-      initialText: currentName,
+      initialName: currentName,
+      existingNames: _existingFolderNames(excludeId: folderId),
     );
-    if (name != null && name.isNotEmpty) {
-      DesktopState.instance.renameFolder(folderId, name);
-    }
+    if (name == null || name == currentName || !mounted) return;
+    DesktopState.instance.renameFolder(folderId, name);
+    nexusToast(this.context, '已重命名为「$name」');
   }
 
   /// Shows a confirmation dialog before deleting a folder.
@@ -1487,16 +1501,26 @@ class _DesktopIcon extends StatelessWidget {
           child: ContextMenu(
             items: [
               MenuButton(
+                leading: const Icon(LucideIcons.folderOpen, size: 16),
                 onPressed: (context) => onFolderDoubleTap?.call(),
                 child: const Text('打开'),
               ),
               MenuButton(
+                leading: const Icon(LucideIcons.penLine, size: 16),
                 onPressed: (context) => onRename?.call(),
                 child: const Text('重命名'),
               ),
               MenuButton(
+                leading: Icon(
+                  LucideIcons.trash2,
+                  size: 16,
+                  color: colorScheme.destructive,
+                ),
                 onPressed: (context) => onDelete?.call(),
-                child: const Text('删除'),
+                child: Text(
+                  '删除',
+                  style: TextStyle(color: colorScheme.destructive),
+                ),
               ),
             ],
             child: GestureDetector(
@@ -1585,63 +1609,6 @@ DesktopAppItem? _resolveAppItem(String route) {
     );
   } catch (_) {
     return null;
-  }
-}
-
-/// shadcn text-prompt dialog returning the entered value (trimmed).
-Future<String?> _showPromptDialog(
-  BuildContext context, {
-  required String title,
-  required String confirmLabel,
-  String? initialText,
-}) async {
-  final controller = TextEditingController(text: initialText ?? '');
-  return showOverlay<String>(
-    context,
-    DialogConfiguration<String>(
-      barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
-      builder: (ctx) => _PromptDialog(
-        controller: controller,
-        title: title,
-        confirmLabel: confirmLabel,
-      ),
-    ),
-  ).future;
-}
-
-class _PromptDialog extends StatelessWidget {
-  const _PromptDialog({
-    required this.controller,
-    required this.title,
-    required this.confirmLabel,
-  });
-
-  final TextEditingController controller;
-  final String title;
-  final String confirmLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        hintText: '文件夹名称',
-        onSubmitted: (value) => closeOverlay<String>(context, value.trim()),
-      ),
-      actions: [
-        Button.text(
-          onPressed: () => closeOverlay<String>(context),
-          child: const Text('取消'),
-        ),
-        Button.primary(
-          onPressed: () =>
-              closeOverlay<String>(context, controller.text.trim()),
-          child: Text(confirmLabel),
-        ),
-      ],
-    );
   }
 }
 

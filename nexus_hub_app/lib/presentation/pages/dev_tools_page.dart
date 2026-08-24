@@ -61,6 +61,14 @@ class _DevToolsPageState extends State<DevToolsPage> {
     }
   }
 
+  /// The Diff Viewer fills the available height with its own internal
+  /// scrolling, so it must not be wrapped in a SingleChildScrollView.
+  Widget _buildScrollableContent() {
+    final content = _buildContent();
+    if (_selectedIndex == 7) return content;
+    return SingleChildScrollView(child: content);
+  }
+
   void _selectTool(int index) => setState(() => _selectedIndex = index);
 
   void _toggleSidebar() => setState(() => _sidebarExpanded = !_sidebarExpanded);
@@ -104,9 +112,7 @@ class _DevToolsPageState extends State<DevToolsPage> {
                         onSelect: _selectTool,
                       ),
                       const SizedBox(width: NexusSpacing.md),
-                      Expanded(
-                        child: SingleChildScrollView(child: _buildContent()),
-                      ),
+                      Expanded(child: _buildScrollableContent()),
                     ],
                   );
                 }
@@ -120,9 +126,7 @@ class _DevToolsPageState extends State<DevToolsPage> {
                       onSelect: _selectTool,
                     ),
                     const SizedBox(height: NexusSpacing.md),
-                    Expanded(
-                      child: SingleChildScrollView(child: _buildContent()),
-                    ),
+                    Expanded(child: _buildScrollableContent()),
                   ],
                 );
               },
