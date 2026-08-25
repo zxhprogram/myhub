@@ -3,6 +3,7 @@ import 'dart:ui';
 
 
 import 'package:flutter_reorderable_grid_view/entities/reorder_update_entity.dart';
+import 'package:flutter_reorderable_grid_view/widgets/custom_draggable.dart';
 import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
 import 'package:intl/intl.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -17,6 +18,7 @@ import '../../data/services/clash_system_proxy.dart';
 import '../../data/services/network_monitor_service.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
+import '../components/app_squircle_icon.dart';
 import '../components/desktop_folder.dart';
 import '../components/desktop_folder_name_dialog.dart';
 import '../components/nexus_toast.dart';
@@ -72,78 +74,187 @@ class DesktopAppItem {
   });
 }
 
-/// A macOS Big Sur style squircle — a heavily rounded square filled with a
-/// diagonal gradient that mimics the vibrant pastel app icons of recent macOS.
-class _MacOsSquircle extends StatelessWidget {
-  final Color gradientStart;
-  final Color gradientEnd;
-  final Widget? child;
-  final double size;
+/// Windows 11 style desktop folder icon: a yellow folder silhouette whose
+/// blue front panel tucks a 2x2 grid of the contained apps' mini icons.
+class _FolderThumbnail extends StatelessWidget {
+  const _FolderThumbnail({required this.folderId});
 
-  const _MacOsSquircle({
-    required this.gradientStart,
-    required this.gradientEnd,
-    this.child,
-    this.size = 48,
-  });
+  final String folderId;
+
+  static const _backTop = Color(0xFFFFD066);
+  static const _backBottom = Color(0xFFF3A63B);
+  static const _frontTop = Color(0xFF59B0F8);
+  static const _frontBottom = Color(0xFF2E7BE9);
 
   @override
   Widget build(BuildContext context) {
-    // macOS icons are rounded ~22.3% (approximately 4:1 of 60pt squircle).
-    final radius = size * 0.23;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [gradientStart, gradientEnd],
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
+    return Watch((_) {
+      final folderItems = DesktopState.instance.getFolderItems(folderId);
+      const size = 48.0;
+      final s = size / 48;
+
+      return SizedBox(
+        width: size,
+        height: size,
         child: Stack(
-          fit: StackFit.expand,
+          clipBehavior: Clip.none,
           children: [
-            _SquircleShine(size: size),
-            if (child != null)
-              Center(
-                child: IconTheme(
-                  data: const IconThemeData(color: const Color(0xFFFFFFFF)),
-                  child: child!,
+            // Folder tab
+            Positioned(
+              left: 5 * s,
+              top: 6 * s,
+              child: Container(
+                width: 20 * s,
+                height: 12 * s,
+                decoration: BoxDecoration(
+                  color: _backTop,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(4 * s),
+                    topRight: Radius.circular(4 * s),
+                  ),
                 ),
               ),
+            ),
+            // Folder back panel
+            Positioned(
+              left: 3 * s,
+              top: 10 * s,
+              child: Container(
+                width: 42 * s,
+                height: 34 * s,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(5 * s),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [_backTop, _backBottom],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0x33000000),
+                      blurRadius: 6 * s,
+                      offset: Offset(0, 2 * s),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Mini icons of the contained apps, 2x2 grid
+            if (folderItems.isEmpty)
+              Positioned(
+                left: 12 * s,
+                top: 9 * s,
+                child: SizedBox(
+                  width: 24 * s,
+                  height: 22 * s,
+                  child: Center(
+                    child: Icon(
+                      LucideIcons.plus,
+                      size: 12 * s,
+                      color: const Color(0xFFFFFFFF).withValues(alpha: 0.85),
+                    ),
+                  ),
+                ),
+              )
+            else ...[
+              Positioned(
+                left: _thumbsLeft(folderItems.length) * s,
+                top: 8 * s,
+                child: _ThumbnailGrid(items: folderItems, s: s),
+              ),
+            ],
+            // Folder front panel overlapping the bottom icon row
+            Positioned(
+              left: 3 * s,
+              top: 30 * s,
+              child: Container(
+                width: 42 * s,
+                height: 14 * s,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(3 * s),
+                    topRight: Radius.circular(3 * s),
+                    bottomLeft: Radius.circular(5 * s),
+                    bottomRight: Radius.circular(5 * s),
+                  ),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [_frontTop, _frontBottom],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
-      ),
+      );
+    });
+  }
+
+  /// Horizontal offset centering the thumbnail grid (24 wide for a full
+  /// 2x2 grid, 11 for a single icon) on the 48-unit canvas.
+  double _thumbsLeft(int itemCount) {
+    final cols = itemCount == 1 ? 1 : 2;
+    final gridWidth = cols * 11 + (cols - 1) * 2;
+    return (48 - gridWidth) / 2;
+  }
+}
+
+/// 2x2 grid of mini squircles showing the first apps inside a folder.
+class _ThumbnailGrid extends StatelessWidget {
+  const _ThumbnailGrid({required this.items, required this.s});
+
+  final List<DesktopItem> items;
+
+  /// Scale factor relative to the 48-unit folder canvas.
+  final double s;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = items.take(4).toList();
+    final cols = visible.length == 1 ? 1 : 2;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var row = 0; row < visible.length; row += cols)
+          Padding(
+            padding: EdgeInsets.only(top: row == 0 ? 0 : 2 * s),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var col = row; col < row + cols && col < visible.length; col++)
+                  Padding(
+                    padding: EdgeInsets.only(left: col == row ? 0 : 2 * s),
+                    child: _MiniAppIcon(item: visible[col], size: 11 * s),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
 
-/// Top glass highlight that gives the squircle the glossy macOS finish.
-class _SquircleShine extends StatelessWidget {
-  final double size;
+/// A single mini squircle inside the folder preview, rendered with the
+/// app's own gradient and glyph; unknown items fall back to a file glyph.
+class _MiniAppIcon extends StatelessWidget {
+  const _MiniAppIcon({required this.item, required this.size});
 
-  const _SquircleShine({required this.size});
+  final DesktopItem item;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    final radius = size * 0.23;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFFFFFFFF).withValues(alpha: 0.4),
-            const Color(0xFFFFFFFF).withValues(alpha: 0.0),
-          ],
-          stops: const [0.0, 0.45],
-        ),
-      ),
+    final appItem = item.type == DesktopItemType.app
+        ? _resolveAppItem(item.appRoute ?? '')
+        : null;
+
+    return AppSquircleIcon(
+      gradientStart: appItem?.gradientStart ?? const Color(0xFFB9C0CB),
+      gradientEnd: appItem?.gradientEnd ?? const Color(0xFF8A93A3),
+      size: size,
+      child: Icon(appItem?.icon ?? LucideIcons.file, size: size * 0.62),
     );
   }
 }
@@ -766,8 +877,15 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   Widget _buildDesktopIcons(BuildContext context) {
     return Watch((_) {
       final desktopItems = DesktopState.instance.items.value;
+      // Folders are locked while dragging: they never shift out from under
+      // the pointer, so dropping an app onto a folder stays predictable.
+      final lockedIndices = <int>[
+        for (var i = 0; i < desktopItems.length; i++)
+          if (desktopItems[i].type == DesktopItemType.folder) i,
+      ];
       return ReorderableBuilder(
         onReorderPositions: _onDesktopReorder,
+        lockedIndices: lockedIndices,
         builder: (children) {
           return Wrap(
             spacing: 16,
@@ -780,7 +898,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
           final isOpen =
               item.type == DesktopItemType.app &&
               _openWindows.containsKey(item.appRoute);
-          return _DesktopIcon(
+          final icon = _DesktopIcon(
             key: ValueKey(item.id),
             item: item,
             isOpen: isOpen,
@@ -794,7 +912,12 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
               }
             },
             onFolderDoubleTap: item.type == DesktopItemType.folder
-                ? () => DesktopFolderContent.show(context, item.id)
+                ? () => DesktopFolderContent.show(
+                    context,
+                    item.id,
+                    resolveApp: _resolveAppItem,
+                    onOpenApp: _openAppByRoute,
+                  )
                 : null,
             onRename: item.type == DesktopItemType.folder
                 ? () => _renameFolderDialog(
@@ -807,6 +930,16 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
                 ? () => _confirmDeleteFolder(context, item.id)
                 : null,
           );
+          // Apps carry their [DesktopItem] through the native drag system so
+          // folder DragTargets can highlight and accept the drop directly.
+          if (item.type == DesktopItemType.app) {
+            return CustomDraggable(
+              key: ValueKey('drag_${item.id}'),
+              data: item,
+              child: icon,
+            );
+          }
+          return icon;
         }).toList(),
       );
     });
@@ -1469,7 +1602,7 @@ class _DesktopIcon extends StatelessWidget {
                         ],
                       )
                     : null,
-                child: _MacOsSquircle(
+                child: AppSquircleIcon(
                   gradientStart: appItem.gradientStart,
                   gradientEnd: appItem.gradientEnd,
                   child: Icon(appItem.icon, size: 26),
@@ -1486,7 +1619,6 @@ class _DesktopIcon extends StatelessWidget {
 
   Widget _buildFolderIcon(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = colorScheme.brightness == Brightness.dark;
     final folderName = item.label ?? item.folderName ?? '文件夹';
     return DragTarget<DesktopItem>(
       onWillAcceptWithDetails: (details) =>
@@ -1530,35 +1662,9 @@ class _DesktopIcon extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 AnimatedScale(
-                  scale: isHovering ? 1.08 : 1.0,
+                  scale: isHovering ? 1.1 : 1.0,
                   duration: const Duration(milliseconds: 150),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(48 * 0.23),
-                      color: isHovering
-                          ? colorScheme.muted.withValues(
-                              alpha: isDark ? 0.5 : 0.6,
-                            )
-                          : colorScheme.muted.withValues(
-                              alpha: isDark ? 0.25 : 0.35,
-                            ),
-                      border: Border.all(
-                        color: isHovering
-                            ? colorScheme.border.withValues(
-                                alpha: isDark ? 0.6 : 0.7,
-                              )
-                            : colorScheme.border.withValues(
-                                alpha: isDark ? 0.3 : 0.4,
-                              ),
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(48 * 0.23),
-                      child: DesktopFolderPreview(folderId: item.id),
-                    ),
-                  ),
+                  child: _FolderThumbnail(folderId: item.id),
                 ),
                 const SizedBox(height: 6),
                 _DesktopIconLabel(label: folderName),
@@ -1705,7 +1811,7 @@ class _DockIconState extends State<_DockIcon> {
                           ),
                         ],
                       ),
-                      child: _MacOsSquircle(
+                      child: AppSquircleIcon(
                         gradientStart: widget.gradientStart,
                         gradientEnd: widget.gradientEnd,
                         size: 48,
