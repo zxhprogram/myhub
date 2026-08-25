@@ -1,8 +1,40 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_alacritty/flutter_alacritty.dart';
+import 'package:path/path.dart' as p;
+
+/// Progress snapshot for one file being uploaded over SFTP.
+class SftpUploadProgress {
+  const SftpUploadProgress({
+    required this.fileIndex,
+    required this.fileCount,
+    required this.fileName,
+    required this.sentBytes,
+    required this.totalBytes,
+  });
+
+  /// Zero-based index of the current file within the whole batch.
+  final int fileIndex;
+  final int fileCount;
+
+  /// Remote file name being written.
+  final String fileName;
+
+  /// Bytes acknowledged by the server so far.
+  final int sentBytes;
+  final int totalBytes;
+
+  double get fraction =>
+      totalBytes <= 0 ? 0 : (sentBytes / totalBytes).clamp(0.0, 1.0);
+}
+
+/// Thrown when the user cancels an in-flight batch upload.
+class SftpUploadCancelled implements Exception {}
 
 /// A [PtyBackend] whose byte source is a remote SSH shell instead of a local
 /// PTY — the engine and view are unchanged, only the transport differs (the
@@ -13,7 +45,9 @@ import 'package:flutter_alacritty/flutter_alacritty.dart';
 class SshPtyBackend implements PtyBackend {
   SshPtyBackend._(this._client, this._session) {
     _exitCode = Completer<int>();
-    _output = StreamController<Uint8List>();
+    // Broadcast so the cwd probe can listen alongside the session's main
+    // pipe without a single-subscription StateError.
+    _output = StreamController<Uint8List>.broadcast();
     // With a PTY the remote side usually merges stderr into stdout, but pipe
     // both so servers that keep them separate still render.
     _stdoutSub = _session.stdout.listen(
@@ -137,5 +171,115 @@ class SshPtyBackend implements PtyBackend {
     _closeOutput();
     _completeExit(null);
     _client.close();
+  }
+
+  // ── SFTP upload support ──────────────────────────────────────────────────
+
+  /// The interactive shell's current working directory, probed through the
+  /// PTY so a user's `cd` is respected (a fresh exec channel would only ever
+  /// report the login home).
+  ///
+  /// A `printf '\001%s\001' "$PWD"` line is injected into the shell: the
+  /// terminal echo of the typed command contains the literal four characters
+  /// `\001`, while printf emits real 0x01 control bytes — so scanning for
+  /// actual 0x01 pairs unambiguously finds the expanded path. Returns null
+  /// when no answer arrives within the timeout (callers fall back to home).
+  Future<String?> resolveWorkingDirectory({
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    if (_killed || _output.isClosed) return null;
+
+    final completer = Completer<String?>();
+    final buffer = BytesBuilder(copy: false);
+    late final StreamSubscription<Uint8List> sub;
+    sub = _output.stream.listen((chunk) {
+      if (completer.isCompleted) return;
+      buffer.add(chunk);
+      final data = buffer.toBytes();
+      final start = data.indexOf(0x01);
+      if (start < 0) return;
+      final end = data.indexOf(0x01, start + 1);
+      if (end <= start + 1) return;
+      completer.complete(
+        utf8.decode(data.sublist(start + 1, end), allowMalformed: true),
+      );
+    });
+
+    // Leading space keeps the command out of history on shells with
+    // HISTCONTROL=ignorespace; harmless elsewhere.
+    write(utf8.encode(" printf '\\001%s\\001' \"\$PWD\"\r"));
+
+    var timer = Timer(timeout, () {
+      if (!completer.isCompleted) completer.complete(null);
+    });
+    final result = await completer.future;
+    timer.cancel();
+    await sub.cancel();
+    final cwd = result?.trim();
+    return (cwd == null || cwd.isEmpty) ? null : cwd;
+  }
+
+  /// Uploads local files into [remoteDir] over SFTP, sequentially, reporting
+  /// per-file progress to [onProgress]. [cancelled] is polled between chunks
+  /// and between files; when it turns true, [SftpUploadCancelled] is thrown.
+  ///
+  /// Non-regular-file paths (folders) are skipped and reported back via the
+  /// returned list of skipped names.
+  Future<List<String>> uploadFiles({
+    required List<String> localPaths,
+    required String remoteDir,
+    void Function(SftpUploadProgress progress)? onProgress,
+    bool Function()? cancelled,
+  }) async {
+    if (_killed) {
+      throw Exception('SSH 连接已断开，无法上传。');
+    }
+    final sftp = await _client.sftp();
+    try {
+      final separator = remoteDir.endsWith('/') ? '' : '/';
+      final skipped = <String>[];
+      for (var i = 0; i < localPaths.length; i++) {
+        if (cancelled?.call() ?? false) throw SftpUploadCancelled();
+        final localPath = localPaths[i];
+        final file = File(localPath);
+        if (!file.existsSync()) {
+          skipped.add(localPath);
+          continue;
+        }
+        final fileName = p.basename(localPath);
+        final remotePath = '$remoteDir$separator$fileName';
+        final total = file.lengthSync();
+
+        final remote = await sftp.open(
+          remotePath,
+          mode: SftpFileOpenMode.create |
+              SftpFileOpenMode.truncate |
+              SftpFileOpenMode.write,
+        );
+        try {
+          final writer = remote.write(
+            file.openRead().map((chunk) {
+              // Checked per chunk so even a huge single file can be aborted
+              // mid-transfer; the throw fails writer.done below.
+              if (cancelled?.call() ?? false) throw SftpUploadCancelled();
+              return chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
+            }),
+            onProgress: (sent) => onProgress?.call(SftpUploadProgress(
+              fileIndex: i,
+              fileCount: localPaths.length,
+              fileName: fileName,
+              sentBytes: sent,
+              totalBytes: total,
+            )),
+          );
+          await writer.done;
+        } finally {
+          await remote.close();
+        }
+      }
+      return skipped;
+    } finally {
+      sftp.close();
+    }
   }
 }
