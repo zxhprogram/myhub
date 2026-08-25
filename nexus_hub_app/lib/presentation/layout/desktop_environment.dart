@@ -32,6 +32,7 @@ import '../pages/clipboard_history_page.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/dev_tools_page.dart';
 import '../pages/ebook/ebook_library_page.dart';
+import '../pages/env_installer_page.dart';
 import '../pages/google_news_page.dart';
 import '../pages/java_decompiler_page.dart';
 import '../pages/mail_page.dart';
@@ -447,6 +448,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const EbookLibraryPage(),
       gradientStart: const Color(0xFF64D2FF),
       gradientEnd: const Color(0xFF1E5AF0),
+    ),
+    DesktopAppItem(
+      label: '环境安装助手',
+      icon: LucideIcons.packageOpen,
+      route: '/env-installer',
+      pageBuilder: (_) => const EnvInstallerPage(),
+      gradientStart: const Color(0xFF2DD4BF),
+      gradientEnd: const Color(0xFF0F766E),
     ),
     DesktopAppItem(
       label: 'Clash',
