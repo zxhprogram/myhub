@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 
-
 import 'package:flutter_reorderable_grid_view/entities/reorder_update_entity.dart';
 import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
 import 'package:intl/intl.dart';
@@ -19,6 +18,7 @@ import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import '../components/desktop_folder.dart';
 import '../components/wallpaper_picker_dialog.dart';
+import 'controlled_window.dart';
 import '../pages/ai_chat_page.dart';
 import '../pages/bookmarks_page.dart';
 import '../pages/calendar_page.dart';
@@ -148,8 +148,8 @@ class _SquircleShine extends StatelessWidget {
 
 /// Height of the overlay menu bar at the top of the desktop.
 ///
-/// Windows are maximized below it (see [WindowNavigator.maximizedInsets]) so
-/// their title bar is never covered by the menu bar.
+/// The window navigator is padded below it so maximized windows never have
+/// their title bar covered by the menu bar.
 const double _kMenuBarHeight = 32.0;
 
 /// macOS-style desktop environment with a window manager.
@@ -427,10 +427,10 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     final controller = WindowController(
       // Restore bounds used when the user un-maximizes; windows open
       // maximized (relative full-viewport rect resolved by the navigator,
-      // which subtracts the menu bar via maximizedInsets).
+      // whose viewport already starts below the menu bar).
       bounds: Rect.fromLTWH(
         60 + (_windowCounter % 5) * 40,
-        40 + _kMenuBarHeight + (_windowCounter % 5) * 40, // below menu bar
+        40 + (_windowCounter % 5) * 40, // below menu bar (padded viewport)
         900,
         600,
       ),
@@ -449,7 +449,10 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     );
     _windowCounter++;
 
-    final window = Window.controlled(
+    // ControlledWindow pins `alwaysOnTop` to a non-null value so windows
+    // don't vanish after the first drag (published shadcn_flutter 0.0.53
+    // bug). See controlled_window.dart and test/window_drag_test.dart.
+    final window = ControlledWindow(
       controller: controller,
       title: Row(
         mainAxisSize: MainAxisSize.min,
@@ -476,8 +479,9 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
             settings: settings,
             pageBuilder: (context, animation, secondaryAnimation) =>
                 appItem.pageBuilder(context),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-                FadeTransition(opacity: animation, child: child),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
           ),
         ),
       ),
@@ -615,13 +619,16 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        WindowNavigator(
-          key: _navigatorKey,
-          initialWindows: const [],
-          // Maximized windows stop below the overlay menu bar so their
-          // title bar stays visible and draggable.
-          maximizedInsets: const EdgeInsets.only(top: _kMenuBarHeight),
-          child: _buildDesktopContent(context),
+        Padding(
+          // The navigator's viewport starts below the overlay menu bar, so
+          // maximized/snapped windows stop below it and their title bar
+          // stays visible and draggable.
+          padding: const EdgeInsets.only(top: _kMenuBarHeight),
+          child: WindowNavigator(
+            key: _navigatorKey,
+            initialWindows: const [],
+            child: _buildDesktopContent(context),
+          ),
         ),
         // Menu bar on top of everything, including windows (like macOS).
         Positioned(
@@ -806,9 +813,11 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
         .whereType<DesktopAppItem>()
         .toList();
     final runningExtras = _appItems
-        .where((app) =>
-            _openWindows.containsKey(app.route) &&
-            !pinned.any((p) => p.route == app.route))
+        .where(
+          (app) =>
+              _openWindows.containsKey(app.route) &&
+              !pinned.any((p) => p.route == app.route),
+        )
         .toList();
     final dockApps = [...pinned, ...runningExtras];
 
@@ -872,64 +881,73 @@ class _MenuBar extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = colorScheme.brightness == Brightness.dark;
 
-    return Container(
-      height: _kMenuBarHeight,
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF000000).withValues(alpha: 0.25)
-            : const Color(0xFFFFFFFF).withValues(alpha: 0.2),
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.border.withValues(alpha: 0.1),
+    // Frosted-glass surface: the blur plus a mostly-opaque background keeps
+    // the bar uniform over any wallpaper. A weak tint (e.g. white 20%)
+    // lets bright wallpaper regions shine through as inconsistent white
+    // patches.
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        child: Container(
+          height: _kMenuBarHeight,
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: colorScheme.background.withValues(
+              alpha: isDark ? 0.7 : 0.85,
+            ),
+            border: Border(
+              bottom: BorderSide(
+                color: colorScheme.border.withValues(alpha: 0.1),
+              ),
+            ),
           ),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Left: app name (like macOS Apple menu area)
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
             children: [
-              Icon(
-                LucideIcons.apple,
-                size: 16,
-                color: isDark
-                    ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
-                    : const Color(0xFF000000).withValues(alpha: 0.85),
+              // Left: app name (like macOS Apple menu area)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    LucideIcons.apple,
+                    size: 16,
+                    color: isDark
+                        ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
+                        : const Color(0xFF000000).withValues(alpha: 0.85),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Nexus Hub',
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
+                          : const Color(0xFF000000).withValues(alpha: 0.85),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              // Right: live status area + weather + toggles + clock. The
+              // status widgets keep glanceable system info one glance away.
+              _ClashStatusMenuWidget(onOpenApp: onOpenApp),
+              const _NetworkRateMenuWidget(),
+              _PomodoroMenuWidget(onOpenApp: onOpenApp),
+              const SizedBox(width: 8),
+              const _WeatherWidget(),
+              const SizedBox(width: 8),
+              const _DensityToggleButton(),
+              _MenuIconButton(
+                icon: isDark ? LucideIcons.moon : LucideIcons.sun,
+                onTap: () => ThemeState.instance.toggle(),
               ),
               const SizedBox(width: 8),
-              Text(
-                'Nexus Hub',
-                style: TextStyle(
-                  color: isDark
-                      ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
-                      : const Color(0xFF000000).withValues(alpha: 0.85),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.2,
-                ),
-              ),
+              const _ClockWidget(),
             ],
           ),
-          const Spacer(),
-          // Right: live status area + weather + toggles + clock. The status
-          // widgets keep glanceable system info one fixed glance away.
-          _ClashStatusMenuWidget(onOpenApp: onOpenApp),
-          const _NetworkRateMenuWidget(),
-          _PomodoroMenuWidget(onOpenApp: onOpenApp),
-          const SizedBox(width: 8),
-          const _WeatherWidget(),
-          const SizedBox(width: 8),
-          const _DensityToggleButton(),
-          _MenuIconButton(
-            icon: isDark ? LucideIcons.moon : LucideIcons.sun,
-            onTap: () => ThemeState.instance.toggle(),
-          ),
-          const SizedBox(width: 8),
-          const _ClockWidget(),
-        ],
+        ),
       ),
     );
   }
@@ -1091,7 +1109,10 @@ class _PomodoroMenuWidget extends StatelessWidget {
                   color: _menuBarForeground(context, alpha: running ? 1 : 0.65),
                 ),
                 const SizedBox(width: 4),
-                Text(text, style: _menuBarTextStyle(context, weight: FontWeight.w600)),
+                Text(
+                  text,
+                  style: _menuBarTextStyle(context, weight: FontWeight.w600),
+                ),
               ],
             ),
           ),
@@ -1135,11 +1156,14 @@ class _ClashStatusIconState extends State<_ClashStatusIcon> {
   }
 
   void _refresh() {
-    ClashSystemProxyService.instance.isEnabled().then((value) {
-      if (mounted) setState(() => _enabled = value);
-    }).catchError((_) {
-      if (mounted) setState(() => _enabled = null);
-    });
+    ClashSystemProxyService.instance
+        .isEnabled()
+        .then((value) {
+          if (mounted) setState(() => _enabled = value);
+        })
+        .catchError((_) {
+          if (mounted) setState(() => _enabled = null);
+        });
   }
 
   @override
@@ -1320,11 +1344,7 @@ class _WeatherWidgetState extends State<_WeatherWidget> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          _iconForCode(weather.weatherCode),
-          size: 14,
-          color: foreground,
-        ),
+        Icon(_iconForCode(weather.weatherCode), size: 14, color: foreground),
         const SizedBox(width: 4),
         Text(
           '${_descriptionForCode(weather.weatherCode)} '
@@ -1503,44 +1523,44 @@ class _DesktopIcon extends StatelessWidget {
               onTap: onFolderDoubleTap,
               onDoubleTap: onFolderDoubleTap,
               child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedScale(
-                  scale: isHovering ? 1.08 : 1.0,
-                  duration: const Duration(milliseconds: 150),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(48 * 0.23),
-                      color: isHovering
-                          ? colorScheme.muted.withValues(
-                              alpha: isDark ? 0.5 : 0.6,
-                            )
-                          : colorScheme.muted.withValues(
-                              alpha: isDark ? 0.25 : 0.35,
-                            ),
-                      border: Border.all(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedScale(
+                    scale: isHovering ? 1.08 : 1.0,
+                    duration: const Duration(milliseconds: 150),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(48 * 0.23),
                         color: isHovering
-                            ? colorScheme.border.withValues(
-                                alpha: isDark ? 0.6 : 0.7,
+                            ? colorScheme.muted.withValues(
+                                alpha: isDark ? 0.5 : 0.6,
                               )
-                            : colorScheme.border.withValues(
-                                alpha: isDark ? 0.3 : 0.4,
+                            : colorScheme.muted.withValues(
+                                alpha: isDark ? 0.25 : 0.35,
                               ),
+                        border: Border.all(
+                          color: isHovering
+                              ? colorScheme.border.withValues(
+                                  alpha: isDark ? 0.6 : 0.7,
+                                )
+                              : colorScheme.border.withValues(
+                                  alpha: isDark ? 0.3 : 0.4,
+                                ),
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(48 * 0.23),
+                        child: DesktopFolderPreview(folderId: item.id),
                       ),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(48 * 0.23),
-                      child: DesktopFolderPreview(folderId: item.id),
-                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                _DesktopIconLabel(label: folderName),
-              ],
+                  const SizedBox(height: 6),
+                  _DesktopIconLabel(label: folderName),
+                ],
+              ),
             ),
-          ),
           ),
         );
       },
@@ -1556,13 +1576,17 @@ class _DesktopIcon extends StatelessWidget {
         return Text(
           label,
           style: TextStyle(
-            color: isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000).withValues(alpha: 0.9),
+            color: isDark
+                ? const Color(0xFFFFFFFF)
+                : const Color(0xFF000000).withValues(alpha: 0.9),
             fontSize: 11,
             fontWeight: FontWeight.w500,
             height: 1.2,
             shadows: [
               Shadow(
-                color: isDark ? const Color(0x73000000) : const Color(0x89FFFFFF),
+                color: isDark
+                    ? const Color(0x73000000)
+                    : const Color(0x89FFFFFF),
                 blurRadius: 4,
                 offset: const Offset(0, 1),
               ),
@@ -1703,51 +1727,48 @@ class _DockIconState extends State<_DockIcon> {
                       child: const Text('打开'),
                     ),
                   const MenuDivider(),
-                  MenuButton(
-                    onPressed: (context) {},
-                    child: const Text('选项'),
-                  ),
+                  MenuButton(onPressed: (context) {}, child: const Text('选项')),
                 ],
                 child: GestureDetector(
                   onTap: widget.onTap,
                   child: MouseRegion(
-                  onEnter: (_) => setState(() {
-                    _isHovering = true;
-                    if (widget.isActive) {
-                      _showPreview = true;
-                    }
-                  }),
-                  onExit: (_) => setState(() {
-                    _isHovering = false;
-                    _showPreview = false;
-                  }),
-                  child: AnimatedScale(
-                    duration: const Duration(milliseconds: 120),
-                    curve: Curves.easeOut,
-                    scale: _isHovering ? 1.16 : 1.0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(48 * 0.23),
-                        boxShadow: [
-                          BoxShadow(
-                            color: widget.gradientEnd.withValues(
-                              alpha: _isHovering ? 0.5 : 0.3,
+                    onEnter: (_) => setState(() {
+                      _isHovering = true;
+                      if (widget.isActive) {
+                        _showPreview = true;
+                      }
+                    }),
+                    onExit: (_) => setState(() {
+                      _isHovering = false;
+                      _showPreview = false;
+                    }),
+                    child: AnimatedScale(
+                      duration: const Duration(milliseconds: 120),
+                      curve: Curves.easeOut,
+                      scale: _isHovering ? 1.16 : 1.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(48 * 0.23),
+                          boxShadow: [
+                            BoxShadow(
+                              color: widget.gradientEnd.withValues(
+                                alpha: _isHovering ? 0.5 : 0.3,
+                              ),
+                              blurRadius: _isHovering ? 12 : 6,
+                              offset: const Offset(0, 2),
                             ),
-                            blurRadius: _isHovering ? 12 : 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: _MacOsSquircle(
-                        gradientStart: widget.gradientStart,
-                        gradientEnd: widget.gradientEnd,
-                        size: 48,
-                        child: Icon(widget.icon, size: 24),
+                          ],
+                        ),
+                        child: _MacOsSquircle(
+                          gradientStart: widget.gradientStart,
+                          gradientEnd: widget.gradientEnd,
+                          size: 48,
+                          child: Icon(widget.icon, size: 24),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
               ),
               // Active indicator dot (macOS style)
               AnimatedContainer(
@@ -1817,7 +1838,9 @@ class _DockIconState extends State<_DockIcon> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         color: const Color(0xFF2C2C2E),
-        border: Border.all(color: const Color(0xFFFFFFFF).withValues(alpha: 0.2)),
+        border: Border.all(
+          color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
+        ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF000000).withValues(alpha: 0.4),
@@ -1894,5 +1917,4 @@ class _DockIconState extends State<_DockIcon> {
       ),
     );
   }
-
 }

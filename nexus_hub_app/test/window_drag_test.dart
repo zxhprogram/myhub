@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nexus_hub_app/presentation/layout/controlled_window.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shadcn;
 
 /// Guards the controlled-window drag bug in shadcn_flutter 0.0.53.
 ///
-/// Root cause: `shadcn.Window.controlled(...)` leaves `Window.alwaysOnTop ==
-/// null`, so during a drag the low-level `_WindowLayerGroup` (private, in the
-/// package) drops the dragged window from the tree because its raw nullable
-/// flag never equals the layer's non-null `alwaysOnTop`. The pan recognizers
-/// are disposed mid-gesture without firing `onPanEnd`/`onPanCancel`, and
-/// `_draggingWindow` stays stuck on that window forever, leaving it invisible
-/// but "open".
+/// Root cause: `shadcn.Window.controlled(...)` hard-codes `Window.alwaysOnTop
+/// == null`, and while a window is dragged the navigator renders it only in
+/// the layer whose flag equals the raw value — `null` matches neither layer,
+/// so the window vanishes mid-gesture and the stuck drag state keeps it
+/// invisible.
 ///
-/// This test drives the real UI. On a shadcn_flutter upgrade that already
-/// fixes the bug it should be dropped.
+/// The app-side workaround is [ControlledWindow], which overrides
+/// `alwaysOnTop` to a non-null `false`. This test drives the real UI with
+/// that class. On a shadcn_flutter upgrade that already fixes the bug both
+/// the workaround and this test can be dropped.
 void main() {
   testWidgets('dragging a controlled window keeps it visible', (tester) async {
     tester.view.physicalSize = const Size(1280, 800);
@@ -38,13 +39,14 @@ void main() {
       ),
     );
 
-    // Push a controlled window (exactly what desktop_environment.dart does).
+    // Push a controlled window (exactly what desktop_environment.dart does:
+    // ControlledWindow avoids the drag-vanish bug).
     final controller = shadcn.WindowController(
       bounds: const Rect.fromLTWH(60, 40, 900, 600),
       resizable: true,
       draggable: true,
     );
-    final window = shadcn.Window.controlled(
+    final window = ControlledWindow(
       controller: controller,
       title: const Text('Test Window'),
       content: const ColoredBox(color: Colors.blue),
