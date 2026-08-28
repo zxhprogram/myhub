@@ -619,16 +619,15 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        // Desktop content fills the whole screen so the wallpaper extends
+        // behind the translucent menu bar (like the real macOS menu bar).
+        _buildDesktopContent(context),
         Padding(
-          // The navigator's viewport starts below the overlay menu bar, so
+          // The navigator's viewport starts below the menu bar, so
           // maximized/snapped windows stop below it and their title bar
           // stays visible and draggable.
           padding: const EdgeInsets.only(top: _kMenuBarHeight),
-          child: WindowNavigator(
-            key: _navigatorKey,
-            initialWindows: const [],
-            child: _buildDesktopContent(context),
-          ),
+          child: WindowNavigator(key: _navigatorKey, initialWindows: const []),
         ),
         // Menu bar on top of everything, including windows (like macOS).
         Positioned(
@@ -733,27 +732,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = colorScheme.brightness == Brightness.dark;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? const [
-                  Color(0xFF1A1A2E),
-                  Color(0xFF16213E),
-                  Color(0xFF0F3460),
-                  Color(0xFF533483),
-                ]
-              : const [
-                  Color(0xFFF0F4FF),
-                  Color(0xFFE5EEFF),
-                  Color(0xFFDCE9FF),
-                  Color(0xFFD3E4FE),
-                ],
-        ),
-      ),
-    );
+    return Container();
   }
 
   Widget _buildDesktopIcons(BuildContext context) {
@@ -881,73 +860,58 @@ class _MenuBar extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = colorScheme.brightness == Brightness.dark;
 
-    // Frosted-glass surface: the blur plus a mostly-opaque background keeps
-    // the bar uniform over any wallpaper. A weak tint (e.g. white 20%)
-    // lets bright wallpaper regions shine through as inconsistent white
-    // patches.
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-        child: Container(
-          height: _kMenuBarHeight,
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: colorScheme.background.withValues(
-              alpha: isDark ? 0.7 : 0.85,
-            ),
-            border: Border(
-              bottom: BorderSide(
-                color: colorScheme.border.withValues(alpha: 0.1),
-              ),
-            ),
-          ),
-          child: Row(
+    // Translucent frosted-glass surface like the real macOS menu bar: a
+    // white (light) / black (dark) tint over the blurred wallpaper instead
+    // of the theme's gray background, which reads as a dull band. No hard
+    // bottom border — a soft shadow separates it from the desktop.
+    return Container(
+      height: _kMenuBarHeight,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          // Left: app name (like macOS Apple menu area)
+          Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Left: app name (like macOS Apple menu area)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    LucideIcons.apple,
-                    size: 16,
-                    color: isDark
-                        ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
-                        : const Color(0xFF000000).withValues(alpha: 0.85),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Nexus Hub',
-                    style: TextStyle(
-                      color: isDark
-                          ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
-                          : const Color(0xFF000000).withValues(alpha: 0.85),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              // Right: live status area + weather + toggles + clock. The
-              // status widgets keep glanceable system info one glance away.
-              _ClashStatusMenuWidget(onOpenApp: onOpenApp),
-              const _NetworkRateMenuWidget(),
-              _PomodoroMenuWidget(onOpenApp: onOpenApp),
-              const SizedBox(width: 8),
-              const _WeatherWidget(),
-              const SizedBox(width: 8),
-              const _DensityToggleButton(),
-              _MenuIconButton(
-                icon: isDark ? LucideIcons.moon : LucideIcons.sun,
-                onTap: () => ThemeState.instance.toggle(),
+              Icon(
+                LucideIcons.apple,
+                size: 16,
+                color: isDark
+                    ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
+                    : const Color(0xFF000000).withValues(alpha: 0.85),
               ),
               const SizedBox(width: 8),
-              const _ClockWidget(),
+              Text(
+                'Nexus Hub',
+                style: TextStyle(
+                  color: isDark
+                      ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
+                      : const Color(0xFF000000).withValues(alpha: 0.85),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
+              ),
             ],
           ),
-        ),
+          const Spacer(),
+          // Right: live status area + weather + toggles + clock. The
+          // status widgets keep glanceable system info one glance away.
+          _ClashStatusMenuWidget(onOpenApp: onOpenApp),
+          const _NetworkRateMenuWidget(),
+          _PomodoroMenuWidget(onOpenApp: onOpenApp),
+          const SizedBox(width: 8),
+          const _WeatherWidget(),
+          const SizedBox(width: 8),
+          const _DensityToggleButton(),
+          _MenuIconButton(
+            icon: isDark ? LucideIcons.moon : LucideIcons.sun,
+            onTap: () => ThemeState.instance.toggle(),
+          ),
+          const SizedBox(width: 8),
+          const _ClockWidget(),
+        ],
       ),
     );
   }
