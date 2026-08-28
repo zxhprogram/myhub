@@ -17,6 +17,7 @@ import '../../data/services/network_monitor_service.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import '../components/desktop_folder.dart';
+import '../components/desktop_folder_name_dialog.dart';
 import '../components/wallpaper_picker_dialog.dart';
 import 'controlled_window.dart';
 import '../pages/ai_chat_page.dart';
@@ -558,10 +559,16 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
   /// Shows a dialog to create a new folder on the desktop.
   Future<void> _showNewFolderDialog(BuildContext context) async {
-    final name = await _showPromptDialog(
+    final existingNames = DesktopState.instance.items.value
+        .where((item) => item.type == DesktopItemType.folder)
+        .map((item) => item.folderName?.toLowerCase())
+        .whereType<String>()
+        .toSet();
+    final name = await showDesktopFolderNameDialog(
       context,
       title: '新建文件夹',
       confirmLabel: '创建',
+      existingNames: existingNames,
     );
     if (name != null && name.isNotEmpty) {
       DesktopState.instance.createFolder(name);
@@ -574,11 +581,23 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
     String folderId,
     String currentName,
   ) async {
-    final name = await _showPromptDialog(
+    // Exclude the folder itself so keeping its own name is not flagged
+    // as a duplicate.
+    final existingNames = DesktopState.instance.items.value
+        .where(
+          (item) =>
+              item.type == DesktopItemType.folder &&
+              item.folderName?.toLowerCase() != currentName.toLowerCase(),
+        )
+        .map((item) => item.folderName?.toLowerCase())
+        .whereType<String>()
+        .toSet();
+    final name = await showDesktopFolderNameDialog(
       context,
       title: '重命名文件夹',
       confirmLabel: '确认',
-      initialText: currentName,
+      initialName: currentName,
+      existingNames: existingNames,
     );
     if (name != null && name.isNotEmpty) {
       DesktopState.instance.renameFolder(folderId, name);
@@ -1641,63 +1660,6 @@ class DesktopFolderPreview extends StatelessWidget {
         ),
       );
     });
-  }
-}
-
-/// shadcn text-prompt dialog returning the entered value (trimmed).
-Future<String?> _showPromptDialog(
-  BuildContext context, {
-  required String title,
-  required String confirmLabel,
-  String? initialText,
-}) async {
-  final controller = TextEditingController(text: initialText ?? '');
-  return showOverlay<String>(
-    context,
-    DialogConfiguration<String>(
-      barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
-      builder: (ctx) => _PromptDialog(
-        controller: controller,
-        title: title,
-        confirmLabel: confirmLabel,
-      ),
-    ),
-  ).future;
-}
-
-class _PromptDialog extends StatelessWidget {
-  const _PromptDialog({
-    required this.controller,
-    required this.title,
-    required this.confirmLabel,
-  });
-
-  final TextEditingController controller;
-  final String title;
-  final String confirmLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        hintText: '文件夹名称',
-        onSubmitted: (value) => closeOverlay<String>(context, value.trim()),
-      ),
-      actions: [
-        Button.text(
-          onPressed: () => closeOverlay<String>(context),
-          child: const Text('取消'),
-        ),
-        Button.primary(
-          onPressed: () =>
-              closeOverlay<String>(context, controller.text.trim()),
-          child: Text(confirmLabel),
-        ),
-      ],
-    );
   }
 }
 
