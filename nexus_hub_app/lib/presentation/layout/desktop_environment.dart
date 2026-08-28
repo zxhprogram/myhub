@@ -860,58 +860,66 @@ class _MenuBar extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = colorScheme.brightness == Brightness.dark;
 
-    // Translucent frosted-glass surface like the real macOS menu bar: a
-    // white (light) / black (dark) tint over the blurred wallpaper instead
-    // of the theme's gray background, which reads as a dull band. No hard
-    // bottom border — a soft shadow separates it from the desktop.
-    return Container(
-      height: _kMenuBarHeight,
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          // Left: app name (like macOS Apple menu area)
-          Row(
-            mainAxisSize: MainAxisSize.min,
+    // Translucent frosted-glass surface like the real macOS menu bar: the
+    // wallpaper behind is blurred, with a white (light) / black (dark) tint
+    // on top. No hard bottom border — a soft shadow separates it from the
+    // desktop.
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          height: _kMenuBarHeight,
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          color: isDark
+              ? const Color(0xFF1C1C1E).withValues(alpha: 0.45)
+              : const Color(0xFFF5F5F7).withValues(alpha: 0.55),
+          child: Row(
             children: [
-              Icon(
-                LucideIcons.apple,
-                size: 16,
-                color: isDark
-                    ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
-                    : const Color(0xFF000000).withValues(alpha: 0.85),
+              // Left: app name (like macOS Apple menu area)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    LucideIcons.apple,
+                    size: 16,
+                    color: isDark
+                        ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
+                        : const Color(0xFF000000).withValues(alpha: 0.85),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Nexus Hub',
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
+                          : const Color(0xFF000000).withValues(alpha: 0.85),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              // Right: live status area + weather + toggles + clock. The
+              // status widgets keep glanceable system info one glance away.
+              _ClashStatusMenuWidget(onOpenApp: onOpenApp),
+              const _NetworkRateMenuWidget(),
+              _PomodoroMenuWidget(onOpenApp: onOpenApp),
+              const SizedBox(width: 8),
+              const _WeatherWidget(),
+              const SizedBox(width: 8),
+              const _DensityToggleButton(),
+              _MenuIconButton(
+                icon: isDark ? LucideIcons.moon : LucideIcons.sun,
+                onTap: () => ThemeState.instance.toggle(),
               ),
               const SizedBox(width: 8),
-              Text(
-                'Nexus Hub',
-                style: TextStyle(
-                  color: isDark
-                      ? const Color(0xFFFFFFFF).withValues(alpha: 0.9)
-                      : const Color(0xFF000000).withValues(alpha: 0.85),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.2,
-                ),
-              ),
+              const _ClockWidget(),
             ],
           ),
-          const Spacer(),
-          // Right: live status area + weather + toggles + clock. The
-          // status widgets keep glanceable system info one glance away.
-          _ClashStatusMenuWidget(onOpenApp: onOpenApp),
-          const _NetworkRateMenuWidget(),
-          _PomodoroMenuWidget(onOpenApp: onOpenApp),
-          const SizedBox(width: 8),
-          const _WeatherWidget(),
-          const SizedBox(width: 8),
-          const _DensityToggleButton(),
-          _MenuIconButton(
-            icon: isDark ? LucideIcons.moon : LucideIcons.sun,
-            onTap: () => ThemeState.instance.toggle(),
-          ),
-          const SizedBox(width: 8),
-          const _ClockWidget(),
-        ],
+        ),
       ),
     );
   }
