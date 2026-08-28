@@ -368,6 +368,26 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
   int _windowCounter = 0;
 
+  /// Keys locating folder icon render boxes for drop-target hit tests.
+  final Map<String, GlobalKey> _folderHitKeys = {};
+
+  /// Id of the desktop item currently being dragged (null when idle).
+  String? _draggingDesktopItemId;
+
+  /// Global pointer position while a desktop icon drag is active.
+  Offset? _desktopDragPointer;
+
+  /// Set when the dragged app was released over a folder; the next reorder
+  /// event is skipped so positions stay put (the app goes into the folder).
+  bool _skipNextDesktopReorder = false;
+
+  /// Indices locked from live-swapping, mutated in place at drag start.
+  ///
+  /// While an app is dragged, folders are locked so the drag never displaces
+  /// them — the folder stays under the pointer until drop, which makes
+  /// dropping the app into the folder reliable.
+  final List<int> _desktopLockedIndices = <int>[];
+
   @override
   void initState() {
     super.initState();
@@ -529,32 +549,76 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
   /// Handles reorder events from [ReorderableBuilder].
   ///
-  /// If the drag target is a folder and the dragged item is an app, the item is
-  /// moved into the folder instead of reordering the desktop list.
+  /// If the dragged app was released over a folder, the reorder is skipped
+  /// (positions stay put) — the app was already moved into the folder in
+  /// [_onDesktopIconDragEnd].
   void _onDesktopReorder(List<ReorderUpdateEntity> entities) {
     if (entities.isEmpty) return;
+    if (_skipNextDesktopReorder) {
+      _skipNextDesktopReorder = false;
+      return;
+    }
     final entity = entities.first;
-    final oldIndex = entity.oldIndex;
-    final newIndex = entity.newIndex;
+    DesktopState.instance.reorder(entity.oldIndex, entity.newIndex);
+  }
 
-    final state = DesktopState.instance;
-    final items = state.items.value;
-
-    // Compute the effective target index (ReorderableBuilder's newIndex
-    // accounts for the removed item when newIndex > oldIndex).
-    final targetIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
-    if (targetIndex >= 0 && targetIndex < items.length) {
-      final targetItem = items[targetIndex];
-      if (targetItem.type == DesktopItemType.folder) {
-        final draggedItem = items[oldIndex];
-        if (draggedItem.type == DesktopItemType.app) {
-          state.moveItemToFolder(draggedItem.id, targetItem.id);
-          return;
+  /// Tracks drag start of a desktop icon.
+  ///
+  /// While an app is dragged, folder indices are locked so the live swap
+  /// skips folders (they never move out from under the pointer). Dragging a
+  /// folder keeps everything swappable.
+  void _onDesktopIconDragStarted(int index, List<DesktopItem> items) {
+    _skipNextDesktopReorder = false;
+    if (index < 0 || index >= items.length) return;
+    final dragged = items[index];
+    _draggingDesktopItemId = dragged.id;
+    _desktopDragPointer = null;
+    _desktopLockedIndices.clear();
+    if (dragged.type == DesktopItemType.app) {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type == DesktopItemType.folder) {
+          _desktopLockedIndices.add(i);
         }
       }
     }
+  }
 
-    state.reorder(oldIndex, newIndex);
+  /// Finishes a desktop icon drag.
+  ///
+  /// If the pointer was released over a folder and the dragged item is an
+  /// app, the app is moved into that folder without swapping positions.
+  void _onDesktopIconDragEnd(List<DesktopItem> items) {
+    _desktopLockedIndices.clear();
+    final pointer = _desktopDragPointer;
+    final draggedId = _draggingDesktopItemId;
+    _draggingDesktopItemId = null;
+    _desktopDragPointer = null;
+    if (pointer == null || draggedId == null) return;
+
+    final isApp = items.any(
+      (item) => item.id == draggedId && item.type == DesktopItemType.app,
+    );
+    if (!isApp) return;
+
+    final folderId = _folderIdAtGlobalPosition(pointer, items);
+    if (folderId != null) {
+      _skipNextDesktopReorder = true;
+      DesktopState.instance.moveItemToFolder(draggedId, folderId);
+    }
+  }
+
+  /// Returns the id of the folder whose icon contains [position], or null.
+  String? _folderIdAtGlobalPosition(Offset position, List<DesktopItem> items) {
+    for (final item in items) {
+      if (item.type != DesktopItemType.folder) continue;
+      final context = _folderHitKeys[item.id]?.currentContext;
+      if (context == null) continue;
+      final box = context.findRenderObject();
+      if (box is! RenderBox) continue;
+      final bounds = box.localToGlobal(Offset.zero) & box.size;
+      if (bounds.contains(position)) return item.id;
+    }
+    return null;
   }
 
   /// Shows a dialog to create a new folder on the desktop.
@@ -757,48 +821,71 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   Widget _buildDesktopIcons(BuildContext context) {
     return Watch((_) {
       final desktopItems = DesktopState.instance.items.value;
-      return ReorderableBuilder(
-        onReorderPositions: _onDesktopReorder,
-        builder: (children) {
-          return Wrap(
-            spacing: 16,
-            runSpacing: 24,
-            direction: Axis.vertical,
-            children: children,
-          );
+      return Listener(
+        // Track the pointer while dragging so the drop target folder can be
+        // resolved at release time (folders are locked and never swap).
+        onPointerMove: (event) {
+          if (_draggingDesktopItemId != null) {
+            _desktopDragPointer = event.position;
+          }
         },
-        children: desktopItems.map((item) {
-          final isOpen =
-              item.type == DesktopItemType.app &&
-              _openWindows.containsKey(item.appRoute);
-          return _DesktopIcon(
-            key: ValueKey(item.id),
-            item: item,
-            isOpen: isOpen,
-            onTap: () {
-              if (item.type == DesktopItemType.app) {
-                final appItem = _appItems.cast<DesktopAppItem?>().firstWhere(
-                  (a) => a!.route == item.appRoute,
-                  orElse: () => null,
-                );
-                if (appItem != null) _openAppWindow(appItem);
-              }
-            },
-            onFolderDoubleTap: item.type == DesktopItemType.folder
-                ? () => DesktopFolderContent.show(context, item.id)
-                : null,
-            onRename: item.type == DesktopItemType.folder
-                ? () => _renameFolderDialog(
-                    context,
-                    item.id,
-                    item.folderName ?? '',
-                  )
-                : null,
-            onDelete: item.type == DesktopItemType.folder
-                ? () => _confirmDeleteFolder(context, item.id)
-                : null,
-          );
-        }).toList(),
+        child: ReorderableBuilder(
+          onReorderPositions: _onDesktopReorder,
+          lockedIndices: _desktopLockedIndices,
+          onDragStarted: (index) =>
+              _onDesktopIconDragStarted(index, desktopItems),
+          onDragEnd: (_) => _onDesktopIconDragEnd(desktopItems),
+          builder: (children) {
+            return Wrap(
+              spacing: 16,
+              runSpacing: 24,
+              direction: Axis.vertical,
+              children: children,
+            );
+          },
+          children: desktopItems.map((item) {
+            final isOpen =
+                item.type == DesktopItemType.app &&
+                _openWindows.containsKey(item.appRoute);
+            final icon = _DesktopIcon(
+              item: item,
+              isOpen: isOpen,
+              onTap: () {
+                if (item.type == DesktopItemType.app) {
+                  final appItem = _appItems.cast<DesktopAppItem?>().firstWhere(
+                    (a) => a!.route == item.appRoute,
+                    orElse: () => null,
+                  );
+                  if (appItem != null) _openAppWindow(appItem);
+                }
+              },
+              onFolderDoubleTap: item.type == DesktopItemType.folder
+                  ? () => DesktopFolderContent.show(context, item.id)
+                  : null,
+              onRename: item.type == DesktopItemType.folder
+                  ? () => _renameFolderDialog(
+                      context,
+                      item.id,
+                      item.folderName ?? '',
+                    )
+                  : null,
+              onDelete: item.type == DesktopItemType.folder
+                  ? () => _confirmDeleteFolder(context, item.id)
+                  : null,
+            );
+            // The reorderable grid requires a ValueKey on the direct child;
+            // folder icons additionally carry a GlobalKey for drop hit tests.
+            return KeyedSubtree(
+              key: ValueKey(item.id),
+              child: item.type == DesktopItemType.folder
+                  ? KeyedSubtree(
+                      key: _folderHitKeys.putIfAbsent(item.id, GlobalKey.new),
+                      child: icon,
+                    )
+                  : icon,
+            );
+          }).toList(),
+        ),
       );
     });
   }
@@ -1413,7 +1500,6 @@ class _DesktopIcon extends StatelessWidget {
   static const double _desktopIconCellHeight = 81;
 
   const _DesktopIcon({
-    super.key,
     required this.item,
     required this.isOpen,
     required this.onTap,
