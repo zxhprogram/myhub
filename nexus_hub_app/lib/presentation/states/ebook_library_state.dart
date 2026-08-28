@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:kindle_unpack/kindle_unpack.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -67,8 +68,12 @@ class EbookLibraryState {
   /// message on unsupported formats or parse failures.
   Future<EbookBook> importFile(String sourcePath) async {
     final ext = p.extension(sourcePath).toLowerCase().replaceFirst('.', '');
-    if (ext != 'pdf' && ext != 'epub' && ext != 'txt') {
-      throw '不支持的格式：$ext（仅支持 PDF / EPUB / TXT）';
+    if (ext != 'pdf' &&
+        ext != 'epub' &&
+        ext != 'txt' &&
+        ext != 'mobi' &&
+        ext != 'azw3') {
+      throw '不支持的格式：$ext（仅支持 PDF / EPUB / TXT / MOBI / AZW3）';
     }
 
     isImporting.value = true;
@@ -84,6 +89,8 @@ class EbookLibraryState {
         final book = switch (ext) {
           'pdf' => await _inspectPdf(destPath, id, sourcePath),
           'epub' => await _inspectEpub(destPath, id, sourcePath, dir),
+          'mobi' ||
+          'azw3' => await _inspectKindle(destPath, id, ext, sourcePath, dir),
           _ => _inspectTxt(destPath, id, sourcePath),
         };
         final box = await _hiveBox;
@@ -94,6 +101,8 @@ class EbookLibraryState {
         // Do not keep the copied file around when parsing failed.
         final copied = File(destPath);
         if (await copied.exists()) await copied.delete();
+        final cache = File('$destPath.epub');
+        if (await cache.exists()) await cache.delete();
         rethrow;
       }
     } catch (e) {
@@ -174,12 +183,62 @@ class EbookLibraryState {
     );
   }
 
+  /// Kindle 格式（MOBI/AZW3）导入：提取书名/作者/封面，并把整书转换为
+  /// EPUB 缓存在原副本旁（`<副本路径>.epub`），打开时直接复用 EPUB 阅读器。
+  ///
+  /// DRM 加密或损坏的文件在转换阶段抛错，导致整个导入失败（副本一并清理）。
+  Future<EbookBook> _inspectKindle(
+    String destPath,
+    String id,
+    String ext,
+    String sourcePath,
+    Directory dir,
+  ) async {
+    final bytes = await File(destPath).readAsBytes();
+    final KindleBook kindle;
+    try {
+      kindle = await Isolate.run(() => KindleBook.fromBytes(bytes));
+    } catch (e) {
+      throw '无法解析 Kindle 文件（可能受 DRM 保护或已损坏）：$e';
+    }
+    final epubBytes = await Isolate.run(() => kindle.toEpub());
+    await File('$destPath.epub').writeAsBytes(epubBytes);
+
+    String? coverPath;
+    final cover = kindle.images.cover;
+    if (cover != null && cover.data.isNotEmpty) {
+      final file = File(p.join(dir.path, '$id${_sniffImageExt(cover.data)}'));
+      await file.writeAsBytes(cover.data);
+      coverPath = file.path;
+    }
+
+    return EbookBook(
+      id: id,
+      title: _isEmpty(kindle.title)
+          ? _titleFromFileName(sourcePath)
+          : kindle.title,
+      author: kindle.exth?.authors.join(', ') ?? '',
+      format: ext,
+      filePath: destPath,
+      coverPath: coverPath,
+      addedAt: DateTime.now(),
+      lastOpenedAt: DateTime.now(),
+    );
+  }
+
   /// Removes the book from the shelf along with its stored file and cover.
   Future<void> removeBook(EbookBook book) async {
     final box = await _hiveBox;
     await box.delete(book.id);
     books.value = books.value.where((b) => b.id != book.id).toList();
-    for (final path in [book.filePath, book.coverPath]) {
+    final isKindle =
+        book.formatEnum == EbookFormat.mobi ||
+        book.formatEnum == EbookFormat.azw3;
+    for (final path in [
+      book.filePath,
+      if (isKindle) '${book.filePath}.epub',
+      book.coverPath,
+    ]) {
       if (path == null) continue;
       final file = File(path);
       if (await file.exists()) await file.delete();
@@ -195,15 +254,37 @@ class EbookLibraryState {
   }
 
   /// Parses the EPUB for reading; the result is cached until another book
-  /// is opened.
+  /// is opened. MOBI/AZW3 books read from their converted EPUB cache.
   Future<EpubBook> openEpub(EbookBook book) async {
     if (_epubCacheId == book.id && _epubCache != null) return _epubCache!;
-    final bytes = await File(book.filePath).readAsBytes();
+    final bytes = await File(await _resolveEpubPath(book)).readAsBytes();
     final parsed = await Isolate.run(() => EpubParser.parse(bytes));
     _epubCache = parsed;
     _epubCacheId = book.id;
     await _touchOpened(book, totalChapters: parsed.chapters.length);
     return parsed;
+  }
+
+  /// Path of the EPUB to parse for [book]. MOBI/AZW3 books read from the
+  /// converted EPUB cached next to the original copy; the cache is
+  /// regenerated from the Kindle file when missing (e.g. removed manually).
+  Future<String> _resolveEpubPath(EbookBook book) async {
+    final format = book.formatEnum;
+    if (format != EbookFormat.mobi && format != EbookFormat.azw3) {
+      return book.filePath;
+    }
+    final cachePath = '${book.filePath}.epub';
+    final cache = File(cachePath);
+    if (await cache.exists()) return cachePath;
+    final bytes = await File(book.filePath).readAsBytes();
+    final KindleBook kindle;
+    try {
+      kindle = await Isolate.run(() => KindleBook.fromBytes(bytes));
+    } catch (e) {
+      throw '无法解析 Kindle 文件（可能受 DRM 保护或已损坏）：$e';
+    }
+    await cache.writeAsBytes(await Isolate.run(() => kindle.toEpub()));
+    return cachePath;
   }
 
   /// Parses the TXT for reading; the result is cached until another book

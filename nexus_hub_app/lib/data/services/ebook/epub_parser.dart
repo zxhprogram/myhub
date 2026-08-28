@@ -147,12 +147,21 @@ class EpubParser {
     if (navItem.isNotEmpty) {
       final navEntry = entryOf(navItem.first.path);
       if (navEntry != null) {
-        _collectNavTitles(html_parser.parse(_decode(navEntry)), tocTitles);
+        _collectNavTitles(
+          html_parser.parse(_decode(navEntry)),
+          tocTitles,
+          // Anchor hrefs are relative to the nav document's directory.
+          baseDir: _dirname(navItem.first.path),
+        );
       }
     } else if (ncxId != null && items[ncxId] != null) {
       final ncxEntry = entryOf(items[ncxId]!.path);
       if (ncxEntry != null) {
-        _collectNcxTitles(html_parser.parse(_decode(ncxEntry)), tocTitles);
+        _collectNcxTitles(
+          html_parser.parse(_decode(ncxEntry)),
+          tocTitles,
+          baseDir: _dirname(items[ncxId]!.path),
+        );
       }
     }
 
@@ -272,7 +281,13 @@ class EpubParser {
   }
 
   /// EPUB3 nav document: `<nav epub:type="toc">` (or any nav) anchors.
-  static void _collectNavTitles(dom.Document doc, Map<String, String> out) {
+  /// Anchor hrefs are resolved relative to [baseDir] (the nav document's
+  /// directory) so the keys match spine document paths.
+  static void _collectNavTitles(
+    dom.Document doc,
+    Map<String, String> out, {
+    String baseDir = '',
+  }) {
     dom.Element? nav;
     for (final candidate in doc.querySelectorAll('nav')) {
       final type =
@@ -290,18 +305,26 @@ class EpubParser {
       final href = anchor.attributes['href'];
       final text = anchor.text.trim();
       if (href == null || text.isEmpty) continue;
-      final key = _stripFragment(href);
+      final key = _normalizePath(baseDir, href.split('#').first);
       out.putIfAbsent(key, () => text);
     }
   }
 
-  /// EPUB2 NCX: navPoint labels.
-  static void _collectNcxTitles(dom.Document doc, Map<String, String> out) {
+  /// EPUB2 NCX: navPoint labels. `content src` is resolved relative to
+  /// [baseDir] (the NCX document's directory).
+  static void _collectNcxTitles(
+    dom.Document doc,
+    Map<String, String> out, {
+    String baseDir = '',
+  }) {
     for (final point in doc.querySelectorAll('navPoint')) {
       final src = point.querySelector('content')?.attributes['src'];
       final text = point.querySelector('navLabel')?.text.trim();
       if (src == null || _isEmpty(text)) continue;
-      out.putIfAbsent(_stripFragment(src), () => text!);
+      out.putIfAbsent(
+        _normalizePath(baseDir, src.split('#').first),
+        () => text!,
+      );
     }
   }
 
@@ -333,11 +356,6 @@ class EpubParser {
   /// prefixes), so elements are matched by local name.
   static Iterable<XmlElement> _allElements(XmlNode node) =>
       node.descendants.whereType<XmlElement>();
-
-  static String _stripFragment(String href) {
-    final noFragment = href.split('#').first;
-    return _normalizePath('', noFragment);
-  }
 
   static String _dirname(String path) {
     final i = path.lastIndexOf('/');

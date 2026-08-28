@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:fast_gbk/fast_gbk.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kindle_unpack/kindle_unpack.dart';
 
 import 'package:nexus_hub_app/data/models/ebook_book.dart';
 import 'package:nexus_hub_app/data/services/ebook/ebook_charset.dart';
@@ -176,6 +178,47 @@ void main() {
     });
   });
 
+  group('KindleBook (MOBI → EPUB → EpubParser)', () {
+    // Real public-domain MOBI (Project Gutenberg #1342), same fixture
+    // kindle_unpack itself tests against.
+    late Uint8List mobiBytes;
+    late EpubBook epub;
+
+    setUpAll(() {
+      final fixture = File('test/fixtures/pg1342.mobi');
+      if (!fixture.existsSync()) {
+        throw StateError('fixture missing: ${fixture.path}');
+      }
+      mobiBytes = fixture.readAsBytesSync();
+      final kindle = KindleBook.fromBytes(mobiBytes);
+      epub = EpubParser.parse(kindle.toEpub());
+    });
+
+    test('parses Kindle metadata from EXTH', () {
+      final kindle = KindleBook.fromBytes(mobiBytes);
+      expect(kindle.title, contains('Pride and Prejudice'));
+      expect(kindle.exth?.authors.first, contains('Austen'));
+      expect(kindle.images.cover, isNotNull);
+      expect(kindle.images.cover!.data, isNotEmpty);
+    });
+
+    test('converted EPUB parses into chapters', () {
+      expect(epub.chapters, isNotEmpty);
+      expect(epub.chapters.first.bodyHtml, isNotEmpty);
+      // Cover lands in the OPF as cover-image and is picked up.
+      expect(epub.coverImage, isNotNull);
+      // Note: Mobi-7 inline images use `recindex` attributes which
+      // kindle_unpack does not rewrite to `src`, so `epub.images` stays
+      // empty for this fixture — the reader shows text without inline
+      // images for such books (cover still works via the shelf).
+    });
+
+    test('converted EPUB keeps the book text', () {
+      final joined = epub.chapters.map((c) => c.bodyHtml).join();
+      expect(joined, contains('truth universally acknowledged'));
+    });
+  });
+
   group('EbookBook', () {
     test('JSON round trip preserves reading position', () {
       final now = DateTime.fromMillisecondsSinceEpoch(1700000000000);
@@ -222,6 +265,25 @@ void main() {
         lastOpenedAt: DateTime.now(),
       );
       expect(book.progress, 0.25);
+    });
+
+    test('MOBI/AZW3 progress is chapter based', () {
+      final now = DateTime.now();
+      for (final format in ['mobi', 'azw3']) {
+        final book = EbookBook(
+          id: 'b-$format',
+          title: 't',
+          author: '',
+          format: format,
+          filePath: '/tmp/b.$format',
+          totalChapters: 10,
+          lastChapterIndex: 3,
+          addedAt: now,
+          lastOpenedAt: now,
+        );
+        expect(book.formatEnum.name, format);
+        expect(book.progress, closeTo(0.3, 1e-9));
+      }
     });
   });
 }

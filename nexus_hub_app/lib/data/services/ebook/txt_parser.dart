@@ -53,9 +53,13 @@ class TxtParser {
     final matches = _chapterHeadingRe.allMatches(text).toList();
     if (matches.length < 2) {
       final trimmed = text.trim();
+      // A single heading still names the chapter; '正文' is the fallback
+      // when no heading was found at all.
+      final title =
+          matches.length == 1 ? matches.single.group(0)!.trim() : '正文';
       return TxtBook(
         content: trimmed,
-        chapters: [TxtChapter(title: '正文', start: 0, end: trimmed.length)],
+        chapters: [TxtChapter(title: title, start: 0, end: trimmed.length)],
       );
     }
 

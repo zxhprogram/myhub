@@ -22,7 +22,8 @@ import 'txt_reader_page.dart';
 /// 电子书阅读 — 本地书架。
 ///
 /// 导入的文件被复制到应用目录，阅读进度保存在 Hive。点击书籍按格式
-/// 打开对应阅读器（PDF / EPUB / TXT）。
+/// 打开对应阅读器（PDF / EPUB / TXT / MOBI / AZW3，Kindle 格式复用
+/// EPUB 阅读器渲染）。
 class EbookLibraryPage extends StatefulWidget {
   const EbookLibraryPage({super.key});
 
@@ -35,7 +36,7 @@ class _EbookLibraryPageState extends State<EbookLibraryPage> {
 
   static const _typeGroup = XTypeGroup(
     label: '电子书',
-    extensions: ['pdf', 'epub', 'txt'],
+    extensions: ['pdf', 'epub', 'txt', 'mobi', 'azw3'],
   );
 
   @override
@@ -73,7 +74,11 @@ class _EbookLibraryPageState extends State<EbookLibraryPage> {
   void _open(BuildContext context, EbookBook book) {
     final reader = switch (book.formatEnum) {
       EbookFormat.pdf => PdfReaderPage(book: book),
-      EbookFormat.epub => EpubReaderPage(book: book),
+      // MOBI/AZW3 are converted to EPUB at import/open time and rendered
+      // by the EPUB reader.
+      EbookFormat.epub ||
+      EbookFormat.mobi ||
+      EbookFormat.azw3 => EpubReaderPage(book: book),
       EbookFormat.txt => TxtReaderPage(book: book),
     };
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => reader));
@@ -298,7 +303,13 @@ class _BookCover extends StatelessWidget {
   Widget _coverContent(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final coverPath = book.coverPath;
-    if (book.formatEnum == EbookFormat.epub && coverPath != null) {
+    // EPUB and Kindle formats (MOBI/AZW3) store an extracted cover image.
+    final hasImageCover =
+        coverPath != null &&
+        (book.formatEnum == EbookFormat.epub ||
+            book.formatEnum == EbookFormat.mobi ||
+            book.formatEnum == EbookFormat.azw3);
+    if (hasImageCover) {
       return Image.file(
         File(coverPath),
         fit: BoxFit.cover,

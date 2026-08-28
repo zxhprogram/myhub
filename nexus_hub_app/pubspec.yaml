@@ -53,13 +53,19 @@ dependencies:
   # Ebook Reader sub-app: PDF rendering (PDFium, Windows supported).
   pdfrx: ^2.4.7
   # EPUB unpacking (pure Dart ZIP reader).
-  archive: ^4.0.0
+  archive: ^4.0.7
   # EPUB container.xml / OPF manifest parsing.
   xml: ^6.5.0
   # EPUB chapter XHTML DOM processing (lenient real-world HTML parsing).
   html: ^0.15.4
   # GBK fallback decoding for legacy Chinese TXT novels.
   fast_gbk: ^1.0.0
+  # Kindle MOBI / AZW3 parsing (pure Dart port of KindleUnpack, GPL-3).
+  # Vendored at ../third_party/kindle_unpack: one patch to build the EPUB
+  # zip with archive 4.x (upstream declares archive ^3.6.1, but pdfrx's
+  # dependency chain pins archive ^4.0.7 — see the vendored pubspec).
+  kindle_unpack:
+    path: ../third_party/kindle_unpack
   # Clash virtual app: local parsing of subscription YAML (proxies /
   # proxy-groups) so nodes are listed without a running core.
   yaml: ^3.1.0

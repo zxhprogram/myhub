@@ -1,5 +1,9 @@
 /// Supported e-book formats of the Ebook Reader sub-app.
-enum EbookFormat { pdf, epub, txt }
+///
+/// MOBI and AZW3 (Kindle formats) are converted to EPUB at open time and
+/// rendered with the EPUB reader; the format is kept so the shelf can
+/// still show the original file type.
+enum EbookFormat { pdf, epub, txt, mobi, azw3 }
 
 /// A book on the local bookshelf.
 ///
@@ -41,7 +45,7 @@ class EbookBook {
   /// Page count for PDF books, 0 otherwise.
   final int totalPages;
 
-  /// Number of chapters for EPUB/TXT books, 0 otherwise.
+  /// Number of chapters for EPUB/TXT/MOBI/AZW3 books, 0 otherwise.
   final int totalChapters;
 
   /// Last read page (1-based) for PDF books.
@@ -76,6 +80,8 @@ class EbookBook {
         return ((lastPage) / totalPages).clamp(0.0, 1.0);
       case EbookFormat.epub:
       case EbookFormat.txt:
+      case EbookFormat.mobi:
+      case EbookFormat.azw3:
         if (totalChapters <= 0) return 0;
         final chapterPart = lastChapterIndex / totalChapters;
         final withinChapter = totalChapters == 1
