@@ -35,15 +35,25 @@ class DesktopFolderContent {
 }
 
 class _FolderFlyout extends StatelessWidget {
-  const _FolderFlyout({
-    required this.folderId,
-    this.resolveApp,
-    this.onOpenApp,
-  });
+  // Not const: each flyout instance owns its own panel GlobalKey.
+  // ignore: prefer_const_constructors_in_immutables
+  _FolderFlyout({required this.folderId, this.resolveApp, this.onOpenApp});
 
   final String folderId;
   final DesktopAppItem? Function(String route)? resolveApp;
   final void Function(String route)? onOpenApp;
+
+  /// Key of the flyout panel, used to decide whether a dragged icon was
+  /// released outside the folder (drag-out-to-desktop gesture).
+  final GlobalKey _panelKey = GlobalKey();
+
+  /// Whether [globalPosition] was released outside the flyout panel.
+  bool _isOutsidePanel(Offset globalPosition) {
+    final box = _panelKey.currentContext?.findRenderObject();
+    if (box is! RenderBox) return false;
+    final bounds = box.localToGlobal(Offset.zero) & box.size;
+    return !bounds.contains(globalPosition);
+  }
 
   void _openItem(BuildContext context, DesktopItem item) {
     final route = item.appRoute;
@@ -65,6 +75,7 @@ class _FolderFlyout extends StatelessWidget {
       final folderItems = state.getFolderItems(folderId);
 
       return Container(
+        key: _panelKey,
         width: 440,
         constraints: const BoxConstraints(maxHeight: 520),
         decoration: BoxDecoration(
@@ -123,22 +134,28 @@ class _FolderFlyout extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        childAspectRatio: 0.82,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 14,
-                      ),
+                            crossAxisCount: 4,
+                            childAspectRatio: 0.82,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 14,
+                          ),
                       itemCount: folderItems.length,
                       itemBuilder: (context, index) {
+                        final folderItem = folderItems[index];
                         return _FolderGridItem(
-                          item: folderItems[index],
+                          item: folderItem,
                           resolveApp: resolveApp,
-                          onOpen: () => _openItem(context, folderItems[index]),
+                          onOpen: () => _openItem(context, folderItem),
                           onRemove: () => DesktopState.instance
-                              .removeItemFromFolder(
-                            folderItems[index].id,
-                            folderId,
-                          ),
+                              .removeItemFromFolder(folderItem.id, folderId),
+                          onDraggedOut: (releasePosition) {
+                            if (_isOutsidePanel(releasePosition)) {
+                              DesktopState.instance.removeItemFromFolder(
+                                folderItem.id,
+                                folderId,
+                              );
+                            }
+                          },
                         );
                       },
                     ),
@@ -171,8 +188,7 @@ class _FolderFlyout extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             '文件夹是空的',
-            style: NexusTypography.bodyMd
-                .copyWith(fontWeight: FontWeight.w600),
+            style: NexusTypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
@@ -188,18 +204,24 @@ class _FolderFlyout extends StatelessWidget {
 }
 
 /// One entry in the folder flyout grid: app squircle + label, with hover
-/// highlight, click-to-open and a right-click context menu.
+/// highlight, click-to-open and a right-click context menu. The entry is
+/// draggable; releasing it outside the flyout moves it back to the desktop.
 class _FolderGridItem extends StatefulWidget {
   const _FolderGridItem({
     required this.item,
     required this.onOpen,
     required this.onRemove,
+    this.onDraggedOut,
     this.resolveApp,
   });
 
   final DesktopItem item;
   final VoidCallback onOpen;
   final VoidCallback onRemove;
+
+  /// Called with the global release position when the icon drag ends without
+  /// being accepted; used to detect dragging the icon out of the folder.
+  final void Function(Offset releasePosition)? onDraggedOut;
   final DesktopAppItem? Function(String route)? resolveApp;
 
   @override
@@ -214,6 +236,62 @@ class _FolderGridItemState extends State<_FolderGridItem> {
 
   @override
   Widget build(BuildContext context) {
+    final appItem = _appItem;
+    final label = widget.item.label ?? widget.item.folderName ?? '未命名';
+
+    return Draggable<String>(
+      data: widget.item.id,
+      feedback: _buildDragFeedback(context, appItem, label),
+      childWhenDragging: Opacity(opacity: 0.3, child: _buildTile(context)),
+      onDraggableCanceled: (velocity, offset) {
+        // The feedback is a fixed-size tile; use its center as release point.
+        widget.onDraggedOut?.call(offset + const Offset(36, 42));
+      },
+      child: _buildTile(context),
+    );
+  }
+
+  /// Fixed-size floating copy shown while dragging.
+  Widget _buildDragFeedback(
+    BuildContext context,
+    DesktopAppItem? appItem,
+    String label,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 72,
+      height: 84,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AppSquircleIcon(
+            gradientStart: appItem?.gradientStart ?? const Color(0xFFB9C0CB),
+            gradientEnd: appItem?.gradientEnd ?? const Color(0xFF8A93A3),
+            size: 48,
+            child: Icon(appItem?.icon ?? LucideIcons.file, size: 24),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: colorScheme.popover.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              label,
+              style: NexusTypography.labelSm.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTile(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final appItem = _appItem;
     final label = widget.item.label ?? widget.item.folderName ?? '未命名';

@@ -368,8 +368,12 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
   int _windowCounter = 0;
 
-  /// Keys locating folder icon render boxes for drop-target hit tests.
-  final Map<String, GlobalKey> _folderHitKeys = {};
+  /// Element contexts of folder icons, used for drop-target hit tests.
+  ///
+  /// Registered by [_FolderHitTarget]; never uses GlobalKeys because the
+  /// reorderable grid duplicates the child into the drag feedback, which
+  /// would collide a GlobalKey across two widget subtrees.
+  final Map<String, BuildContext> _folderHitContexts = {};
 
   /// Id of the desktop item currently being dragged (null when idle).
   String? _draggingDesktopItemId;
@@ -559,7 +563,7 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       return;
     }
     final entity = entities.first;
-    DesktopState.instance.reorder(entity.oldIndex, entity.newIndex);
+    DesktopState.instance.reorderVisible(entity.oldIndex, entity.newIndex);
   }
 
   /// Tracks drag start of a desktop icon.
@@ -611,10 +615,10 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
   String? _folderIdAtGlobalPosition(Offset position, List<DesktopItem> items) {
     for (final item in items) {
       if (item.type != DesktopItemType.folder) continue;
-      final context = _folderHitKeys[item.id]?.currentContext;
-      if (context == null) continue;
+      final context = _folderHitContexts[item.id];
+      if (context == null || !context.mounted) continue;
       final box = context.findRenderObject();
-      if (box is! RenderBox) continue;
+      if (box is! RenderBox || !box.attached) continue;
       final bounds = box.localToGlobal(Offset.zero) & box.size;
       if (bounds.contains(position)) return item.id;
     }
@@ -820,7 +824,8 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
 
   Widget _buildDesktopIcons(BuildContext context) {
     return Watch((_) {
-      final desktopItems = DesktopState.instance.items.value;
+      // Items inside folders are hidden from the desktop grid.
+      final desktopItems = DesktopState.instance.visibleItems;
       return Listener(
         // Track the pointer while dragging so the drop target folder can be
         // resolved at release time (folders are locked and never swap).
@@ -874,12 +879,16 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
                   : null,
             );
             // The reorderable grid requires a ValueKey on the direct child;
-            // folder icons additionally carry a GlobalKey for drop hit tests.
+            // folder icons are additionally wrapped so their element can be
+            // registered for drop hit tests (no GlobalKey — the grid
+            // duplicates the child into the drag feedback).
             return KeyedSubtree(
               key: ValueKey(item.id),
               child: item.type == DesktopItemType.folder
-                  ? KeyedSubtree(
-                      key: _folderHitKeys.putIfAbsent(item.id, GlobalKey.new),
+                  ? _FolderHitTarget(
+                      registry: _folderHitContexts,
+                      folderId: item.id,
+                      canRegister: () => _draggingDesktopItemId == null,
                       child: icon,
                     )
                   : icon,
@@ -1746,6 +1755,55 @@ class DesktopFolderPreview extends StatelessWidget {
         ),
       );
     });
+  }
+}
+
+/// Registers the element context of a folder icon for drop-target hit tests.
+///
+/// The reorderable grid reuses the same child widget instance inside the drag
+/// feedback (inflated in the overlay), so a GlobalKey here would collide with
+/// itself. Instead, the folder icon's element context is written into
+/// [registry] during build. Registration is skipped while a drag is active so
+/// the feedback copy never overwrites the real grid entry.
+class _FolderHitTarget extends StatefulWidget {
+  const _FolderHitTarget({
+    required this.registry,
+    required this.folderId,
+    required this.canRegister,
+    required this.child,
+  });
+
+  final Map<String, BuildContext> registry;
+  final String folderId;
+
+  /// Runtime check evaluated during build. Must be a callback (not a plain
+  /// bool) because the grid reuses the same widget instance inside the drag
+  /// feedback — a snapshot bool would have been captured before the drag
+  /// started and let the feedback copy overwrite the real registration.
+  final bool Function() canRegister;
+  final Widget child;
+
+  @override
+  State<_FolderHitTarget> createState() => _FolderHitTargetState();
+}
+
+class _FolderHitTargetState extends State<_FolderHitTarget> {
+  @override
+  Widget build(BuildContext context) {
+    if (widget.canRegister()) {
+      widget.registry[widget.folderId] = context;
+    }
+    return widget.child;
+  }
+
+  @override
+  void dispose() {
+    // Only clear if we are still the registered element (never the case for
+    // a feedback copy, which never registers).
+    if (widget.registry[widget.folderId] == context) {
+      widget.registry.remove(widget.folderId);
+    }
+    super.dispose();
   }
 }
 

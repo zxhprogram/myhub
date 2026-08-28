@@ -63,15 +63,44 @@ class DesktopState {
 
   // ── Reorder ──────────────────────────────────────────────────────────────
 
-  /// Moves the item at [oldIndex] to [newIndex] and persists.
-  void reorder(int oldIndex, int newIndex) {
+  /// Items currently visible on the desktop (items inside folders are hidden).
+  List<DesktopItem> get visibleItems {
+    final inFolder = _idsInsideFolders();
+    return items.value.where((item) => !inFolder.contains(item.id)).toList();
+  }
+
+  /// Reorders the desktop-visible items while keeping items that live inside
+  /// folders pinned to their current slot in the underlying list.
+  ///
+  /// [oldIndex]/[newIndex] refer to positions within [visibleItems].
+  void reorderVisible(int oldIndex, int newIndex) {
     if (oldIndex == newIndex) return;
-    final list = List<DesktopItem>.from(items.value);
-    final item = list.removeAt(oldIndex);
+    final inFolder = _idsInsideFolders();
+
+    final visible = visibleItems;
+    final reordered = List<DesktopItem>.from(visible);
+    final dragged = reordered.removeAt(oldIndex);
+    // ReorderableBuilder's newIndex accounts for the removed item when
+    // newIndex > oldIndex.
     final targetIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
-    list.insert(targetIndex, item);
-    items.value = list;
+    reordered.insert(targetIndex, dragged);
+
+    // Rebuild the full list: in-folder items keep their slot, visible slots
+    // are filled with the reordered sequence.
+    var visibleIndex = 0;
+    items.value = items.value.map((item) {
+      if (inFolder.contains(item.id)) return item;
+      return reordered[visibleIndex++];
+    }).toList();
     _persist();
+  }
+
+  /// Ids of all items that are inside any folder.
+  Set<String> _idsInsideFolders() {
+    return {
+      for (final item in items.value)
+        if (item.type == DesktopItemType.folder) ...item.folderItemIds,
+    };
   }
 
   // ── Folder CRUD ──────────────────────────────────────────────────────────
