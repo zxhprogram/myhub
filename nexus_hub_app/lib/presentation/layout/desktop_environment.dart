@@ -1388,6 +1388,11 @@ class _WindowEntry {
 
 /// A single desktop icon with label.
 class _DesktopIcon extends StatelessWidget {
+  /// Fixed cell height for every desktop icon so that long labels (up to 2
+  /// lines) do not push subsequent icons out of alignment within a column.
+  /// 48 (icon) + 6 (gap) + 2 lines * 11px * 1.2 height factor ≈ 80.4.
+  static const double _desktopIconCellHeight = 81;
+
   const _DesktopIcon({
     super.key,
     required this.item,
@@ -1425,6 +1430,7 @@ class _DesktopIcon extends StatelessWidget {
 
     return SizedBox(
       width: 72,
+      height: _desktopIconCellHeight,
       child: GestureDetector(
         onTap: onTap,
         onDoubleTap: onTap,
@@ -1476,6 +1482,7 @@ class _DesktopIcon extends StatelessWidget {
         final isHovering = candidateData.isNotEmpty;
         return SizedBox(
           width: 72,
+          height: _desktopIconCellHeight,
           child: ContextMenu(
             items: [
               MenuButton(
