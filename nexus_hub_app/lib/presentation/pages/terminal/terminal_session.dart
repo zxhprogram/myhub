@@ -175,6 +175,46 @@ class TerminalSession {
     _engine.write(utf8.encode(text));
   }
 
+  // ── Drag-and-drop upload (SSH sessions only) ─────────────────────────────
+
+  /// Whether files dropped onto this session can be uploaded right now.
+  bool get canUpload =>
+      kind == TerminalSessionKind.ssh &&
+      !_disposed &&
+      !exited.value &&
+      !connecting.value &&
+      _pty is SshPtyBackend;
+
+  /// Resolves the remote shell's current working directory (falls back to
+  /// the login home when the PTY probe yields nothing).
+  Future<String> resolveRemoteWorkingDirectory() async {
+    final backend = _pty;
+    if (backend is! SshPtyBackend) {
+      throw Exception('当前会话不是已连接的 SSH 会话。');
+    }
+    return await backend.resolveWorkingDirectory() ?? '.';
+  }
+
+  /// Uploads [localPaths] into remote [remoteDir] over SFTP, reporting
+  /// progress to [onProgress]. Returns names of skipped paths (folders).
+  Future<List<String>> uploadFilesToRemote({
+    required String remoteDir,
+    required List<String> localPaths,
+    void Function(SftpUploadProgress progress)? onProgress,
+    bool Function()? cancelled,
+  }) async {
+    final backend = _pty;
+    if (backend is! SshPtyBackend) {
+      throw Exception('当前会话不是已连接的 SSH 会话。');
+    }
+    return backend.uploadFiles(
+      localPaths: localPaths,
+      remoteDir: remoteDir,
+      onProgress: onProgress,
+      cancelled: cancelled,
+    );
+  }
+
   /// Release everything for good. Call only after the view has been unmounted.
   void dispose() {
     if (_disposed) return;

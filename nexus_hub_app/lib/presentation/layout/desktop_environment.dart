@@ -1584,6 +1584,59 @@ DesktopAppItem? _resolveAppItem(String route) {
   }
 }
 
+/// Miniature preview of a folder's contents shown inside the desktop folder
+/// icon: up to 4 app squircles in a 2x2 grid, or a folder glyph when empty.
+class DesktopFolderPreview extends StatelessWidget {
+  const DesktopFolderPreview({super.key, required this.folderId});
+
+  final String folderId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Watch((_) {
+      final folderItems = DesktopState.instance.getFolderItems(folderId);
+      final previews = folderItems
+          .map(
+            (item) =>
+                item.appRoute == null ? null : _resolveAppItem(item.appRoute!),
+          )
+          .whereType<DesktopAppItem>()
+          .take(4)
+          .toList();
+      if (previews.isEmpty) {
+        return Icon(
+          LucideIcons.folder,
+          size: 22,
+          color: Theme.of(context).colorScheme.mutedForeground,
+        );
+      }
+      return Padding(
+        padding: const EdgeInsets.all(5),
+        child: Wrap(
+          spacing: 2,
+          runSpacing: 2,
+          children: [
+            for (final app in previews)
+              Container(
+                width: 17,
+                height: 17,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [app.gradientStart, app.gradientEnd],
+                  ),
+                ),
+                child: Icon(app.icon, size: 9, color: const Color(0xFFFFFFFF)),
+              ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
 /// shadcn text-prompt dialog returning the entered value (trimmed).
 Future<String?> _showPromptDialog(
   BuildContext context, {
