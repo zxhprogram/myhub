@@ -1,23 +1,14 @@
 # Nexus Hub
 
-Nexus Hub is a unified productivity dashboard built with Flutter and Dart Frog.
+Nexus Hub is a unified productivity dashboard built with Flutter. All data is
+stored locally (Hive); there is no backend server.
 
 ## Project Structure
 
 - `nexus_hub_app/` - Flutter frontend
-- `nexus_hub_api/` - Dart Frog backend
-- `Design/` - Design resources and specifications
+- `third_party/` - Vendored dependencies
 
 ## Quick Start
-
-1. Start the backend:
-
-```powershell
-cd nexus_hub_api
-dart_frog dev
-```
-
-2. Start the frontend:
 
 ```powershell
 cd nexus_hub_app
@@ -37,5 +28,4 @@ flutter run -d windows
 
 ## Tech Stack
 
-- **Frontend**: Flutter, Signals, go_router, Dio, sqflite
-- **Backend**: Dart, Dart Frog, sqlite3, Dio
+- **Frontend**: Flutter, Signals, go_router, Dio, Hive
