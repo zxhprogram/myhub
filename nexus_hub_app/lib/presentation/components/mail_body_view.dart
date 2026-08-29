@@ -10,6 +10,7 @@ import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import '../../theme/colors.dart';
 import '../../theme/typography.dart';
 import '../pages/google_news_article_page.dart';
+import 'nexus_page_route.dart';
 
 /// Renders the body of an email message using [HtmlWidget] from
 /// `flutter_widget_from_html`.
@@ -59,7 +60,7 @@ class MailBodyView extends StatelessWidget {
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasScheme) return true;
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      NexusPageRoute<void>(
         builder: (_) => NexusWebViewPage(url: url, title: uri.host),
       ),
     );

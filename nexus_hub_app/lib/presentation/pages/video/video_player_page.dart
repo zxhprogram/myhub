@@ -14,6 +14,7 @@ import '../../components/nexus_button.dart';
 import '../../components/nexus_cached_image.dart';
 import '../../components/nexus_empty_state.dart';
 import '../../components/nexus_input.dart';
+import '../../components/nexus_page_route.dart';
 import '../../layout/page_scaffold.dart';
 import 'video_detail_page.dart';
 import 'video_source_manager_dialog.dart';
@@ -250,7 +251,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   void _openDetail(VideoSeries series) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      NexusPageRoute<void>(
         builder: (_) => VideoDetailPage(series: series),
       ),
     );

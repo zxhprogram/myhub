@@ -114,9 +114,7 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
           ],
         ),
         const SizedBox(height: NexusSpacing.md),
-        Expanded(
-          child: _buildBody(context, visible),
-        ),
+        Expanded(child: _buildBody(context, visible)),
       ],
     );
   }
@@ -152,10 +150,7 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
     }
 
     if (items.isEmpty) {
-      return const NexusEmptyState(
-        icon: LucideIcons.zap,
-        title: '暂无快讯',
-      );
+      return const NexusEmptyState(icon: LucideIcons.zap, title: '暂无快讯');
     }
 
     return RefreshTrigger(
@@ -168,7 +163,8 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
         separatorBuilder: (_, _) => const SizedBox(height: NexusSpacing.xs),
         itemBuilder: (context, index) {
           final item = items[index];
-          final showDayHeader = index == 0 ||
+          final showDayHeader =
+              index == 0 ||
               item.publishTime?.day != items[index - 1].publishTime?.day ||
               item.publishTime?.month != items[index - 1].publishTime?.month;
 
@@ -179,10 +175,7 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
                 _DayHeader(dateTime: item.publishTime),
                 const SizedBox(height: NexusSpacing.sm),
               ],
-              _NewsTile(
-                item: item,
-                onOpen: () => _openInBrowser(item.url),
-              ),
+              _NewsTile(item: item, onOpen: () => _openInBrowser(item.url)),
             ],
           );
         },
@@ -198,31 +191,31 @@ class _Fx678NewsPaneState extends State<Fx678NewsPane> {
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
-  onTap: onTap,
-  child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: NexusSpacing.sm,
-            vertical: 4,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: NexusRadii.fullRadius,
-            border: Border.all(
-              color: selected
-                  ? const Color(0x00000000)
-                  : colorScheme.border.withValues(alpha: 0.6),
-            ),
-          ),
-          child: Text(
-            label,
-            style: NexusTypography.labelSm.copyWith(
-              color: selected
-                  ? colorScheme.primaryForeground
-                  : colorScheme.mutedForeground,
-              fontWeight: FontWeight.w600,
-            ),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: NexusSpacing.sm,
+          vertical: 4,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: NexusRadii.fullRadius,
+          border: Border.all(
+            color: selected
+                ? const Color(0x00000000)
+                : colorScheme.border.withValues(alpha: 0.6),
           ),
         ),
-);
+        child: Text(
+          label,
+          style: NexusTypography.labelSm.copyWith(
+            color: selected
+                ? colorScheme.primaryForeground
+                : colorScheme.mutedForeground,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -276,9 +269,7 @@ class _DayHeader extends StatelessWidget {
         ),
         const SizedBox(width: NexusSpacing.sm),
         Expanded(
-          child: Divider(
-            color: colorScheme.border.withValues(alpha: 0.4),
-          ),
+          child: Divider(color: colorScheme.border.withValues(alpha: 0.4)),
         ),
       ],
     );
@@ -287,10 +278,7 @@ class _DayHeader extends StatelessWidget {
 
 /// A single flash-news entry: time on the left, headline + body on the right.
 class _NewsTile extends StatefulWidget {
-  const _NewsTile({
-    required this.item,
-    required this.onOpen,
-  });
+  const _NewsTile({required this.item, required this.onOpen});
 
   final Fx678NewsItem item;
   final VoidCallback onOpen;
@@ -306,7 +294,9 @@ class _NewsTileState extends State<_NewsTile> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final item = widget.item;
-    final accent = item.isImportant ? NexusColors.stockDown : colorScheme.primary;
+    final accent = item.isImportant
+        ? NexusColors.stockDown
+        : colorScheme.primary;
     final longBody = item.content.length > 140;
 
     return Row(
@@ -328,83 +318,104 @@ class _NewsTileState extends State<_NewsTile> {
           ),
         ),
         Expanded(
+          // A rounded container may not combine a non-uniform Border with a
+          // borderRadius (paint-time assertion), so the accent edge is drawn
+          // as an inner 3px strip clipped by the rounded outline instead.
           child: Container(
-            padding: const EdgeInsets.all(NexusSpacing.md),
+            clipBehavior: Clip.antiAlias,
+            padding: EdgeInsets.zero,
             decoration: BoxDecoration(
               color: colorScheme.card,
               borderRadius: NexusRadii.lgRadius,
-              border: Border(
-                left: BorderSide(color: accent, width: 3),
-                top: BorderSide(
-                  color: colorScheme.border.withValues(alpha: 0.4),
-                ),
-                right: BorderSide(
-                  color: colorScheme.border.withValues(alpha: 0.4),
-                ),
-                bottom: BorderSide(
-                  color: colorScheme.border.withValues(alpha: 0.4),
-                ),
+              border: Border.all(
+                color: colorScheme.border.withValues(alpha: 0.4),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: NexusTypography.labelMd.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: item.isImportant
-                              ? NexusColors.stockDown
-                              : colorScheme.foreground,
-                        ),
-                      ),
-                    ),
-                    if (item.isImportant) ...[
-                      const SizedBox(width: NexusSpacing.sm),
-                      _ImportantBadge(),
-                    ],
-                    const SizedBox(width: NexusSpacing.sm),
-                    GestureDetector(
-  onTap: widget.onOpen,
-  child: Icon(
-                        RadixIcons.externalLink,
-                        size: 14,
-                        color: colorScheme.mutedForeground.withValues(
-                          alpha: 0.6,
-                        ),
-                      ),
-),
-                  ],
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 3,
+                  child: ColoredBox(color: accent),
                 ),
-                if (item.content != item.title) ...[
-                  const SizedBox(height: NexusSpacing.xs),
-                  Text(
-                    item.content,
-                    maxLines: _expanded ? null : 5,
-                    overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
-                    style: NexusTypography.bodyMd.copyWith(
-                      color: colorScheme.foreground.withValues(alpha: 0.85),
-                      height: 1.5,
-                    ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    NexusSpacing.md + 3,
+                    NexusSpacing.md,
+                    NexusSpacing.md,
+                    NexusSpacing.md,
                   ),
-                  if (longBody)
-                    Padding(
-                      padding: const EdgeInsets.only(top: NexusSpacing.xs),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _expanded = !_expanded),
-                        child: Text(
-                          _expanded ? '收起' : '展开全文',
-                          style: NexusTypography.labelSm.copyWith(
-                            color: colorScheme.secondary,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.title,
+                              style: NexusTypography.labelMd.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: item.isImportant
+                                    ? NexusColors.stockDown
+                                    : colorScheme.foreground,
+                              ),
+                            ),
+                          ),
+                          if (item.isImportant) ...[
+                            const SizedBox(width: NexusSpacing.sm),
+                            _ImportantBadge(),
+                          ],
+                          const SizedBox(width: NexusSpacing.sm),
+                          GestureDetector(
+                            onTap: widget.onOpen,
+                            child: Icon(
+                              RadixIcons.externalLink,
+                              size: 14,
+                              color: colorScheme.mutedForeground.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (item.content != item.title) ...[
+                        const SizedBox(height: NexusSpacing.xs),
+                        Text(
+                          item.content,
+                          maxLines: _expanded ? null : 5,
+                          overflow: _expanded
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
+                          style: NexusTypography.bodyMd.copyWith(
+                            color: colorScheme.foreground.withValues(
+                              alpha: 0.85,
+                            ),
+                            height: 1.5,
                           ),
                         ),
-                      ),
-                    ),
-                ],
+                        if (longBody)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: NexusSpacing.xs,
+                            ),
+                            child: GestureDetector(
+                              onTap: () =>
+                                  setState(() => _expanded = !_expanded),
+                              child: Text(
+                                _expanded ? '收起' : '展开全文',
+                                style: NexusTypography.labelSm.copyWith(
+                                  color: colorScheme.secondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

@@ -12,6 +12,7 @@ import '../../../theme/typography.dart';
 import '../../components/nexus_badge.dart';
 import '../../components/nexus_button.dart';
 import '../../components/nexus_empty_state.dart';
+import '../../components/nexus_page_route.dart';
 import '../../components/nexus_toast.dart';
 import '../../layout/page_scaffold.dart';
 import '../../states/ebook_library_state.dart';
@@ -81,7 +82,7 @@ class _EbookLibraryPageState extends State<EbookLibraryPage> {
       EbookFormat.azw3 => EpubReaderPage(book: book),
       EbookFormat.txt => TxtReaderPage(book: book),
     };
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => reader));
+    Navigator.of(context).push(NexusPageRoute<void>(builder: (_) => reader));
   }
 
   void _confirmRemove(BuildContext context, EbookBook book) {

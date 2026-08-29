@@ -241,7 +241,7 @@ class _MailComposeDialogState extends State<MailComposeDialog> {
               const SizedBox(width: NexusSpacing.md),
               NexusButton(
                 label: 'Send',
-                icon: Icons.send,
+                icon: RadixIcons.paperPlane,
                 isLoading: isSending,
                 onPressed: _send,
               ),

@@ -11,8 +11,24 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 /// scheme so they render correctly in dark mode. This is the only file in
 /// the app allowed to import flutter/material.
 abstract final class NexusAppTheme {
-  static const shadcnLight = ThemeData(colorScheme: ColorSchemes.lightSlate);
-  static const shadcnDark = ThemeData(colorScheme: ColorSchemes.darkSlate);
+  /// App-wide default font: Microsoft YaHei (微软雅黑).
+  static const _fontFamily = 'Microsoft YaHei';
+
+  /// shadcn typography with the sans family switched to Microsoft YaHei so
+  /// every [Text] rendered through shadcn (and the root DefaultTextStyle
+  /// wired by ShadcnApp from `typography.sans`) picks it up by default.
+  static final Typography typography = Typography.geist().copyWith(
+    sans: () => const TextStyle(fontFamily: _fontFamily),
+  );
+
+  static final shadcnLight = ThemeData(
+    colorScheme: ColorSchemes.lightSlate,
+    typography: typography,
+  );
+  static final shadcnDark = ThemeData(
+    colorScheme: ColorSchemes.darkSlate,
+    typography: typography,
+  );
 
   /// Material theme mirroring the slate scheme, fed to
   /// `ShadcnApp.materialTheme` for packages that read the Material theme.
@@ -20,7 +36,7 @@ abstract final class NexusAppTheme {
     final scheme = brightness == Brightness.dark
         ? ColorSchemes.darkSlate
         : ColorSchemes.lightSlate;
-    return material.ThemeData.from(
+    final data = material.ThemeData.from(
       colorScheme: material.ColorScheme.fromSeed(
         seedColor: scheme.primary,
         brightness: brightness,
@@ -29,6 +45,12 @@ abstract final class NexusAppTheme {
         secondary: scheme.secondary,
         error: scheme.destructive,
       ),
+    );
+    // Keep the embedded Material surfaces (quill toolbar, media_kit controls)
+    // on the same app-wide font.
+    return data.copyWith(
+      textTheme: data.textTheme.apply(fontFamily: _fontFamily),
+      primaryTextTheme: data.primaryTextTheme.apply(fontFamily: _fontFamily),
     );
   }
 }

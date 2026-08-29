@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:diff_match_patch/diff_match_patch.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/material.dart' as fw;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import '../../theme/radii.dart';
@@ -761,14 +760,20 @@ ZoomOutIdeAction''';
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
-      child: fw.SelectionArea(
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: colorScheme.border),
-            borderRadius: NexusRadii.mdRadius,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.text,
+        // SelectableRegion (flutter/widgets) with the cupertino desktop
+        // selection controls replaces the former Material SelectionArea.
+        child: SelectableRegion(
+          selectionControls: cupertinoDesktopTextSelectionControls,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: colorScheme.border),
+              borderRadius: NexusRadii.mdRadius,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: list,
           ),
-          clipBehavior: Clip.antiAlias,
-          child: list,
         ),
       ),
     );

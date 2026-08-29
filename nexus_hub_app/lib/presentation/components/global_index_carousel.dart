@@ -8,6 +8,7 @@ import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 import 'global_index_detail_page.dart';
+import 'nexus_page_route.dart';
 
 /// A carousel widget that displays global index cards with auto-scroll and
 /// manual navigation.
@@ -89,7 +90,7 @@ class _GlobalIndexCarouselState extends State<GlobalIndexCarousel> {
 
   void _navigateToDetail(GlobalIndex index) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      NexusPageRoute(
         builder: (_) => GlobalIndexDetailPage(index: index),
       ),
     );

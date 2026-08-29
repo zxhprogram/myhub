@@ -3,6 +3,7 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import '../../../data/models/zhihu_models.dart';
 import '../../../data/services/zhihu_auth_store.dart';
 import '../../../data/services/zhihu_service.dart';
+import '../../components/nexus_page_route.dart';
 import '../../components/zhihu_detail_pane.dart';
 import '../../components/zhihu_ui.dart';
 import 'zhihu_article_page.dart';
@@ -131,7 +132,7 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
       return;
     }
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      NexusPageRoute<void>(
         builder: (_) => item.isArticle
             ? ZhihuArticlePage(articleId: item.id, title: item.title)
             : ZhihuQuestionPage(item: item),
@@ -145,7 +146,7 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
       return;
     }
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => ZhihuFeedDetailPage(item: item)),
+      NexusPageRoute<void>(builder: (_) => ZhihuFeedDetailPage(item: item)),
     );
   }
 
@@ -153,7 +154,7 @@ class _ZhihuHotPageState extends State<ZhihuHotPage> {
   /// picks up the captured session right away.
   Future<void> _openLogin() async {
     final succeeded = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(builder: (_) => const ZhihuLoginPage()),
+      NexusPageRoute<bool>(builder: (_) => const ZhihuLoginPage()),
     );
     if (!mounted) return;
     setState(() => _authReady = true);

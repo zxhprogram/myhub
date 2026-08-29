@@ -4,6 +4,7 @@ import '../../../data/models/zhihu_models.dart';
 import '../../../data/services/zhihu_auth_store.dart';
 import '../../../data/services/zhihu_service.dart';
 import '../../components/zhihu_ui.dart';
+import '../../components/nexus_page_route.dart';
 import 'zhihu_feed_detail_page.dart';
 
 /// The personal recommend feed (推荐 Feed) pane shown next to the hot
@@ -236,7 +237,7 @@ class ZhihuFeedPaneState extends State<ZhihuFeedPane> {
 
   void _openItem(ZhihuFeedItem item) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      NexusPageRoute<void>(
         builder: (_) => ZhihuFeedDetailPage(item: item),
       ),
     );

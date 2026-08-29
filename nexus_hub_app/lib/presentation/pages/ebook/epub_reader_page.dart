@@ -8,6 +8,7 @@ import '../../../data/models/ebook_book.dart';
 import '../../../data/services/ebook/epub_parser.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/typography.dart';
+import '../../components/nexus_page_route.dart';
 import '../../states/ebook_library_state.dart';
 import '../google_news_article_page.dart';
 
@@ -164,7 +165,7 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
       final uri = Uri.tryParse(url);
       if (uri != null && mounted) {
         await Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          NexusPageRoute<void>(
             builder: (_) => NexusWebViewPage(url: url, title: uri.host),
           ),
         );
