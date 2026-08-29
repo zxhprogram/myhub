@@ -35,6 +35,7 @@ import '../pages/mail_page.dart';
 import '../pages/music_player_page.dart';
 import '../pages/my_computer_page.dart';
 import '../pages/pomodoro_page.dart';
+import '../pages/pub_dev_page.dart';
 import '../pages/rss_reader_page.dart';
 import '../pages/stocks_page.dart';
 import '../pages/tasks_page.dart';
@@ -263,6 +264,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       pageBuilder: (_) => const TrendingPage(),
       gradientStart: const Color(0xFF4078C0),
       gradientEnd: const Color(0xFF24292E),
+    ),
+    DesktopAppItem(
+      label: 'Pub Packages',
+      icon: LucideIcons.package,
+      route: '/pub-dev',
+      pageBuilder: (_) => const PubDevPage(),
+      gradientStart: const Color(0xFF01579B),
+      gradientEnd: const Color(0xFF0175C2),
     ),
     DesktopAppItem(
       label: 'Terminal',

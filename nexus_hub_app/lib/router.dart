@@ -15,6 +15,7 @@ import 'presentation/pages/mail_page.dart';
 import 'presentation/pages/music_player_page.dart';
 import 'presentation/pages/my_computer_page.dart';
 import 'presentation/pages/pomodoro_page.dart';
+import 'presentation/pages/pub_dev_page.dart';
 import 'presentation/pages/rss_reader_page.dart';
 import 'presentation/pages/stocks_page.dart';
 import 'presentation/pages/tasks_page.dart';
@@ -68,6 +69,10 @@ class AppRouter {
           GoRoute(
             path: '/github-trending',
             builder: (context, state) => const TrendingPage(),
+          ),
+          GoRoute(
+            path: '/pub-dev',
+            builder: (context, state) => const PubDevPage(),
           ),
           GoRoute(
             path: '/my-computer',

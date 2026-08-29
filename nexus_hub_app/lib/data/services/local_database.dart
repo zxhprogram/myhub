@@ -24,6 +24,7 @@ class LocalDatabase {
     'key_stats',
     'network_traffic',
     'trending_repos',
+    'pub_dev',
     'google_news',
     'fx678_news',
     'finance_calendar',
