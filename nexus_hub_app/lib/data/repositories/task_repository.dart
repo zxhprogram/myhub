@@ -1,81 +1,34 @@
 import '../models/task_model.dart';
-import '../services/api_client.dart';
 import '../services/local_database.dart';
 
-/// Repository for task CRUD operations with offline fallback.
+/// Repository for task CRUD operations backed by the local Hive store.
 class TaskRepository {
-  TaskRepository({ApiClient? client}) : _client = client ?? ApiClient();
+  TaskRepository();
 
-  final ApiClient _client;
-
-  Future<List<TaskModel>> fetchTasks({String? status}) async {
-    try {
-      final response = await _client.get<List<dynamic>>(
-        '/tasks',
-        queryParameters: status != null ? {'status': status} : null,
-      );
-      final data = response.data ?? [];
-      final tasks = data
-          .cast<Map<String, dynamic>>()
-          .map(TaskModel.fromJson)
-          .toList();
-      await _cacheTasks(tasks);
-      return tasks;
-    } catch (_) {
-      return _loadCachedTasks(status: status);
-    }
+  Future<List<TaskModel>> fetchTasks({String? status}) {
+    return _loadTasks(status: status);
   }
 
   Future<TaskModel> createTask(TaskModel task) async {
-    try {
-      final response = await _client.post<Map<String, dynamic>>(
-        '/tasks',
-        data: task.toJson(),
-      );
-      final created = TaskModel.fromJson(response.data!);
-      await _insertLocal(created);
-      return created;
-    } catch (_) {
-      final id = await _insertLocal(task);
-      return task.copyWith(id: id);
-    }
+    final local = task.copyWith(updatedAt: DateTime.now());
+    final id = await _insertLocal(local);
+    return local.copyWith(id: id);
   }
 
   Future<TaskModel> updateTask(TaskModel task) async {
     final id = task.id;
     if (id == null) {
-      await _updateLocal(task);
-      return task;
+      final newId = await _insertLocal(task);
+      return task.copyWith(id: newId);
     }
-    try {
-      final response = await _client.put<Map<String, dynamic>>(
-        '/tasks/$id',
-        data: task.toJson(),
-      );
-      final updated = TaskModel.fromJson(response.data!);
-      await _updateLocal(updated);
-      return updated;
-    } catch (_) {
-      await _updateLocal(task);
-      return task;
-    }
+    final updated = task.copyWith(updatedAt: DateTime.now());
+    await _updateLocal(updated);
+    return updated;
   }
 
   Future<void> deleteTask(int id) async {
-    try {
-      await _client.delete<dynamic>('/tasks/$id');
-    } catch (_) {
-      // Best-effort: fall through to local delete.
-    }
-    await _deleteLocal(id);
-  }
-
-  Future<void> _cacheTasks(List<TaskModel> tasks) async {
     final box = await LocalDatabase.box('tasks');
-    await box.clear();
-    for (final t in tasks) {
-      await _insertLocal(t);
-    }
+    await box.delete(id);
   }
 
   Future<int> _insertLocal(TaskModel task) async {
@@ -85,7 +38,10 @@ class TaskRepository {
       await box.put(id, task.toJson());
       return id;
     }
-    return await box.add(task.toJson());
+    final newId = await box.add(task.toJson());
+    // Backfill the generated id into the stored record so later loads see it.
+    await box.put(newId, task.copyWith(id: newId).toJson());
+    return newId;
   }
 
   Future<void> _updateLocal(TaskModel task) async {
@@ -95,12 +51,7 @@ class TaskRepository {
     await box.put(id, task.toJson());
   }
 
-  Future<void> _deleteLocal(int id) async {
-    final box = await LocalDatabase.box('tasks');
-    await box.delete(id);
-  }
-
-  Future<List<TaskModel>> _loadCachedTasks({String? status}) async {
+  Future<List<TaskModel>> _loadTasks({String? status}) async {
     final box = await LocalDatabase.box('tasks');
     final rows = box.values
         .map((row) => Map<String, dynamic>.from(row as Map))

@@ -1,22 +1,27 @@
-import 'dart:io';
+import 'package:dio/dio.dart';
 
-import 'package:dart_frog/dart_frog.dart';
-import 'package:dio/dio.dart' hide Response;
+/// Result of scraping metadata (title, og:image, favicon) from a URL.
+class BookmarkPreview {
+  const BookmarkPreview({this.title = '', this.image = '', this.favicon = ''});
 
-/// GET /bookmarks/preview?url=...
-///
-/// Fetches the page at the given URL and extracts metadata:
-/// title, og:image, and favicon.
-Future<Response> onRequest(RequestContext context) async {
-  final url = context.request.uri.queryParameters['url'];
-  if (url == null || url.isEmpty) {
-    return Response.json(
-      statusCode: HttpStatus.badRequest,
-      body: {'error': 'Missing "url" query parameter'},
+  final String title;
+  final String image;
+  final String favicon;
+
+  factory BookmarkPreview.fromJson(Map<String, dynamic> json) {
+    return BookmarkPreview(
+      title: (json['title'] as String?) ?? '',
+      image: (json['image'] as String?) ?? '',
+      favicon: (json['favicon'] as String?) ?? '',
     );
   }
+}
 
-  final dio = Dio(
+/// Scrapes page metadata for the bookmark preview dialog.
+///
+/// Ported from the former backend endpoint `GET /bookmarks/preview`.
+class UrlPreviewService {
+  final Dio _dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 8),
       receiveTimeout: const Duration(seconds: 8),
@@ -31,40 +36,26 @@ Future<Response> onRequest(RequestContext context) async {
     ),
   );
 
-  try {
-    final response = await dio.get<String>(url);
+  Future<BookmarkPreview> fetch(String url) async {
+    final response = await _dio.get<String>(url);
     final html = response.data ?? '';
     final baseUri = response.redirects.isNotEmpty
         ? response.realUri
         : Uri.parse(url);
 
-    final title = _extractTitle(html);
-    final image = _resolveUrl(
-      _extractMetaContent(html, 'og:image') ??
-          _extractMetaContent(html, 'twitter:image'),
-      baseUri,
-    );
-    final favicon = _resolveUrl(
-      _extractFavicon(html) ?? '/favicon.ico',
-      baseUri,
-    );
-
-    return Response.json(
-      body: {
-        'title': title,
-        'image': image ?? '',
-        'favicon': favicon ?? '',
-      },
-    );
-  } on DioException catch (e) {
-    return Response.json(
-      statusCode: HttpStatus.badGateway,
-      body: {'error': 'Failed to fetch URL: ${e.message}'},
-    );
-  } catch (e) {
-    return Response.json(
-      statusCode: HttpStatus.internalServerError,
-      body: {'error': 'Unexpected error: $e'},
+    return BookmarkPreview(
+      title: _extractTitle(html),
+      image: _resolveUrl(
+            _extractMetaContent(html, 'og:image') ??
+                _extractMetaContent(html, 'twitter:image'),
+            baseUri,
+          ) ??
+          '',
+      favicon: _resolveUrl(
+            _extractFavicon(html) ?? '/favicon.ico',
+            baseUri,
+          ) ??
+          '',
     );
   }
 }

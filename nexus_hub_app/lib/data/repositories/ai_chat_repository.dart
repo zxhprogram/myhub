@@ -38,9 +38,9 @@ class AiChatCancelledException implements Exception {
 /// Talks to OpenAI-compatible chat APIs (`/chat/completions` + `/models`)
 /// with SSE streaming support.
 ///
-/// Uses its own [Dio] instance instead of [ApiClient]: chat endpoints live on
-/// foreign hosts, need provider-specific auth headers, and must not inherit
-/// the 10s receive timeout which would kill long streamed completions.
+/// Uses its own [Dio] instance: chat endpoints live on foreign hosts, need
+/// provider-specific auth headers, and must not inherit short receive
+/// timeouts which would kill long streamed completions.
 class AiChatRepository {
   AiChatRepository({Dio? dio})
       : _dio =

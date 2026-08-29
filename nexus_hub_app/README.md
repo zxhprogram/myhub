@@ -9,8 +9,6 @@ A Flutter desktop/web application for Nexus Hub.
 
 ## Run locally
 
-Ensure the API is running on `http://localhost:8080`, then:
-
 ```powershell
 cd nexus_hub_app
 flutter run -d windows

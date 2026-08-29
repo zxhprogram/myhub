@@ -66,6 +66,9 @@ dependencies:
   # dependency chain pins archive ^4.0.7 — see the vendored pubspec).
   kindle_unpack:
     path: ../third_party/kindle_unpack
+  # One-time import of the legacy nexus_hub_api SQLite database.
+  sqlite3: ^2.4.0
+  sqlite3_flutter_libs: ^0.5.24
   # Clash virtual app: local parsing of subscription YAML (proxies /
   # proxy-groups) so nodes are listed without a running core.
   yaml: ^3.1.0

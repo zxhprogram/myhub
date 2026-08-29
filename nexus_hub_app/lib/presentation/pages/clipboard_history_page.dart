@@ -9,7 +9,6 @@ import 'package:super_clipboard/super_clipboard.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/clipboard_item_model.dart';
-import '../../data/services/api_client.dart';
 import '../../presentation/states/clipboard_state.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
@@ -131,11 +130,7 @@ class _ClipboardHistoryPageState extends State<ClipboardHistoryPage> {
     final path = item.filePath;
     if (path == null || path.isEmpty) return;
 
-    final uri = _isRemotePath(path)
-        ? Uri.parse(
-            '${ApiClient.defaultBaseUrl}/clipboard/files/${p.basename(path)}',
-          )
-        : File(path).uri;
+    final uri = File(path).uri;
 
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
@@ -636,16 +631,6 @@ class _ItemPreview extends StatelessWidget {
       return const _Placeholder(icon: LucideIcons.image);
     }
 
-    if (_isRemotePath(path)) {
-      return Image.network(
-        '${ApiClient.defaultBaseUrl}/clipboard/files/${p.basename(path)}',
-        fit: fit,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (context, _, _) => const _Placeholder(icon: LucideIcons.image),
-      );
-    }
-
     return Image.file(
       File(path),
       fit: fit,
@@ -822,10 +807,6 @@ class _HoverAction extends StatelessWidget {
         ),
 );
   }
-}
-
-bool _isRemotePath(String path) {
-  return path.startsWith('temp/') || path.startsWith('temp\\');
 }
 
 String _formatTime(DateTime time) {

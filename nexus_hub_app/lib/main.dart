@@ -8,11 +8,16 @@ import 'package:media_kit/media_kit.dart';
 import 'app.dart';
 import 'data/services/clipboard_monitor_service.dart';
 import 'data/services/input_hook_service.dart';
+import 'data/services/legacy_data_import_service.dart';
 import 'data/services/network_monitor_service.dart';
 import 'presentation/states/clipboard_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // One-time import of the legacy nexus_hub_api SQLite data into the local
+  // Hive store. Must run before any repository/state touches a box and
+  // before the clipboard monitor starts writing new items.
+  await LegacyDataImportService.instance.runIfNeeded();
   // Boot the libmpv backend used by the Video sub-app (no-op where bundled
   // libraries are absent).
   MediaKit.ensureInitialized();

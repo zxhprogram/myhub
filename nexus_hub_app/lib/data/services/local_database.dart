@@ -20,6 +20,8 @@ class LocalDatabase {
     'clipboard',
     'collections',
     'bookmark_collections',
+    'rss_feeds',
+    'rss_articles',
     'global_indices',
     'key_stats',
     'network_traffic',
