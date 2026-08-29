@@ -1,17 +1,11 @@
-import 'dart:convert';
-
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../components/nexus_toast.dart';
-import 'package:flutter/services.dart';
-
-import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
-import '../components/nexus_button.dart';
 import '../components/nexus_card.dart';
 import '../components/nexus_diff_viewer.dart';
 import '../components/nexus_input.dart';
+import '../components/nexus_json_formatter.dart';
 
 class DevToolsPage extends StatefulWidget {
   const DevToolsPage({super.key});
@@ -53,7 +47,7 @@ class _DevToolsPageState extends State<DevToolsPage> {
   Widget _buildContent() {
     switch (_selectedIndex) {
       case 0:
-        return const _JsonFormatterCard();
+        return const NexusJsonFormatter();
       case 7:
         return const NexusDiffViewer();
       default:
@@ -61,11 +55,12 @@ class _DevToolsPageState extends State<DevToolsPage> {
     }
   }
 
-  /// The Diff Viewer fills the available height with its own internal
-  /// scrolling, so it must not be wrapped in a SingleChildScrollView.
+  /// The JSON Formatter and Diff Viewer fill the available height with their
+  /// own internal scrolling, so they must not be wrapped in a
+  /// SingleChildScrollView.
   Widget _buildScrollableContent() {
     final content = _buildContent();
-    if (_selectedIndex == 7) return content;
+    if (_selectedIndex == 0 || _selectedIndex == 7) return content;
     return SingleChildScrollView(child: content);
   }
 
@@ -166,7 +161,6 @@ class _ToolSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final width = expanded ? 220.0 : 64.0;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -292,7 +286,6 @@ class _ToolToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return NexusCard(
       padding: const EdgeInsets.all(NexusSpacing.sm),
       child: Column(
@@ -406,252 +399,5 @@ class _PlaceholderToolCard extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _JsonFormatterCard extends StatefulWidget {
-  const _JsonFormatterCard();
-
-  @override
-  State<_JsonFormatterCard> createState() => _JsonFormatterCardState();
-}
-
-class _JsonFormatterCardState extends State<_JsonFormatterCard> {
-  final _inputController = TextEditingController();
-  final _outputController = TextEditingController();
-  String? _error;
-  String _indent = '  ';
-
-  static const _maxInputLength = 10 * 1024 * 1024;
-
-  @override
-  void dispose() {
-    _inputController.dispose();
-    _outputController.dispose();
-    super.dispose();
-  }
-
-  void _format({bool minify = false}) {
-    final input = _inputController.text.trim();
-    if (input.isEmpty) {
-      setState(() {
-        _error = null;
-        _outputController.text = '';
-      });
-      return;
-    }
-
-    if (input.length > _maxInputLength) {
-      setState(() {
-        _error = 'Input exceeds 10 MB limit.';
-        _outputController.text = '';
-      });
-      return;
-    }
-
-    try {
-      final dynamic decoded = jsonDecode(input);
-      final encoder = minify
-          ? const JsonEncoder()
-          : JsonEncoder.withIndent(_indent);
-      setState(() {
-        _error = null;
-        _outputController.text = encoder.convert(decoded);
-      });
-    } on FormatException catch (e) {
-      setState(() {
-        _error = 'Invalid JSON: ${e.message}';
-        _outputController.text = '';
-      });
-    }
-  }
-
-  Future<void> _copyOutput() async {
-    final text = _outputController.text;
-    if (text.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: text));
-    if (mounted) {
-      nexusToast(context, 'Copied to clipboard');
-    }
-  }
-
-  Future<void> _pasteInput() async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final text = data?.text;
-    if (text == null || text.isEmpty) return;
-    _inputController.text = text;
-    _format();
-  }
-
-  void _clear() {
-    _inputController.clear();
-    _outputController.clear();
-    setState(() => _error = null);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return NexusCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('JSON Formatter', style: NexusTypography.headlineSm),
-          const SizedBox(height: NexusSpacing.md),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 700;
-              final input = NexusInput(
-                controller: _inputController,
-                labelText: 'Input',
-                hintText: 'Paste JSON here...',
-                maxLines: 10,
-              );
-              final output = NexusInput(
-                controller: _outputController,
-                labelText: 'Formatted',
-                hintText: 'Result will appear here...',
-                maxLines: 10,
-                enabled: false,
-              );
-              return isWide
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: input),
-                        const SizedBox(width: NexusSpacing.md),
-                        Expanded(child: output),
-                      ],
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 260, child: input),
-                        const SizedBox(height: NexusSpacing.md),
-                        SizedBox(height: 260, child: output),
-                      ],
-                    );
-            },
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: NexusSpacing.sm),
-            Text(
-              _error!,
-              style: NexusTypography.labelSm.copyWith(color: colorScheme.destructive),
-            ),
-          ],
-          const SizedBox(height: NexusSpacing.md),
-          Wrap(
-            spacing: NexusSpacing.sm,
-            runSpacing: NexusSpacing.sm,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              NexusButton(label: 'Format', onPressed: () => _format()),
-              NexusButton(
-                label: 'Minify',
-                variant: NexusButtonVariant.outlined,
-                onPressed: () => _format(minify: true),
-              ),
-              NexusButton(
-                label: 'Paste',
-                variant: NexusButtonVariant.text,
-                onPressed: _pasteInput,
-              ),
-              NexusButton(
-                label: 'Copy',
-                variant: NexusButtonVariant.text,
-                onPressed: _copyOutput,
-              ),
-              _IndentSelector(
-                value: _indent,
-                onChanged: (value) {
-                  setState(() => _indent = value);
-                  if (_outputController.text.isNotEmpty) {
-                    _format();
-                  }
-                },
-              ),
-              const SizedBox(width: NexusSpacing.sm),
-              NexusButton(
-                label: 'Clear',
-                variant: NexusButtonVariant.text,
-                onPressed: _clear,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IndentSelector extends StatelessWidget {
-  const _IndentSelector({required this.value, required this.onChanged});
-
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('Indent:', style: NexusTypography.labelSm),
-        const SizedBox(width: NexusSpacing.xs),
-        _IndentChip(
-          label: '2',
-          selected: value == '  ',
-          onTap: () => onChanged('  '),
-        ),
-        const SizedBox(width: NexusSpacing.xs),
-        _IndentChip(
-          label: '4',
-          selected: value == '    ',
-          onTap: () => onChanged('    '),
-        ),
-      ],
-    );
-  }
-}
-
-class _IndentChip extends StatelessWidget {
-  const _IndentChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-  onTap: onTap,
-  child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: NexusSpacing.sm,
-            vertical: 4,
-          ),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: selected
-                  ? colorScheme.primary
-                  : colorScheme.border,
-            ),
-            borderRadius: NexusRadii.smRadius,
-          ),
-          child: Text(
-            label,
-            style: NexusTypography.labelSm.copyWith(
-              color: selected ? colorScheme.primary : colorScheme.foreground,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ),
-);
   }
 }
