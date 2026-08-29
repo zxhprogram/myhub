@@ -341,7 +341,7 @@ class _PackageListItem extends StatelessWidget {
                   style: NexusTypography.labelMd.copyWith(
                     fontWeight: FontWeight.w700,
                     color:
-                        isSelected ? colorScheme.primary : colorScheme.secondary,
+                        isSelected ? colorScheme.primary : colorScheme.foreground,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
