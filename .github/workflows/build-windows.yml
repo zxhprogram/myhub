@@ -41,6 +41,19 @@ jobs:
         working-directory: nexus_hub_app
         run: flutter pub get
 
+      # cargokit 的 resolve_symlinks.ps1 逐级 Get-Item 解析插件符号链接，
+      # 但 CI 上 pub cache 位于隐藏目录 AppData 下，缺少 -Force 会报
+      # "Could not find item ... AppData"，导致 Rust 插件构建失败。打补丁修复。
+      - name: Patch cargokit resolve_symlinks.ps1
+        shell: pwsh
+        run: |
+          Get-ChildItem "$env:PUB_CACHE/hosted" -Recurse -Filter resolve_symlinks.ps1 |
+            ForEach-Object {
+              (Get-Content $_.FullName -Raw) -replace 'Get-Item \$realPath', 'Get-Item -Force $realPath' |
+                Set-Content $_.FullName
+              Write-Host "Patched: $($_.FullName)"
+            }
+
       # 依赖了 flutter_alacritty（cargokit 构建 Rust 绑定），windows-latest
       # 镜像自带 Rust 工具链，无需额外安装。
       - name: Build Windows
