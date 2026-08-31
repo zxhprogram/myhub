@@ -11,6 +11,7 @@ import 'presentation/pages/dashboard_page.dart';
 import 'presentation/pages/dev_tools_page.dart';
 import 'presentation/pages/ebook/ebook_library_page.dart';
 import 'presentation/pages/google_news_page.dart';
+import 'presentation/pages/github_page.dart';
 import 'presentation/pages/mail_page.dart';
 import 'presentation/pages/music_player_page.dart';
 import 'presentation/pages/my_computer_page.dart';
@@ -69,6 +70,10 @@ class AppRouter {
           GoRoute(
             path: '/github-trending',
             builder: (context, state) => const TrendingPage(),
+          ),
+          GoRoute(
+            path: '/github',
+            builder: (context, state) => const GitHubPage(),
           ),
           GoRoute(
             path: '/pub-dev',

@@ -30,6 +30,7 @@ import '../pages/dashboard_page.dart';
 import '../pages/dev_tools_page.dart';
 import '../pages/ebook/ebook_library_page.dart';
 import '../pages/google_news_page.dart';
+import '../pages/github_page.dart';
 import '../pages/java_decompiler_page.dart';
 import '../pages/mail_page.dart';
 import '../pages/music_player_page.dart';
@@ -262,6 +263,14 @@ class _DesktopEnvironmentState extends State<DesktopEnvironment> {
       icon: LucideIcons.trendingUp,
       route: '/github-trending',
       pageBuilder: (_) => const TrendingPage(),
+      gradientStart: const Color(0xFF4078C0),
+      gradientEnd: const Color(0xFF24292E),
+    ),
+    DesktopAppItem(
+      label: 'GitHub',
+      icon: LucideIcons.github,
+      route: '/github',
+      pageBuilder: (_) => const GitHubPage(),
       gradientStart: const Color(0xFF4078C0),
       gradientEnd: const Color(0xFF24292E),
     ),
