@@ -11,6 +11,7 @@ import '../../../theme/typography.dart';
 import '../../components/nexus_page_route.dart';
 import '../../states/ebook_library_state.dart';
 import '../google_news_article_page.dart';
+import 'ebook_translate_dialog.dart';
 
 /// EPUB 阅读器 — 左侧目录 + 右侧章节正文。
 ///
@@ -42,6 +43,7 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
   double _fontSize = 17;
   bool _showToc = true;
   bool _dirty = false;
+  String _selectedText = '';
 
   @override
   void initState() {
@@ -132,7 +134,10 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
     if (epub == null || index < 0 || index >= epub.chapters.length) return;
     if (index == _chapterIndex) return;
     if (_scroll.hasClients) _chapterOffsets[_chapterIndex] = _scroll.offset;
-    setState(() => _chapterIndex = index);
+    setState(() {
+      _chapterIndex = index;
+      _selectedText = '';
+    });
     _scheduleSave();
     _restoreScrollAfterLayout();
   }
@@ -300,6 +305,10 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
           ),
           const SizedBox(width: NexusSpacing.xs),
           IconButton.ghost(
+            icon: const Icon(LucideIcons.settings, size: 18),
+            onPressed: () => EbookTranslateConfigDialog.show(context),
+          ),
+          IconButton.ghost(
             icon: const Icon(LucideIcons.chevronLeft, size: 20),
             onPressed: _chapterIndex > 0
                 ? () => _goToChapter(_chapterIndex - 1)
@@ -367,63 +376,114 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
 
   Widget _buildContent(BuildContext context, EpubChapter chapter) {
     final colorScheme = Theme.of(context).colorScheme;
-
-    return SingleChildScrollView(
-      controller: _scroll,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: NexusSpacing.xl,
-              vertical: NexusSpacing.lg,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  chapter.title,
-                  style: NexusTypography.headlineSm.copyWith(
-                    color: colorScheme.foreground,
+    // The floating translate button lives inside the SelectableRegion so the
+    // tap on it does not clear the selection before it fires. HtmlWidget
+    // participates in selection via the ambient SelectionRegistrar. Empty
+    // selection controls keep the widget free of any material-styled toolbar.
+    return DefaultSelectionStyle(
+      selectionColor: colorScheme.primary.withValues(alpha: 0.3),
+      child: SelectableRegion(
+        selectionControls: emptyTextSelectionControls,
+        onSelectionChanged: (selection) {
+          final text = selection?.plainText ?? '';
+          if (text == _selectedText) return;
+          setState(() => _selectedText = text);
+        },
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              controller: _scroll,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: NexusSpacing.xl,
+                      vertical: NexusSpacing.lg,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          chapter.title,
+                          style: NexusTypography.headlineSm.copyWith(
+                            color: colorScheme.foreground,
+                          ),
+                        ),
+                        const SizedBox(height: NexusSpacing.lg),
+                        HtmlWidget(
+                          chapter.bodyHtml,
+                          textStyle: NexusTypography.bodyLg.copyWith(
+                            fontSize: _fontSize,
+                            height: 1.7,
+                            color: colorScheme.foreground,
+                          ),
+                          factoryBuilder: () =>
+                              _EpubImageFactory(_epub!.images),
+                          onTapUrl: _onTapUrl,
+                        ),
+                        const SizedBox(height: NexusSpacing.xl),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            if (_chapterIndex > 0)
+                              Button.outline(
+                                onPressed: () =>
+                                    _goToChapter(_chapterIndex - 1),
+                                child: const Text('上一章'),
+                              )
+                            else
+                              const SizedBox.shrink(),
+                            if (_chapterIndex < _epub!.chapters.length - 1)
+                              Button.primary(
+                                onPressed: () =>
+                                    _goToChapter(_chapterIndex + 1),
+                                child: const Text('下一章'),
+                              )
+                            else
+                              const SizedBox.shrink(),
+                          ],
+                        ),
+                        const SizedBox(height: NexusSpacing.xl),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: NexusSpacing.lg),
-                HtmlWidget(
-                  chapter.bodyHtml,
-                  textStyle: NexusTypography.bodyLg.copyWith(
-                    fontSize: _fontSize,
-                    height: 1.7,
-                    color: colorScheme.foreground,
-                  ),
-                  factoryBuilder: () => _EpubImageFactory(_epub!.images),
-                  onTapUrl: _onTapUrl,
-                ),
-                const SizedBox(height: NexusSpacing.xl),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    if (_chapterIndex > 0)
-                      Button.outline(
-                        onPressed: () => _goToChapter(_chapterIndex - 1),
-                        child: const Text('上一章'),
-                      )
-                    else
-                      const SizedBox.shrink(),
-                    if (_chapterIndex < _epub!.chapters.length - 1)
-                      Button.primary(
-                        onPressed: () => _goToChapter(_chapterIndex + 1),
-                        child: const Text('下一章'),
-                      )
-                    else
-                      const SizedBox.shrink(),
-                  ],
-                ),
-                const SizedBox(height: NexusSpacing.xl),
-              ],
+              ),
             ),
-          ),
+            if (_selectedText.trim().isNotEmpty)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: NexusSpacing.lg,
+                child: Center(child: _buildTranslateButton(context)),
+              ),
+          ],
         ),
+      ),
+    );
+  }
+
+  /// Floating pill shown above the content while text is selected.
+  Widget _buildTranslateButton(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: theme.borderRadiusLg,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Button.primary(
+        leading: const Icon(LucideIcons.languages, size: 16),
+        onPressed: () =>
+            EbookTranslateDialog.show(context, text: _selectedText.trim()),
+        child: const Text('翻译'),
       ),
     );
   }

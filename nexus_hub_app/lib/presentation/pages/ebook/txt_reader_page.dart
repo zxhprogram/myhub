@@ -7,6 +7,7 @@ import '../../../data/services/ebook/txt_parser.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/typography.dart';
 import '../../states/ebook_library_state.dart';
+import 'ebook_translate_dialog.dart';
 
 /// TXT 阅读器 — 章节目录 + 滚动正文。
 ///
@@ -35,6 +36,7 @@ class _TxtReaderPageState extends State<TxtReaderPage> {
   double _fontSize = 17;
   bool _showToc = true;
   bool _dirty = false;
+  String _selectedText = '';
 
   @override
   void initState() {
@@ -113,7 +115,10 @@ class _TxtReaderPageState extends State<TxtReaderPage> {
     if (txt == null || index < 0 || index >= txt.chapters.length) return;
     if (index == _chapterIndex) return;
     if (_scroll.hasClients) _chapterOffsets[_chapterIndex] = _scroll.offset;
-    setState(() => _chapterIndex = index);
+    setState(() {
+      _chapterIndex = index;
+      _selectedText = '';
+    });
     _scheduleSave();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scroll.hasClients) return;
@@ -247,6 +252,10 @@ class _TxtReaderPageState extends State<TxtReaderPage> {
             onPressed: () => _changeFontSize(1),
           ),
           const SizedBox(width: NexusSpacing.xs),
+          IconButton.ghost(
+            icon: const Icon(LucideIcons.settings, size: 18),
+            onPressed: () => EbookTranslateConfigDialog.show(context),
+          ),
           if (multiChapter) ...[
             IconButton.ghost(
               icon: const Icon(LucideIcons.chevronLeft, size: 20),
@@ -319,54 +328,104 @@ class _TxtReaderPageState extends State<TxtReaderPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final body = txt.chapterBodies[_chapterIndex];
 
-    return SingleChildScrollView(
-      controller: _scroll,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: NexusSpacing.xl,
-              vertical: NexusSpacing.lg,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  txt.chapters[_chapterIndex].title,
-                  style: NexusTypography.headlineSm.copyWith(
-                    color: colorScheme.foreground,
+    // The floating translate button lives inside the SelectableRegion so the
+    // tap on it does not clear the selection before it fires. Empty selection
+    // controls keep the widget free of any material-styled toolbar.
+    return DefaultSelectionStyle(
+      selectionColor: colorScheme.primary.withValues(alpha: 0.3),
+      child: SelectableRegion(
+        selectionControls: emptyTextSelectionControls,
+        onSelectionChanged: (selection) {
+          final text = selection?.plainText ?? '';
+          if (text == _selectedText) return;
+          setState(() => _selectedText = text);
+        },
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              controller: _scroll,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: NexusSpacing.xl,
+                      vertical: NexusSpacing.lg,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          txt.chapters[_chapterIndex].title,
+                          style: NexusTypography.headlineSm.copyWith(
+                            color: colorScheme.foreground,
+                          ),
+                        ),
+                        const SizedBox(height: NexusSpacing.lg),
+                        _buildParagraphs(context, body),
+                        const SizedBox(height: NexusSpacing.xl),
+                        if (txt.chapters.length > 1)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              if (_chapterIndex > 0)
+                                Button.outline(
+                                  onPressed: () =>
+                                      _goToChapter(_chapterIndex - 1),
+                                  child: const Text('上一章'),
+                                )
+                              else
+                                const SizedBox.shrink(),
+                              if (_chapterIndex < txt.chapters.length - 1)
+                                Button.primary(
+                                  onPressed: () =>
+                                      _goToChapter(_chapterIndex + 1),
+                                  child: const Text('下一章'),
+                                )
+                              else
+                                const SizedBox.shrink(),
+                            ],
+                          ),
+                        const SizedBox(height: NexusSpacing.xl),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: NexusSpacing.lg),
-                _buildParagraphs(context, body),
-                const SizedBox(height: NexusSpacing.xl),
-                if (txt.chapters.length > 1)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (_chapterIndex > 0)
-                        Button.outline(
-                          onPressed: () => _goToChapter(_chapterIndex - 1),
-                          child: const Text('上一章'),
-                        )
-                      else
-                        const SizedBox.shrink(),
-                      if (_chapterIndex < txt.chapters.length - 1)
-                        Button.primary(
-                          onPressed: () => _goToChapter(_chapterIndex + 1),
-                          child: const Text('下一章'),
-                        )
-                      else
-                        const SizedBox.shrink(),
-                    ],
-                  ),
-                const SizedBox(height: NexusSpacing.xl),
-              ],
+              ),
             ),
-          ),
+            if (_selectedText.trim().isNotEmpty)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: NexusSpacing.lg,
+                child: Center(child: _buildTranslateButton(context)),
+              ),
+          ],
         ),
+      ),
+    );
+  }
+
+  /// Floating pill shown above the content while text is selected.
+  Widget _buildTranslateButton(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: theme.borderRadiusLg,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Button.primary(
+        leading: const Icon(LucideIcons.languages, size: 16),
+        onPressed: () =>
+            EbookTranslateDialog.show(context, text: _selectedText.trim()),
+        child: const Text('翻译'),
       ),
     );
   }
