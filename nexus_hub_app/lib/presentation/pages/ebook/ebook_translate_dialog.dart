@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
@@ -15,17 +16,30 @@ import '../../states/ai_chat_state.dart';
 /// Provider 与 API Key 与 AI Chat 子应用共用（[AiChatState]）；此处提供
 /// 切换 provider/model 的下拉框，未配置时内嵌一个精简配置表单。
 class EbookTranslateDialog extends StatefulWidget {
-  const EbookTranslateDialog({super.key, required this.text});
+  const EbookTranslateDialog({
+    super.key,
+    required this.text,
+    this.autoTranslate = false,
+  });
 
   final String text;
 
+  /// When true, translation starts as soon as the provider is resolved —
+  /// used by the readers' auto-translate-on-selection flow.
+  final bool autoTranslate;
+
   /// Opens the dialog over the reader page.
-  static void show(BuildContext context, {required String text}) {
+  static void show(
+    BuildContext context, {
+    required String text,
+    bool autoTranslate = false,
+  }) {
     showOverlay(
       context,
       DialogConfiguration(
         barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
-        builder: (context) => EbookTranslateDialog(text: text),
+        builder: (context) =>
+            EbookTranslateDialog(text: text, autoTranslate: autoTranslate),
       ),
     );
   }
@@ -35,6 +49,9 @@ class EbookTranslateDialog extends StatefulWidget {
 }
 
 class _EbookTranslateDialogState extends State<EbookTranslateDialog> {
+  static const _prefProviderKey = 'nexus_ebook_translate_provider_v1';
+  static const _prefModelKey = 'nexus_ebook_translate_model_v1';
+
   final _aiState = AiChatState.instance;
   final _service = EbookTranslateService();
   final _outputScroll = ScrollController();
@@ -62,21 +79,48 @@ class _EbookTranslateDialogState extends State<EbookTranslateDialog> {
     super.dispose();
   }
 
-  /// Picks the active provider (or the first ready one) once the shared
-  /// provider list has loaded.
+  /// Restores the last-used provider/model (persisted per reader), falling
+  /// back to the active or first ready provider; optionally starts the
+  /// translation right away for the auto-translate-on-selection flow.
   Future<void> _resolveDefaultProvider() async {
     await _aiState.init();
     if (!mounted) return;
     final providers = _aiState.providers.value;
-    final active = _aiState.activeProvider;
-    final provider = (active?.isReady ?? false)
-        ? active
-        : providers.where((p) => p.isReady).firstOrNull;
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
+    final savedId = prefs.getString(_prefProviderKey);
+    var provider = savedId == null
+        ? null
+        : providers.where((p) => p.id == savedId).firstOrNull;
+    provider ??= _aiState.activeProvider;
+    if (!(provider?.isReady ?? false)) {
+      provider = providers.where((p) => p.isReady).firstOrNull;
+    }
     setState(() {
       _providerId = provider?.id;
-      _model = provider?.selectedModel;
+      _model = prefs.getString(_prefModelKey) ?? provider?.selectedModel;
       _configured = provider != null;
     });
+    if (widget.autoTranslate) {
+      await _translate();
+    }
+  }
+
+  /// Persists the translation provider/model choice so the next dialog
+  /// opens with the same configuration.
+  Future<void> _persistSelection(String? providerId, String? model) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (providerId == null || providerId.isEmpty) {
+      await prefs.remove(_prefProviderKey);
+    } else {
+      await prefs.setString(_prefProviderKey, providerId);
+    }
+    if (model == null || model.isEmpty) {
+      await prefs.remove(_prefModelKey);
+    } else {
+      await prefs.setString(_prefModelKey, model);
+    }
   }
 
   AiProviderConfig? get _provider {
@@ -95,10 +139,18 @@ class _EbookTranslateDialogState extends State<EbookTranslateDialog> {
   }
 
   Future<void> _translate() async {
+    if (_streaming) return;
     final provider = _provider;
     final model = _effectiveModel;
-    if (provider == null || (model ?? '').isEmpty || _streaming) return;
+    if (provider == null || (model ?? '').isEmpty) {
+      setState(() => _error = '请先点击齿轮图标配置 AI 服务和模型。');
+      return;
+    }
 
+    debugPrint(
+      '[EbookTranslate] translate tapped: provider=${provider.name} '
+      'model=$model',
+    );
     setState(() {
       _output = '';
       _error = null;
@@ -115,11 +167,16 @@ class _EbookTranslateDialogState extends State<EbookTranslateDialog> {
         setState(() => _output += chunk);
         _scrollOutputToBottom();
       }
+      if (!token.isCancelled && _output.isEmpty) {
+        setState(() => _error = 'AI 未返回任何内容，请检查所选模型是否可用。');
+      }
     } on AiChatCancelledException {
       // 用户主动停止，不算错误。
     } on AiChatException catch (e) {
+      debugPrint('[EbookTranslate] failed: ${e.message}');
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
+      debugPrint('[EbookTranslate] failed: $e');
       if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _streaming = false);
@@ -181,6 +238,7 @@ class _EbookTranslateDialogState extends State<EbookTranslateDialog> {
       _model = provider.selectedModel;
       _configured = true;
     });
+    _persistSelection(provider.id, provider.selectedModel);
   }
 
   /// provider/model 选择 + 流式输出区。
@@ -211,9 +269,7 @@ class _EbookTranslateDialogState extends State<EbookTranslateDialog> {
               else
                 Button.primary(
                   leading: const Icon(LucideIcons.languages, size: 16),
-                  onPressed: (_effectiveModel ?? '').isEmpty
-                      ? null
-                      : () => _translate(),
+                  onPressed: () => _translate(),
                   child: const Text('翻译'),
                 ),
             ],
@@ -277,6 +333,7 @@ class _EbookTranslateDialogState extends State<EbookTranslateDialog> {
           _providerId = id;
           _model = provider?.selectedModel;
         });
+        _persistSelection(id, provider?.selectedModel);
       },
     );
   }
@@ -300,7 +357,10 @@ class _EbookTranslateDialogState extends State<EbookTranslateDialog> {
       ).call,
       itemBuilder: (context, value) =>
           Text(value, overflow: TextOverflow.ellipsis).small(),
-      onChanged: (model) => setState(() => _model = model),
+      onChanged: (model) {
+        setState(() => _model = model);
+        _persistSelection(_providerId, model);
+      },
     );
   }
 }
@@ -433,6 +493,7 @@ class _ProviderFormState extends State<_ProviderForm> {
   bool _fetching = false;
   String? _error;
   String? _baseUrlError;
+  String? _modelError;
 
   static const _presets = <(String, String)>[
     ('OpenAI', 'https://api.openai.com/v1'),
@@ -488,7 +549,10 @@ class _ProviderFormState extends State<_ProviderForm> {
   Future<void> _save() async {
     final baseUrl = _baseUrl.text.trim();
     final model = _model.text.trim();
-    setState(() => _baseUrlError = baseUrl.isEmpty ? '必填' : null);
+    setState(() {
+      _baseUrlError = baseUrl.isEmpty ? '必填' : null;
+      _modelError = model.isEmpty ? '必填：手动填写或点击“获取模型”' : null;
+    });
     if (baseUrl.isEmpty || model.isEmpty) return;
 
     final config = AiProviderConfig(
@@ -571,6 +635,13 @@ class _ProviderFormState extends State<_ProviderForm> {
               ),
             ],
           ),
+          if (_modelError != null)
+            Text(
+              _modelError!,
+              style: NexusTypography.labelSm.copyWith(
+                color: theme.colorScheme.destructive,
+              ),
+            ),
           if (_error != null) ...[
             const SizedBox(height: NexusSpacing.sm),
             Text(

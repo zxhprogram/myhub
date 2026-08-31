@@ -205,6 +205,59 @@ class AiChatRepository {
     return content;
   }
 
+  /// Single non-streaming completion. Used as a fallback when a provider's
+  /// streaming endpoint answers with plain JSON instead of SSE events, and
+  /// for one-shot helpers that don't need incremental output.
+  Future<String> complete({
+    required AiProviderConfig provider,
+    required String model,
+    required String systemPrompt,
+    required String userMessage,
+  }) async {
+    final base = _normalizeBaseUrl(provider.baseUrl);
+    final Response<Map<String, dynamic>> response;
+    try {
+      response = await _dio.post<Map<String, dynamic>>(
+        '$base/chat/completions',
+        options: Options(
+          headers: _headers(provider),
+          receiveTimeout: const Duration(seconds: 60),
+        ),
+        data: {
+          'model': model,
+          'messages': [
+            {'role': 'system', 'content': systemPrompt},
+            {'role': 'user', 'content': userMessage},
+          ],
+          'stream': false,
+        },
+      );
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.badResponse) {
+        throw AiChatException(
+          'Provider returned HTTP ${e.response?.statusCode}: '
+          '${await _readErrorBody(e.response?.data)}',
+        );
+      }
+      throw _toChatException(e);
+    }
+    final choices = response.data?['choices'];
+    if (choices is! List || choices.isEmpty) {
+      throw const AiChatException(
+        'Unexpected /chat/completions response: missing choices.',
+      );
+    }
+    final choice = choices.first;
+    final message = choice is Map<String, dynamic> ? choice['message'] : null;
+    final content = message is Map<String, dynamic> ? message['content'] : null;
+    if (content is! String || content.trim().isEmpty) {
+      throw const AiChatException(
+        'Unexpected /chat/completions response: missing message content.',
+      );
+    }
+    return content;
+  }
+
   /// Fetches the model ids advertised by the provider's `/models` endpoint.
   Future<List<String>> fetchModels(AiProviderConfig provider) async {
     final base = _normalizeBaseUrl(provider.baseUrl);

@@ -35,6 +35,7 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
   final ScrollController _scroll = ScrollController();
   final Map<int, double> _chapterOffsets = {};
   Timer? _saveDebounce;
+  Timer? _selectionTimer;
 
   late EbookBook _book;
   EpubBook? _epub;
@@ -57,6 +58,7 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
   @override
   void dispose() {
     _saveDebounce?.cancel();
+    _selectionTimer?.cancel();
     _saveNow();
     _scroll.removeListener(_onScroll);
     _scroll.dispose();
@@ -134,6 +136,7 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
     if (epub == null || index < 0 || index >= epub.chapters.length) return;
     if (index == _chapterIndex) return;
     if (_scroll.hasClients) _chapterOffsets[_chapterIndex] = _scroll.offset;
+    _selectionTimer?.cancel();
     setState(() {
       _chapterIndex = index;
       _selectedText = '';
@@ -384,11 +387,10 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
       selectionColor: colorScheme.primary.withValues(alpha: 0.3),
       child: SelectableRegion(
         selectionControls: emptyTextSelectionControls,
-        onSelectionChanged: (selection) {
-          final text = selection?.plainText ?? '';
-          if (text == _selectedText) return;
-          setState(() => _selectedText = text);
-        },
+        // The callback parameter type comes from SelectableRegion itself;
+        // SelectedContent is not re-exported on this Flutter version.
+        onSelectionChanged: (selection) =>
+            _onSelectionChanged(selection?.plainText ?? ''),
         child: Stack(
           children: [
             SingleChildScrollView(
@@ -465,6 +467,29 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
     );
   }
 
+  /// Tracks the selection; once it stays non-empty for 3 seconds the
+  /// translate dialog opens and starts translating automatically.
+  void _onSelectionChanged(String text) {
+    if (text == _selectedText) return;
+    setState(() => _selectedText = text);
+    _selectionTimer?.cancel();
+    if (text.trim().isEmpty) return;
+    _selectionTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted || _selectedText.trim().isEmpty) return;
+      _openTranslate();
+    });
+  }
+
+  /// Opens the translate dialog immediately (floating button or timer).
+  void _openTranslate() {
+    _selectionTimer?.cancel();
+    EbookTranslateDialog.show(
+      context,
+      text: _selectedText.trim(),
+      autoTranslate: true,
+    );
+  }
+
   /// Floating pill shown above the content while text is selected.
   Widget _buildTranslateButton(BuildContext context) {
     final theme = Theme.of(context);
@@ -481,8 +506,7 @@ class _EpubReaderPageState extends State<EpubReaderPage> {
       ),
       child: Button.primary(
         leading: const Icon(LucideIcons.languages, size: 16),
-        onPressed: () =>
-            EbookTranslateDialog.show(context, text: _selectedText.trim()),
+        onPressed: _openTranslate,
         child: const Text('翻译'),
       ),
     );
