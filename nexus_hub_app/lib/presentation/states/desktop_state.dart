@@ -27,7 +27,10 @@ class DesktopState {
   /// When persisted state exists, it is authoritative for order/folders, but
   /// any app shortcuts present in [defaults] that are missing from the
   /// persisted list are appended — so newly-added desktop apps (e.g. Terminal)
-  /// appear for existing users without discarding their layout.
+  /// appear for existing users without discarding their layout. Persisted app
+  /// shortcuts whose route is no longer part of [defaults] (removed or
+  /// renamed apps) are pruned: they can never resolve to an icon and would
+  /// render as zero-height slots that misalign the desktop icon grid.
   Future<void> init({List<DesktopItem>? defaults}) async {
     if (_initialized) {
       return;
@@ -38,8 +41,20 @@ class DesktopState {
     if (loaded != null) {
       final persisted = List<DesktopItem>.from(loaded);
       if (defaults != null) {
-        final knownRoutes =
-            persisted.where((i) => i.appRoute != null).map((i) => i.appRoute!).toSet();
+        final availableRoutes = defaults
+            .where((d) => d.appRoute != null)
+            .map((d) => d.appRoute!)
+            .toSet();
+        persisted.removeWhere(
+          (item) =>
+              item.type == DesktopItemType.app &&
+              (item.appRoute == null ||
+                  !availableRoutes.contains(item.appRoute)),
+        );
+        final knownRoutes = persisted
+            .where((i) => i.appRoute != null)
+            .map((i) => i.appRoute!)
+            .toSet();
         for (final d in defaults) {
           final appRoute = d.appRoute;
           if (appRoute != null && !knownRoutes.contains(appRoute)) {
@@ -142,9 +157,7 @@ class DesktopState {
     items.value = items.value.map((item) {
       if (item.id == folderId && item.type == DesktopItemType.folder) {
         if (!item.folderItemIds.contains(itemId)) {
-          return item.copyWith(
-            folderItemIds: [...item.folderItemIds, itemId],
-          );
+          return item.copyWith(folderItemIds: [...item.folderItemIds, itemId]);
         }
       }
       return item;
@@ -157,7 +170,9 @@ class DesktopState {
     items.value = items.value.map((item) {
       if (item.id == folderId && item.type == DesktopItemType.folder) {
         return item.copyWith(
-          folderItemIds: item.folderItemIds.where((id) => id != itemId).toList(),
+          folderItemIds: item.folderItemIds
+              .where((id) => id != itemId)
+              .toList(),
         );
       }
       return item;
