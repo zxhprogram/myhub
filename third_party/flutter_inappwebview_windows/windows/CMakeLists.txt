@@ -190,6 +190,10 @@ function(FLUTTER_INAPPWEBVIEW_WINDOWS_APPLY_STANDARD_SETTINGS TARGET)
   target_compile_options(${TARGET} PRIVATE /EHsc)
   target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
+  # MSVC 14.4x+ raises a hard error (STL1011) when <experimental/coroutine>
+  # is included, which the WebView2/WIL headers still do. Suppress until the
+  # dependency chain migrates to the C++20 <coroutine> header.
+  target_compile_definitions(${TARGET} PRIVATE "_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS")
 endfunction()
 flutter_inappwebview_windows_apply_standard_settings(${PLUGIN_NAME})
 
