@@ -27,6 +27,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          # 固定版本以保证 CI 可复现；本地 lockfile 要求 flutter >=3.44。
+          flutter-version: 3.47.2
           channel: stable
           cache: true
 
