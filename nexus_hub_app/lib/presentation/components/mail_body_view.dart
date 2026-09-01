@@ -7,7 +7,6 @@ import 'package:easy_mail/src/models/mime_part.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 
-import '../../theme/colors.dart';
 import '../../theme/typography.dart';
 import '../pages/google_news_article_page.dart';
 import 'nexus_page_route.dart';

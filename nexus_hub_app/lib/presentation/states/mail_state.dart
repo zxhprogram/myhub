@@ -65,7 +65,85 @@ class MailState {
     const MailFolder(id: 'SPAM', title: 'Spam', icon: LucideIcons.flag),
   ]);
 
-  final labels = signal<List<String>>(['Work', 'Personal']);
+  final labels = signal<List<String>>(['Work', 'Personal', 'Finance', 'Social']);
+
+  final isSidebarVisible = signal<bool>(true);
+  final activeFilter = signal<String>('all'); // 'all', 'unread', 'flagged', 'attachments'
+  final activeLabel = signal<String?>(null);
+  final flaggedUids = signal<Set<int>>({});
+  final sortMode = signal<String>('date_desc'); // 'date_desc', 'date_asc', 'sender', 'subject'
+
+  void toggleSidebar() {
+    isSidebarVisible.value = !isSidebarVisible.value;
+  }
+
+  void setFilter(String filter) {
+    activeFilter.value = filter;
+    activeLabel.value = null;
+  }
+
+  void setLabel(String? label) {
+    activeLabel.value = label;
+    if (label != null) {
+      activeFilter.value = 'all';
+    }
+  }
+
+  void setSortMode(String sort) {
+    sortMode.value = sort;
+  }
+
+  void toggleFlag(MailItem item) {
+    final next = Set<int>.from(flaggedUids.value);
+    if (next.contains(item.uid)) {
+      next.remove(item.uid);
+    } else {
+      next.add(item.uid);
+    }
+    flaggedUids.value = next;
+  }
+
+  void markAsUnread(MailItem item) {
+    if (!item.isRead) return;
+    final updated = item.copyWith(isRead: false);
+    emails.value = emails.value.map((e) => e.uid == item.uid ? updated : e).toList();
+    if (selectedEmail.value?.uid == item.uid) {
+      selectedEmail.value = updated;
+    }
+    unreadCounts.value = {
+      ...unreadCounts.value,
+      item.folder: (unreadCounts.value[item.folder] ?? 0) + 1,
+    };
+  }
+
+  List<MailItem> get visibleEmails {
+    var list = List<MailItem>.from(emails.value);
+    final filter = activeFilter.value;
+    final label = activeLabel.value;
+    final flags = flaggedUids.value;
+
+    if (filter == 'unread') {
+      list = list.where((e) => !e.isRead).toList();
+    } else if (filter == 'flagged') {
+      list = list.where((e) => flags.contains(e.uid)).toList();
+    }
+
+    if (label != null) {
+      list = list.where((e) => e.labels.any((l) => l.toLowerCase() == label.toLowerCase())).toList();
+    }
+
+    final sort = sortMode.value;
+    if (sort == 'date_asc') {
+      list.sort((a, b) => (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)));
+    } else if (sort == 'sender') {
+      list.sort((a, b) => a.senderName.compareTo(b.senderName));
+    } else if (sort == 'subject') {
+      list.sort((a, b) => a.subject.compareTo(b.subject));
+    } else {
+      list.sort((a, b) => (b.date ?? DateTime(0)).compareTo(a.date ?? DateTime(0)));
+    }
+    return list;
+  }
 
   final selectedFolder = signal<String>('INBOX');
   final emails = signal<List<MailItem>>([]);

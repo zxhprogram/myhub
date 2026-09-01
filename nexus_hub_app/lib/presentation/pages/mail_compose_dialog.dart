@@ -2,7 +2,6 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import '../../data/models/mail_account_model.dart';
-import '../../theme/colors.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -224,7 +223,7 @@ class _MailComposeDialogState extends State<MailComposeDialog> {
               child: Text(
                 sendError,
                 style: NexusTypography.bodyMd.copyWith(
-                  color: colorScheme.destructiveForeground,
+                  color: const Color(0xFFFFFFFF),
                 ),
               ),
             ),

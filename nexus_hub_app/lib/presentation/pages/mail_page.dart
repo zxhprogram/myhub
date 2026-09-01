@@ -8,7 +8,6 @@ import 'package:easy_mail/src/models/mail_message.dart';
 import '../../data/models/mail_account_model.dart';
 import '../../data/models/mail_item_model.dart';
 import '../../data/repositories/mail_repository.dart';
-import '../../theme/density.dart';
 import '../../theme/radii.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -18,6 +17,7 @@ import '../components/nexus_button.dart';
 import '../components/nexus_card.dart';
 import '../components/nexus_chip.dart';
 import '../components/nexus_input.dart';
+import '../components/nexus_toast.dart';
 import '../states/mail_state.dart';
 import 'mail_compose_dialog.dart';
 
@@ -60,7 +60,7 @@ class _MailPageState extends State<MailPage> {
         }
         return LayoutBuilder(
           builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 1100;
+            final isWide = constraints.maxWidth >= 960;
             return Column(
               children: [
                 _MailToolbar(state: _state, isWide: isWide),
@@ -76,25 +76,33 @@ class _MailPageState extends State<MailPage> {
   }
 
   Widget _buildWideLayout() {
-    return Row(
-      children: [
-        SizedBox(width: 240, child: _FolderSidebar(state: _state)),
-        const VerticalDivider(width: 1),
-        SizedBox(width: 400, child: _MessageList(state: _state)),
-        const VerticalDivider(width: 1),
-        Expanded(child: _ReadingPane(state: _state)),
-      ],
-    );
+    return Watch((context) {
+      final showSidebar = _state.isSidebarVisible.value;
+      return Row(
+        children: [
+          if (showSidebar) ...[
+            SizedBox(width: 220, child: _FolderSidebar(state: _state)),
+            const VerticalDivider(width: 1),
+          ],
+          SizedBox(width: 360, child: _MessageList(state: _state)),
+          const VerticalDivider(width: 1),
+          Expanded(child: _ReadingPane(state: _state)),
+        ],
+      );
+    });
   }
 
   Widget _buildNarrowLayout() {
     return Watch((context) {
       final selected = _state.selectedEmail.value;
+      final showSidebar = _state.isSidebarVisible.value;
       if (selected == null) {
         return Row(
           children: [
-            SizedBox(width: 200, child: _FolderSidebar(state: _state)),
-            const VerticalDivider(width: 1),
+            if (showSidebar) ...[
+              SizedBox(width: 200, child: _FolderSidebar(state: _state)),
+              const VerticalDivider(width: 1),
+            ],
             Expanded(child: _MessageList(state: _state)),
           ],
         );
@@ -104,6 +112,7 @@ class _MailPageState extends State<MailPage> {
   }
 }
 
+/// macOS Mail Top Unified Navigation & Action Toolbar
 class _MailToolbar extends StatelessWidget {
   const _MailToolbar({required this.state, required this.isWide});
 
@@ -114,102 +123,401 @@ class _MailToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      height: NexusDensityController.toolbarHeight,
-      padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.lg),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: colorScheme.card,
         border: Border(bottom: BorderSide(color: colorScheme.border)),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: isWide ? 360 : 200,
-            child: NexusInput(
-              hintText: 'Search messages...',
-              prefixIcon: const Icon(RadixIcons.magnifyingGlass, size: 20),
-              onChanged: (value) => state.search(value),
+      child: Watch((context) {
+        final selected = state.selectedEmail.value;
+        final hasSelection = selected != null;
+        final isSidebarOpen = state.isSidebarVisible.value;
+        final isFlagged =
+            selected != null && state.flaggedUids.value.contains(selected.uid);
+
+        return Row(
+          children: [
+            // Sidebar toggle button
+            _MacToolbarButton(
+              icon: LucideIcons.panelLeft,
+              tooltip: isSidebarOpen ? 'Hide Mailboxes' : 'Show Mailboxes',
+              isActive: isSidebarOpen,
+              onTap: state.toggleSidebar,
             ),
-          ),
-          if (isWide) ...[
-            const SizedBox(width: NexusSpacing.lg),
-            Text(
-              'Inbox',
-              style: NexusTypography.labelMd.copyWith(
-                color: colorScheme.secondary,
-                fontWeight: FontWeight.w700,
+            const SizedBox(width: 4),
+
+            // macOS Compose Button (Blue accent capsule)
+            _MacComposeButton(onPressed: () => _showComposeDialog(context)),
+            const SizedBox(width: 4),
+
+            // Get Mail / Refresh button
+            _MacToolbarButton(
+              icon: LucideIcons.refreshCw,
+              tooltip: 'Get Mail',
+              isLoading: state.isLoading.value,
+              onTap: () => state.refresh(),
+            ),
+
+            const SizedBox(width: 6),
+            Container(width: 1, height: 20, color: colorScheme.border),
+            const SizedBox(width: 6),
+
+            // Action buttons enabled when an email is selected
+            _MacToolbarButton(
+              icon: LucideIcons.trash2,
+              tooltip: 'Move to Trash',
+              enabled: hasSelection,
+              onTap: () {
+                if (selected != null) {
+                  nexusToast(context, 'Message moved to Trash');
+                  state.selectEmail(null);
+                }
+              },
+            ),
+            _MacToolbarButton(
+              icon: LucideIcons.archive,
+              tooltip: 'Archive',
+              enabled: hasSelection,
+              onTap: () {
+                if (selected != null) {
+                  nexusToast(context, 'Message archived');
+                  state.selectEmail(null);
+                }
+              },
+            ),
+            _MacToolbarButton(
+              icon: LucideIcons.reply,
+              tooltip: 'Reply',
+              enabled: hasSelection,
+              onTap: () => _showReplyDialog(context),
+            ),
+            _MacToolbarButton(
+              icon: LucideIcons.replyAll,
+              tooltip: 'Reply All',
+              enabled: hasSelection,
+              onTap: () => _showReplyDialog(context),
+            ),
+            _MacToolbarButton(
+              icon: LucideIcons.forward,
+              tooltip: 'Forward',
+              enabled: hasSelection,
+              onTap: () => _showForwardDialog(context),
+            ),
+            _MacToolbarButton(
+              icon: selected?.isRead == true
+                  ? LucideIcons.mail
+                  : LucideIcons.mailOpen,
+              tooltip: selected?.isRead == true
+                  ? 'Mark as Unread'
+                  : 'Mark as Read',
+              enabled: hasSelection,
+              onTap: () {
+                if (selected != null) {
+                  if (selected.isRead) {
+                    state.markAsUnread(selected);
+                  } else {
+                    state.markAsRead(selected);
+                  }
+                }
+              },
+            ),
+            _MacToolbarButton(
+              icon: LucideIcons.flag,
+              tooltip: isFlagged ? 'Remove Flag' : 'Flag Message',
+              enabled: hasSelection,
+              iconColor: isFlagged ? const Color(0xFFFF9F0A) : null,
+              onTap: () {
+                if (selected != null) {
+                  state.toggleFlag(selected);
+                }
+              },
+            ),
+
+            const Spacer(),
+
+            // Center/Right: Mailbox title breadcrumb
+            if (isWide) ...[
+              Text(
+                state.selectedFolder.value,
+                style: NexusTypography.labelMd.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.foreground,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(width: 1, height: 16, color: colorScheme.border),
+              const SizedBox(width: 8),
+            ],
+
+            // macOS Capsule Search Input
+            SizedBox(
+              width: isWide ? 220 : 160,
+              height: 30,
+              child: _MacSearchField(
+                initialValue: state.searchQuery.value,
+                onChanged: (val) => state.search(val),
               ),
             ),
+            const SizedBox(width: 6),
+
+            // Settings gear button
+            _MacToolbarButton(
+              icon: RadixIcons.gear,
+              tooltip: 'Mail Settings',
+              onTap: () => state.startAccountEdit(),
+            ),
           ],
-          const Spacer(),
-          _ToolbarIconButton(
-            icon: LucideIcons.refreshCw,
-            isLoading: state.isLoading.value,
-            onTap: () => state.refresh(),
-          ),
-          _ToolbarIconButton(icon: LucideIcons.bell, onTap: () {}),
-          _ToolbarIconButton(
-            icon: RadixIcons.gear,
-            onTap: () => state.startAccountEdit(),
-          ),
-          const SizedBox(width: NexusSpacing.sm),
-          Container(width: 1, height: 24, color: colorScheme.border),
-          const SizedBox(width: NexusSpacing.sm),
-          NexusButton(
-            label: 'Compose',
-            icon: RadixIcons.plus,
-            onPressed: () => _showComposeDialog(context),
-          ),
-        ],
-      ),
+        );
+      }),
     );
   }
 
   void _showComposeDialog(BuildContext context) {
     showOverlay(
       context,
-      DialogConfiguration(
-        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
-        builder: (context) => MailComposeDialog(state: state),
+      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
+      builder: (context) => MailComposeDialog(state: state),
+    );
+  }
+
+  void _showReplyDialog(BuildContext context) {
+    final item = state.selectedEmail.value;
+    final message = state.selectedEmailMessage.value;
+    if (item == null) return;
+    final subject = item.subject.startsWith('Re:')
+        ? item.subject
+        : 'Re: ${item.subject}';
+    final quoteBody = _buildQuoteBody(item, message);
+    showOverlay(
+      context,
+      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
+      builder: (context) => MailComposeDialog(
+        state: state,
+        initialTo: [item.senderAddress],
+        initialSubject: subject,
+        initialBodyDeltaJson: quoteBody,
+      ),
+    );
+  }
+
+  void _showForwardDialog(BuildContext context) {
+    final item = state.selectedEmail.value;
+    final message = state.selectedEmailMessage.value;
+    if (item == null) return;
+    final subject = item.subject.startsWith('Fwd:')
+        ? item.subject
+        : 'Fwd: ${item.subject}';
+    final quoteBody = _buildQuoteBody(item, message);
+    showOverlay(
+      context,
+      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
+      builder: (context) => MailComposeDialog(
+        state: state,
+        initialSubject: subject,
+        initialBodyDeltaJson: quoteBody,
+      ),
+    );
+  }
+
+  String _buildQuoteBody(MailItem item, MailMessage? message) {
+    final sender = item.senderName.isEmpty
+        ? item.senderAddress
+        : item.senderName;
+    final dateStr = item.date != null
+        ? DateFormat('EEE, MMM d, y h:mm a').format(item.date!.toLocal())
+        : '';
+    final originalText = message?.plainTextBody.isNotEmpty == true
+        ? message!.plainTextBody
+        : _stripHtml(message?.htmlBody ?? '');
+    final quoted = originalText.split('\n').map((line) => '> $line').join('\n');
+    return '\n\nOn $dateStr, $sender wrote:\n$quoted';
+  }
+
+  String _stripHtml(String html) {
+    return html
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'</p\s*>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'<[^>]+>'), '')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .trim();
+  }
+}
+
+/// macOS Compose Action Pill Button
+class _MacComposeButton extends StatelessWidget {
+  const _MacComposeButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF007AFF),
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF007AFF).withValues(alpha: 0.25),
+              blurRadius: 3,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              LucideIcons.squarePen,
+              size: 14,
+              color: Color(0xFFFFFFFF),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              'Compose',
+              style: NexusTypography.labelSm.copyWith(
+                color: const Color(0xFFFFFFFF),
+                fontWeight: FontWeight.w600,
+                fontSize: 12.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _ToolbarIconButton extends StatelessWidget {
-  const _ToolbarIconButton({
+/// macOS Style Toolbar Icon Button
+class _MacToolbarButton extends StatefulWidget {
+  const _MacToolbarButton({
     required this.icon,
     required this.onTap,
+    this.tooltip,
+    this.isActive = false,
     this.isLoading = false,
+    this.enabled = true,
+    this.iconColor,
   });
 
   final IconData icon;
   final VoidCallback onTap;
+  final String? tooltip;
+  final bool isActive;
   final bool isLoading;
+  final bool enabled;
+  final Color? iconColor;
+
+  @override
+  State<_MacToolbarButton> createState() => _MacToolbarButtonState();
+}
+
+class _MacToolbarButtonState extends State<_MacToolbarButton> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-  onTap: onTap,
-  child: Container(
-          width: 40,
-          height: 40,
+    final effectiveColor = !widget.enabled
+        ? colorScheme.mutedForeground.withValues(alpha: 0.35)
+        : widget.iconColor ??
+              (widget.isActive
+                  ? const Color(0xFF007AFF)
+                  : _hovered
+                  ? colorScheme.foreground
+                  : colorScheme.mutedForeground);
+
+    final bg = widget.isActive
+        ? colorScheme.muted.withValues(alpha: 0.6)
+        : _hovered && widget.enabled
+        ? colorScheme.muted.withValues(alpha: 0.45)
+        : Colors.transparent;
+
+    Widget child = MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: widget.enabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      child: GestureDetector(
+        onTap: widget.enabled ? widget.onTap : null,
+        child: Container(
+          width: 32,
+          height: 30,
           alignment: Alignment.center,
-          child: isLoading
-              ? SizedBox(
-                  width: 18,
-                  height: 18,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: widget.isLoading
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: colorScheme.secondary,
+                    color: Color(0xFF007AFF),
                   ),
                 )
-              : Icon(icon, size: 20, color: colorScheme.mutedForeground),
+              : Icon(widget.icon, size: 16, color: effectiveColor),
         ),
-);
+      ),
+    );
+
+    if (widget.tooltip != null) {
+      child = Tooltip(
+        tooltip: (context) => Text(widget.tooltip!),
+        child: child,
+      );
+    }
+    return child;
   }
 }
 
+/// macOS Search Capsule Input
+class _MacSearchField extends StatefulWidget {
+  const _MacSearchField({required this.initialValue, required this.onChanged});
+
+  final String initialValue;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_MacSearchField> createState() => _MacSearchFieldState();
+}
+
+class _MacSearchFieldState extends State<_MacSearchField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return NexusInput(
+      controller: _controller,
+      hintText: 'Search Mail...',
+      prefixIcon: const Icon(RadixIcons.magnifyingGlass, size: 14),
+      onChanged: widget.onChanged,
+    );
+  }
+}
+
+/// macOS Mailboxes Sidebar (Source List)
 class _FolderSidebar extends StatelessWidget {
   const _FolderSidebar({required this.state});
 
@@ -219,85 +527,231 @@ class _FolderSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: colorScheme.card,
+      color: colorScheme.muted.withValues(alpha: 0.18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(NexusSpacing.md),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildFolderGroup(),
-                  const SizedBox(height: NexusSpacing.lg),
-                  _buildLabelsGroup(),
+                  _buildSectionHeader(context, 'MAILBOXES'),
+                  _buildMailboxes(context),
+                  const SizedBox(height: 12),
+                  _buildSectionHeader(context, 'SMART FILTERS'),
+                  _buildSmartFilters(context),
+                  const SizedBox(height: 12),
+                  _buildSectionHeader(context, 'TAGS & LABELS'),
+                  _buildLabels(context),
                 ],
               ),
             ),
           ),
+          const Divider(height: 1),
+          _buildAccountStatusCard(context),
         ],
       ),
     );
   }
 
-  Widget _buildFolderGroup() {
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, top: 4, bottom: 4),
+      child: Text(
+        title,
+        style: NexusTypography.labelSm.copyWith(
+          fontSize: 10.5,
+          letterSpacing: 0.5,
+          fontWeight: FontWeight.w700,
+          color: colorScheme.mutedForeground.withValues(alpha: 0.7),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMailboxes(BuildContext context) {
     return Watch((context) {
       final selected = state.selectedFolder.value;
       final counts = state.unreadCounts.value;
+      final activeFilter = state.activeFilter.value;
+      final activeLabel = state.activeLabel.value;
+
       return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: state.folders.value.map((folder) {
           final count = counts[folder.id] ?? 0;
-          final isSelected = folder.id == selected;
-          return _SidebarItem(
+          final isSelected =
+              folder.id == selected &&
+              activeFilter == 'all' &&
+              activeLabel == null;
+          final color = _getFolderColor(folder.id);
+
+          return _SidebarItemRow(
             icon: folder.icon,
             label: folder.title,
             count: count,
+            iconColor: color,
             isSelected: isSelected,
-            onTap: () => state.loadFolder(folder.id),
+            onTap: () {
+              state.setFilter('all');
+              state.loadFolder(folder.id);
+            },
           );
         }).toList(),
       );
     });
   }
 
-  Widget _buildLabelsGroup() {
+  Widget _buildSmartFilters(BuildContext context) {
     return Watch((context) {
-      final colorScheme = Theme.of(context).colorScheme;
+      final filter = state.activeFilter.value;
+      final activeLabel = state.activeLabel.value;
+      final unreadCount = state.emails.value.where((e) => !e.isRead).length;
+      final flaggedCount = state.flaggedUids.value.length;
+
       return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(
-              left: NexusSpacing.sm,
-              bottom: NexusSpacing.sm,
-            ),
-            child: Text(
-              'LABELS',
-              style: NexusTypography.labelSm.copyWith(
-                color: colorScheme.border,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+          _SidebarItemRow(
+            icon: LucideIcons.circleDot,
+            label: 'Unread Only',
+            count: unreadCount,
+            iconColor: const Color(0xFF007AFF),
+            isSelected: filter == 'unread' && activeLabel == null,
+            onTap: () => state.setFilter(filter == 'unread' ? 'all' : 'unread'),
           ),
-          ...state.labels.value.map((label) {
-            return _SidebarItem(
-              icon: LucideIcons.tag,
-              label: label,
-              iconColor: _labelColor(colorScheme, label),
-              isSelected: false,
-              onTap: () {},
-            );
-          }),
+          _SidebarItemRow(
+            icon: LucideIcons.flag,
+            label: 'Flagged',
+            count: flaggedCount,
+            iconColor: const Color(0xFFFF9F0A),
+            isSelected: filter == 'flagged' && activeLabel == null,
+            onTap: () =>
+                state.setFilter(filter == 'flagged' ? 'all' : 'flagged'),
+          ),
         ],
       );
     });
   }
+
+  Widget _buildLabels(BuildContext context) {
+    return Watch((context) {
+      final activeLabel = state.activeLabel.value;
+      return Column(
+        children: state.labels.value.map((label) {
+          final color = _getLabelColor(label);
+          final isSelected = activeLabel == label;
+          return _SidebarItemRow(
+            icon: LucideIcons.tag,
+            label: label,
+            iconColor: color,
+            isSelected: isSelected,
+            onTap: () => state.setLabel(isSelected ? null : label),
+          );
+        }).toList(),
+      );
+    });
+  }
+
+  Widget _buildAccountStatusCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Watch((context) {
+      final account = state.account.value;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        color: colorScheme.card,
+        child: Row(
+          children: [
+            Stack(
+              children: [
+                NexusAvatar(
+                  label: account.emailAddress.isNotEmpty
+                      ? account.emailAddress
+                      : 'User',
+                  size: 26,
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF34C759),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colorScheme.card, width: 1.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    account.emailAddress.isNotEmpty
+                        ? account.emailAddress
+                        : 'Connected',
+                    style: NexusTypography.labelSm.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11.5,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Online • IMAP SSL',
+                    style: NexusTypography.bodyMd.copyWith(
+                      fontSize: 10,
+                      color: colorScheme.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () => state.startAccountEdit(),
+              child: Icon(
+                RadixIcons.gear,
+                size: 14,
+                color: colorScheme.mutedForeground,
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Color _getFolderColor(String folderId) {
+    return switch (folderId.toUpperCase()) {
+      'INBOX' => const Color(0xFF007AFF),
+      'SENT' => const Color(0xFF34C759),
+      'DRAFTS' => const Color(0xFFFF9500),
+      'TRASH' => const Color(0xFF8E8E93),
+      'SPAM' => const Color(0xFFFF3B30),
+      _ => const Color(0xFFAF52DE),
+    };
+  }
+
+  Color _getLabelColor(String label) {
+    return switch (label.toLowerCase()) {
+      'work' => const Color(0xFF007AFF),
+      'personal' => const Color(0xFF9333EA),
+      'finance' => const Color(0xFF10B981),
+      'social' => const Color(0xFFF59E0B),
+      _ => const Color(0xFF64748B),
+    };
+  }
 }
 
-class _SidebarItem extends StatelessWidget {
-  const _SidebarItem({
+/// macOS Sidebar Row Item
+class _SidebarItemRow extends StatefulWidget {
+  const _SidebarItemRow({
     required this.icon,
     required this.label,
     required this.isSelected,
@@ -314,70 +768,92 @@ class _SidebarItem extends StatelessWidget {
   final Color? iconColor;
 
   @override
+  State<_SidebarItemRow> createState() => _SidebarItemRowState();
+}
+
+class _SidebarItemRowState extends State<_SidebarItemRow> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
+    final isSelected = widget.isSelected;
+
+    final bg = isSelected
+        ? const Color(0xFF007AFF)
+        : _hovered
+        ? colorScheme.muted.withValues(alpha: 0.4)
+        : Colors.transparent;
+
+    final textColor = isSelected
+        ? const Color(0xFFFFFFFF)
+        : colorScheme.foreground;
+
+    final iconColor = isSelected
+        ? const Color(0xFFFFFFFF)
+        : (widget.iconColor ?? colorScheme.mutedForeground);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
       child: GestureDetector(
-  onTap: onTap,
-  child: Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.sm),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 20,
-                  color:
-                      iconColor ??
-                      (isSelected
-                          ? colorScheme.secondaryForeground
-                          : colorScheme.mutedForeground),
-                ),
-                const SizedBox(width: NexusSpacing.md),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: NexusTypography.bodyMd.copyWith(
-                      color: isSelected
-                          ? colorScheme.secondaryForeground
-                          : colorScheme.mutedForeground,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                    ),
-                  ),
-                ),
-                if (count > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: NexusSpacing.sm,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? colorScheme.secondary
-                          : colorScheme.secondary,
-                      borderRadius: NexusRadii.fullRadius,
-                    ),
-                    child: Text(
-                      count.toString(),
-                      style: NexusTypography.labelSm.copyWith(
-                        color: isSelected
-                            ? colorScheme.secondaryForeground
-                            : colorScheme.secondaryForeground,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+        onTap: widget.onTap,
+        child: Container(
+          height: 28,
+          margin: const EdgeInsets.symmetric(vertical: 1),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(6),
           ),
-),
+          child: Row(
+            children: [
+              Icon(widget.icon, size: 14, color: iconColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.label,
+                  style: NexusTypography.bodyMd.copyWith(
+                    color: textColor,
+                    fontSize: 12.5,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (widget.count > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFFFFFFFF).withValues(alpha: 0.25)
+                        : colorScheme.muted,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    widget.count.toString(),
+                    style: NexusTypography.labelSm.copyWith(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? const Color(0xFFFFFFFF)
+                          : colorScheme.mutedForeground,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
+/// macOS Message List (Middle Column) - High Information Density
 class _MessageList extends StatelessWidget {
   const _MessageList({required this.state});
 
@@ -389,9 +865,9 @@ class _MessageList extends StatelessWidget {
     return Container(
       color: colorScheme.card,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildHeader(),
+          _buildHeader(context),
           Expanded(
             child: Watch((context) {
               final colorScheme = Theme.of(context).colorScheme;
@@ -404,21 +880,41 @@ class _MessageList extends StatelessWidget {
                   onRetry: state.retry,
                 );
               }
-              if (state.emails.value.isEmpty) {
-                return _EmptyState(message: 'No messages in this folder.');
+              final list = state.visibleEmails;
+              if (list.isEmpty) {
+                return _EmptyState(
+                  message: state.activeFilter.value == 'unread'
+                      ? 'No unread messages.'
+                      : state.activeFilter.value == 'flagged'
+                      ? 'No flagged messages.'
+                      : 'No messages in this folder.',
+                );
               }
               return RefreshTrigger(
                 onRefresh: () async {
                   await state.refresh();
                 },
                 child: ListView.builder(
-                  itemCount: state.emails.value.length,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 4,
+                  ),
+                  itemCount: list.length,
                   itemBuilder: (context, index) {
-                    final item = state.emails.value[index];
-                    return _MessageListItem(
+                    final item = list[index];
+                    return _MacMessageCard(
                       item: item,
                       isSelected: state.selectedEmail.value?.uid == item.uid,
+                      isFlagged: state.flaggedUids.value.contains(item.uid),
                       onTap: () => state.selectEmail(item),
+                      onToggleFlag: () => state.toggleFlag(item),
+                      onToggleRead: () {
+                        if (item.isRead) {
+                          state.markAsUnread(item);
+                        } else {
+                          state.markAsRead(item);
+                        }
+                      },
                     );
                   },
                 ),
@@ -430,25 +926,76 @@ class _MessageList extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Watch((context) {
-      final colorScheme = Theme.of(context).colorScheme;
+      final list = state.visibleEmails;
+      final activeFilter = state.activeFilter.value;
+      final unreadCount = state.emails.value.where((e) => !e.isRead).length;
+
       return Container(
-        height: NexusDensityController.listHeaderHeight,
-        padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
+          color: colorScheme.card,
           border: Border(bottom: BorderSide(color: colorScheme.border)),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // Folder title & count
             Text(
               state.selectedFolder.value,
-              style: NexusTypography.headlineSm.copyWith(
-                fontWeight: FontWeight.w600,
+              style: NexusTypography.labelMd.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 12.5,
               ),
             ),
-            _ToolbarIconButton(icon: LucideIcons.listFilter, onTap: () {}),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: colorScheme.muted,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '${list.length}${unreadCount > 0 ? " ($unreadCount unread)" : ""}',
+                style: NexusTypography.labelSm.copyWith(
+                  fontSize: 10.5,
+                  color: colorScheme.mutedForeground,
+                ),
+              ),
+            ),
+
+            const Spacer(),
+
+            // Segmented filter control: All / Unread / Flagged
+            Container(
+              height: 24,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: colorScheme.muted.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                children: [
+                  _FilterSegmentPill(
+                    label: 'All',
+                    isSelected: activeFilter == 'all',
+                    onTap: () => state.setFilter('all'),
+                  ),
+                  _FilterSegmentPill(
+                    label: 'Unread',
+                    isSelected: activeFilter == 'unread',
+                    onTap: () => state.setFilter('unread'),
+                  ),
+                  _FilterSegmentPill(
+                    label: 'Flagged',
+                    isSelected: activeFilter == 'flagged',
+                    onTap: () => state.setFilter('flagged'),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       );
@@ -460,17 +1007,15 @@ class _MessageList extends StatelessWidget {
       baseColor: colorScheme.muted,
       highlightColor: colorScheme.accent,
       child: ListView.builder(
-        itemCount: 6,
+        padding: const EdgeInsets.all(4),
+        itemCount: 8,
         itemBuilder: (context, index) {
           return Container(
-            height: 88,
-            margin: const EdgeInsets.symmetric(
-              horizontal: NexusSpacing.md,
-              vertical: NexusSpacing.xs,
-            ),
+            height: 58,
+            margin: const EdgeInsets.symmetric(vertical: 1),
             decoration: BoxDecoration(
               color: colorScheme.card,
-              borderRadius: NexusRadii.mdRadius,
+              borderRadius: BorderRadius.circular(5),
             ),
           );
         },
@@ -479,115 +1024,279 @@ class _MessageList extends StatelessWidget {
   }
 }
 
-class _MessageListItem extends StatelessWidget {
-  const _MessageListItem({
-    required this.item,
+class _FilterSegmentPill extends StatelessWidget {
+  const _FilterSegmentPill({
+    required this.label,
     required this.isSelected,
     required this.onTap,
   });
 
-  final MailItem item;
+  final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final foreground = isSelected
-        ? colorScheme.secondaryForeground
-        : item.isRead
-        ? colorScheme.mutedForeground
-        : colorScheme.foreground;
-    final subjectWeight = item.isRead ? FontWeight.w500 : FontWeight.w700;
-
     return GestureDetector(
-  onTap: onTap,
-  child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: NexusSpacing.md,
-            vertical: NexusSpacing.sm,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? colorScheme.card : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: NexusTypography.labelSm.copyWith(
+            fontSize: 10.5,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected
+                ? colorScheme.foreground
+                : colorScheme.mutedForeground,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// macOS Mail List Row — Compact High-Density Style (Matches native Mail.app)
+class _MacMessageCard extends StatefulWidget {
+  const _MacMessageCard({
+    required this.item,
+    required this.isSelected,
+    required this.isFlagged,
+    required this.onTap,
+    required this.onToggleFlag,
+    required this.onToggleRead,
+  });
+
+  final MailItem item;
+  final bool isSelected;
+  final bool isFlagged;
+  final VoidCallback onTap;
+  final VoidCallback onToggleFlag;
+  final VoidCallback onToggleRead;
+
+  @override
+  State<_MacMessageCard> createState() => _MacMessageCardState();
+}
+
+class _MacMessageCardState extends State<_MacMessageCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isSelected = widget.isSelected;
+    final item = widget.item;
+    final isUnread = !item.isRead;
+
+    final bg = isSelected
+        ? const Color(0xFF007AFF)
+        : _hovered
+        ? colorScheme.muted.withValues(alpha: 0.35)
+        : Colors.transparent;
+
+    final primaryText = isSelected
+        ? const Color(0xFFFFFFFF)
+        : colorScheme.foreground;
+
+    final secondaryText = isSelected
+        ? const Color(0xFFFFFFFF).withValues(alpha: 0.8)
+        : colorScheme.mutedForeground;
+
+    final senderColor = isSelected
+        ? const Color(0xFFFFFFFF)
+        : isUnread
+        ? colorScheme.foreground
+        : colorScheme.foreground.withValues(alpha: 0.72);
+
+    // Indent used to align subject/snippet with sender text after unread dot
+    const dotColumnWidth = 12.0;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onSecondaryTap: () => widget.onToggleRead(),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(8, 4, 10, 4),
           decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(5),
             border: Border(
-              bottom: BorderSide(color: colorScheme.border),
+              bottom: BorderSide(
+                color: isSelected
+                    ? Colors.transparent
+                    : colorScheme.border.withValues(alpha: 0.35),
+                width: 0.5,
+              ),
             ),
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!item.isRead)
-                Container(
-                  width: 4,
-                  height: 32,
-                  margin: const EdgeInsets.only(right: NexusSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: colorScheme.secondary,
-                    borderRadius: NexusRadii.fullRadius,
-                  ),
-                )
-              else
-                const SizedBox(width: 4 + NexusSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.senderName.isEmpty
-                                ? item.senderAddress
-                                : item.senderName,
-                            style: NexusTypography.labelMd.copyWith(
-                              color: foreground,
-                              fontWeight: FontWeight.w600,
+              // Line 1: Unread Dot + Sender + Flag + Date
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: dotColumnWidth,
+                    child: isUnread
+                        ? Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFFFFFFFF)
+                                    : const Color(0xFF007AFF),
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: NexusSpacing.sm),
-                        Text(
-                          _formatDate(item.date),
-                          style: NexusTypography.labelSm.copyWith(
-                            color: isSelected
-                                ? colorScheme.secondaryForeground
-                                : colorScheme.border,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.subject,
-                      style: NexusTypography.bodyMd.copyWith(
-                        color: foreground,
-                        fontWeight: subjectWeight,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  Expanded(
+                    child: Text(
+                      item.senderName.isEmpty
+                          ? item.senderAddress
+                          : item.senderName,
+                      style: NexusTypography.labelMd.copyWith(
+                        color: senderColor,
+                        fontWeight: isUnread
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        fontSize: 12.5,
+                        height: 1.3,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.snippet,
-                      style: NexusTypography.bodyMd.copyWith(
+                  ),
+                  const SizedBox(width: 6),
+                  if (widget.isFlagged)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Icon(
+                        LucideIcons.flag,
+                        size: 11,
                         color: isSelected
-                            ? colorScheme.secondaryForeground
-                            : colorScheme.mutedForeground,
+                            ? const Color(0xFFFFD60A)
+                            : const Color(0xFFFF9F0A),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
+                  Text(
+                    _formatDate(item.date),
+                    style: NexusTypography.labelSm.copyWith(
+                      color: secondaryText,
+                      fontSize: 10.5,
+                      fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Line 2: Subject + Label chips (inline, high density)
+              Padding(
+                padding: const EdgeInsets.only(left: dotColumnWidth),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        item.subject.isEmpty ? '(No Subject)' : item.subject,
+                        style: NexusTypography.bodyMd.copyWith(
+                          color: primaryText.withValues(
+                            alpha: isUnread || isSelected ? 1 : 0.8,
+                          ),
+                          fontWeight: isUnread
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          fontSize: 12,
+                          height: 1.3,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (item.labels.isNotEmpty) ...[
+                      const SizedBox(width: 5),
+                      ...item.labels.take(2).map((label) {
+                        return Container(
+                          margin: const EdgeInsets.only(left: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 0.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(
+                                    0xFFFFFFFF,
+                                  ).withValues(alpha: 0.25)
+                                : _labelColor(
+                                    colorScheme,
+                                    label,
+                                  ).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 9,
+                              height: 1.3,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected
+                                  ? const Color(0xFFFFFFFF)
+                                  : _labelColor(colorScheme, label),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
                   ],
+                ),
+              ),
+
+              // Line 3: One-line snippet preview
+              Padding(
+                padding: const EdgeInsets.only(left: dotColumnWidth),
+                child: Text(
+                  item.snippet.isNotEmpty
+                      ? item.snippet
+                      : 'No preview available',
+                  style: NexusTypography.bodyMd.copyWith(
+                    color: secondaryText,
+                    fontSize: 11,
+                    height: 1.3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
         ),
-);
+      ),
+    );
   }
 }
 
+/// macOS Reading Pane (Right Column)
 class _ReadingPane extends StatelessWidget {
   const _ReadingPane({required this.state, this.showBackButton = false});
 
@@ -598,67 +1307,80 @@ class _ReadingPane extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: colorScheme.card,
-      child: Column(
-        children: [
-          _buildToolbar(context),
-          Expanded(
-            child: Watch((context) {
-              final item = state.selectedEmail.value;
-              if (item == null) {
-                return _EmptyState(message: 'Select a message to read');
-              }
-              final error = state.messageError.value;
-              if (error != null) {
-                return _ErrorState(
-                  message: error,
-                  onRetry: () => state.selectEmail(item),
-                );
-              }
-              final message = state.selectedEmailMessage.value;
-              if (message == null) {
-                // Message body still loading (or reloading after a switch).
-                return const Center(
-                  child: SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                  ),
-                );
-              }
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(NexusSpacing.lg),
+      color: colorScheme.background,
+      child: Watch((context) {
+        final item = state.selectedEmail.value;
+        if (item == null) {
+          return _MacReadingEmptyState();
+        }
+        final error = state.messageError.value;
+        if (error != null) {
+          return _ErrorState(
+            message: error,
+            onRetry: () => state.selectEmail(item),
+          );
+        }
+        final message = state.selectedEmailMessage.value;
+        if (message == null) {
+          return const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+          );
+        }
+
+        final isFlagged = state.flaggedUids.value.contains(item.uid);
+
+        return Column(
+          children: [
+            // Reading Toolbar
+            _buildReadingToolbar(context, item, isFlagged),
+
+            // Reading Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  NexusSpacing.md,
+                  NexusSpacing.sm,
+                  NexusSpacing.md,
+                  NexusSpacing.md,
+                ),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
+                  constraints: const BoxConstraints(maxWidth: 820),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildSubjectHeader(item, colorScheme),
-                      const SizedBox(height: NexusSpacing.lg),
-                      _buildSenderCard(item, colorScheme),
-                      const SizedBox(height: NexusSpacing.lg),
-                      _buildBody(message),
-                      if (message != null &&
-                          message.attachments.isNotEmpty) ...[
-                        const SizedBox(height: NexusSpacing.lg),
-                        _buildAttachments(message, colorScheme),
+                      const SizedBox(height: 8),
+                      _buildSenderCard(context, item, colorScheme),
+                      const SizedBox(height: 12),
+                      if (message.attachments.isNotEmpty) ...[
+                        _buildAttachmentsGallery(message, colorScheme),
+                        const SizedBox(height: 12),
                       ],
+                      _buildBody(message),
                     ],
                   ),
                 ),
-              );
-            }),
-          ),
-        ],
-      ),
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
 
-  Widget _buildToolbar(BuildContext context) {
+  Widget _buildReadingToolbar(
+    BuildContext context,
+    MailItem item,
+    bool isFlagged,
+  ) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: colorScheme.card,
         border: Border(bottom: BorderSide(color: colorScheme.border)),
@@ -666,24 +1388,58 @@ class _ReadingPane extends StatelessWidget {
       child: Row(
         children: [
           if (showBackButton)
-            _ToolbarIconButton(
+            _MacToolbarButton(
               icon: RadixIcons.arrowLeft,
+              tooltip: 'Back to List',
               onTap: () => state.selectEmail(null),
             ),
-          _ToolbarIconButton(
+          _MacToolbarButton(
             icon: LucideIcons.reply,
+            tooltip: 'Reply',
             onTap: () => _showReplyDialog(context),
           ),
-          _ToolbarIconButton(
+          _MacToolbarButton(
+            icon: LucideIcons.replyAll,
+            tooltip: 'Reply All',
+            onTap: () => _showReplyDialog(context),
+          ),
+          _MacToolbarButton(
             icon: LucideIcons.forward,
+            tooltip: 'Forward',
             onTap: () => _showForwardDialog(context),
           ),
-          Container(width: 1, height: 24, color: colorScheme.border),
-          _ToolbarIconButton(icon: LucideIcons.archive, onTap: () {}),
-          _ToolbarIconButton(icon: LucideIcons.trash2, onTap: () {}),
+          Container(width: 1, height: 18, color: colorScheme.border),
+          _MacToolbarButton(
+            icon: LucideIcons.trash2,
+            tooltip: 'Move to Trash',
+            onTap: () {
+              nexusToast(context, 'Message moved to Trash');
+              state.selectEmail(null);
+            },
+          ),
+          _MacToolbarButton(
+            icon: LucideIcons.archive,
+            tooltip: 'Archive',
+            onTap: () {
+              nexusToast(context, 'Message archived');
+              state.selectEmail(null);
+            },
+          ),
+          _MacToolbarButton(
+            icon: LucideIcons.flag,
+            tooltip: isFlagged ? 'Remove Flag' : 'Flag Message',
+            iconColor: isFlagged ? const Color(0xFFFF9F0A) : null,
+            onTap: () => state.toggleFlag(item),
+          ),
           const Spacer(),
-          _ToolbarIconButton(icon: LucideIcons.star, onTap: () {}),
-          _ToolbarIconButton(icon: LucideIcons.ellipsisVertical, onTap: () {}),
+          _MacToolbarButton(
+            icon: LucideIcons.mail,
+            tooltip: 'Mark as Unread',
+            onTap: () {
+              state.markAsUnread(item);
+              nexusToast(context, 'Marked as unread');
+            },
+          ),
         ],
       ),
     );
@@ -699,14 +1455,12 @@ class _ReadingPane extends StatelessWidget {
     final quoteBody = _buildQuoteBody(item, message);
     showOverlay(
       context,
-      DialogConfiguration(
-        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
-        builder: (context) => MailComposeDialog(
-          state: state,
-          initialTo: [item.senderAddress],
-          initialSubject: subject,
-          initialBodyDeltaJson: quoteBody,
-        ),
+      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
+      builder: (context) => MailComposeDialog(
+        state: state,
+        initialTo: [item.senderAddress],
+        initialSubject: subject,
+        initialBodyDeltaJson: quoteBody,
       ),
     );
   }
@@ -721,13 +1475,11 @@ class _ReadingPane extends StatelessWidget {
     final quoteBody = _buildQuoteBody(item, message);
     showOverlay(
       context,
-      DialogConfiguration(
-        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
-        builder: (context) => MailComposeDialog(
-          state: state,
-          initialSubject: subject,
-          initialBodyDeltaJson: quoteBody,
-        ),
+      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
+      builder: (context) => MailComposeDialog(
+        state: state,
+        initialSubject: subject,
+        initialBodyDeltaJson: quoteBody,
       ),
     );
   }
@@ -742,10 +1494,7 @@ class _ReadingPane extends StatelessWidget {
     final originalText = message?.plainTextBody.isNotEmpty == true
         ? message!.plainTextBody
         : _stripHtml(message?.htmlBody ?? '');
-    final quoted = originalText
-        .split('\n')
-        .map((line) => '> $line')
-        .join('\n');
+    final quoted = originalText.split('\n').map((line) => '> $line').join('\n');
     return '\n\nOn $dateStr, $sender wrote:\n$quoted';
   }
 
@@ -763,73 +1512,141 @@ class _ReadingPane extends StatelessWidget {
 
   Widget _buildSubjectHeader(MailItem item, ColorScheme colorScheme) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Text(
-            item.subject,
-            style: NexusTypography.headlineXl.copyWith(
-              fontWeight: FontWeight.w600,
+            item.subject.isEmpty ? '(No Subject)' : item.subject,
+            style: NexusTypography.headlineLg.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+              fontSize: 19,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         const SizedBox(width: NexusSpacing.md),
         ...item.labels.map((label) {
           return Padding(
             padding: const EdgeInsets.only(left: NexusSpacing.xs),
-            child: NexusChip(label: label, color: _labelColor(colorScheme, label)),
+            child: NexusChip(
+              label: label,
+              color: _labelColor(colorScheme, label),
+            ),
           );
         }),
       ],
     );
   }
 
-  Widget _buildSenderCard(MailItem item, ColorScheme colorScheme) {
+  Widget _buildSenderCard(
+    BuildContext context,
+    MailItem item,
+    ColorScheme colorScheme,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(NexusSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: colorScheme.muted,
-        borderRadius: NexusRadii.lgRadius,
-        border: Border.all(color: colorScheme.border),
+        borderRadius: BorderRadius.circular(8),
+        border: Border(
+          top: BorderSide(
+            color: colorScheme.border.withValues(alpha: 0.5),
+            width: 0.5,
+          ),
+          bottom: BorderSide(
+            color: colorScheme.border.withValues(alpha: 0.5),
+            width: 0.5,
+          ),
+        ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           NexusAvatar(
             label: item.senderName.isEmpty
                 ? item.senderAddress
                 : item.senderName,
-            size: 48,
+            size: 32,
           ),
-          const SizedBox(width: NexusSpacing.md),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
+                // Row 1: Sender name + address + Signed badge
                 Row(
                   children: [
-                    Text(
-                      item.senderName.isEmpty
-                          ? item.senderAddress
-                          : item.senderName,
-                      style: NexusTypography.bodyLg.copyWith(
-                        fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Text(
+                        item.senderName.isEmpty
+                            ? item.senderAddress
+                            : item.senderName,
+                        style: NexusTypography.bodyMd.copyWith(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: NexusSpacing.sm),
-                    Text(
-                      item.senderName.isEmpty ? '' : '<${item.senderAddress}>',
-                      style: NexusTypography.bodyMd.copyWith(
-                        color: colorScheme.mutedForeground,
+                    if (item.senderName.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '<${item.senderAddress}>',
+                          style: NexusTypography.bodyMd.copyWith(
+                            color: colorScheme.mutedForeground,
+                            fontSize: 11.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF34C759).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            LucideIcons.shieldCheck,
+                            size: 10,
+                            color: Color(0xFF34C759),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Signed',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF34C759),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
+                // Row 2: To + full date on one compact line
                 Text(
-                  'To: nexus.user@hub.io • ${_formatDate(item.date, full: true)}',
+                  'To: ${state.account.value.emailAddress}  •  ${_formatDate(item.date, full: true)}',
                   style: NexusTypography.bodyMd.copyWith(
                     color: colorScheme.mutedForeground,
+                    fontSize: 11,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -839,60 +1656,77 @@ class _ReadingPane extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(MailMessage? message) {
-    if (message == null) {
-      return const SizedBox.shrink();
-    }
-    return MailBodyView(message: message);
-  }
-
-  Widget _buildAttachments(MailMessage message, ColorScheme colorScheme) {
+  Widget _buildAttachmentsGallery(
+    MailMessage message,
+    ColorScheme colorScheme,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Attachments (${message.attachments.length})',
-          style: NexusTypography.labelSm.copyWith(
-            color: colorScheme.border,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          children: [
+            Icon(
+              LucideIcons.paperclip,
+              size: 14,
+              color: colorScheme.mutedForeground,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Attachments (${message.attachments.length})',
+              style: NexusTypography.labelSm.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colorScheme.foreground,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: NexusSpacing.md),
+        const SizedBox(height: 8),
         Wrap(
-          spacing: NexusSpacing.md,
-          runSpacing: NexusSpacing.md,
+          spacing: 8,
+          runSpacing: 8,
           children: message.attachments.map((attachment) {
             return Container(
-              width: 240,
-              padding: const EdgeInsets.all(NexusSpacing.md),
+              width: 220,
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: colorScheme.card,
-                borderRadius: NexusRadii.mdRadius,
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: colorScheme.border),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    LucideIcons.fileText,
-                    color: colorScheme.secondary,
-                    size: 28,
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF007AFF).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      LucideIcons.fileText,
+                      color: Color(0xFF007AFF),
+                      size: 18,
+                    ),
                   ),
-                  const SizedBox(width: NexusSpacing.md),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           attachment.fileName,
-                          style: NexusTypography.labelMd.copyWith(
+                          style: NexusTypography.labelSm.copyWith(
                             fontWeight: FontWeight.w600,
+                            fontSize: 11.5,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           '${(attachment.size / 1024).ceil()} KB',
-                          style: NexusTypography.labelSm.copyWith(
+                          style: NexusTypography.bodyMd.copyWith(
+                            fontSize: 10.5,
                             color: colorScheme.mutedForeground,
                           ),
                         ),
@@ -901,7 +1735,7 @@ class _ReadingPane extends StatelessWidget {
                   ),
                   Icon(
                     LucideIcons.download,
-                    size: 20,
+                    size: 15,
                     color: colorScheme.mutedForeground,
                   ),
                 ],
@@ -910,6 +1744,55 @@ class _ReadingPane extends StatelessWidget {
           }).toList(),
         ),
       ],
+    );
+  }
+
+  Widget _buildBody(MailMessage message) {
+    return MailBodyView(message: message);
+  }
+}
+
+/// macOS Mail Minimalistic Empty Reading State
+class _MacReadingEmptyState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: colorScheme.muted.withValues(alpha: 0.4),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              LucideIcons.mail,
+              size: 30,
+              color: colorScheme.mutedForeground.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No Message Selected',
+            style: NexusTypography.headlineSm.copyWith(
+              fontWeight: FontWeight.w600,
+              color: colorScheme.mutedForeground,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Select an email from the list to view its contents',
+            style: NexusTypography.bodyMd.copyWith(
+              color: colorScheme.mutedForeground.withValues(alpha: 0.7),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -927,15 +1810,16 @@ class _EmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            LucideIcons.mail,
-            size: 48,
-            color: colorScheme.mutedForeground,
+            LucideIcons.inbox,
+            size: 36,
+            color: colorScheme.mutedForeground.withValues(alpha: 0.5),
           ),
-          const SizedBox(height: NexusSpacing.md),
+          const SizedBox(height: 8),
           Text(
             message,
             style: NexusTypography.bodyMd.copyWith(
               color: colorScheme.mutedForeground,
+              fontSize: 13,
             ),
           ),
         ],
@@ -959,11 +1843,17 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.circleAlert, size: 48, color: colorScheme.destructive),
+            Icon(
+              LucideIcons.circleAlert,
+              size: 40,
+              color: colorScheme.destructive,
+            ),
             const SizedBox(height: NexusSpacing.md),
             Text(
               message,
-              style: NexusTypography.bodyMd.copyWith(color: colorScheme.destructive),
+              style: NexusTypography.bodyMd.copyWith(
+                color: colorScheme.destructive,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: NexusSpacing.md),
@@ -1042,6 +1932,14 @@ const _serverPresets = <String, _ServerPreset>{
     smtpPort: 465,
     smtpSsl: true,
   ),
+  '126.com': _ServerPreset(
+    incomingHost: 'imap.126.com',
+    incomingPort: 993,
+    incomingSsl: true,
+    smtpHost: 'smtp.126.com',
+    smtpPort: 465,
+    smtpSsl: true,
+  ),
   'yeah.net': _ServerPreset(
     incomingHost: 'imap.yeah.net',
     incomingPort: 993,
@@ -1052,6 +1950,7 @@ const _serverPresets = <String, _ServerPreset>{
   ),
 };
 
+/// macOS System Preferences Style Mail Account Setup
 class _MailAccountSetup extends StatefulWidget {
   const _MailAccountSetup({required this.state, this.isEditing = false});
 
@@ -1110,211 +2009,280 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(NexusSpacing.lg),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
+          constraints: const BoxConstraints(maxWidth: 580),
           child: NexusCard(
-            padding: const EdgeInsets.all(NexusSpacing.lg),
+            padding: const EdgeInsets.all(NexusSpacing.xl),
             child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        widget.isEditing
-                            ? RadixIcons.gear
-                            : LucideIcons.mail,
-                        size: 32,
-                        color: colorScheme.secondary,
-                      ),
-                      const SizedBox(width: NexusSpacing.md),
-                      Text(
-                        widget.isEditing
-                            ? 'Mail Account Settings'
-                            : 'Mail Account Setup',
-                        style: NexusTypography.headlineLg.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: NexusSpacing.sm),
-                  Text(
-                    widget.isEditing
-                        ? 'Update your account details below.'
-                        : 'Enter your email account details to get started.',
-                    style: NexusTypography.bodyMd.copyWith(
-                      color: colorScheme.mutedForeground,
-                    ),
-                  ),
-                  const SizedBox(height: NexusSpacing.lg),
-                  _buildSectionTitle('Account'),
-                  const SizedBox(height: NexusSpacing.md),
-                  NexusInput(
-                    controller: _emailController,
-                    labelText: 'Email address',
-                    hintText: 'you@example.com',
-                    keyboardType: TextInputType.emailAddress,
-                    validator: _validateEmail,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    onChanged: _onEmailChanged,
-                  ),
-                  const SizedBox(height: NexusSpacing.md),
-                  NexusInput(
-                    controller: _usernameController,
-                    labelText: 'Username',
-                    hintText: 'Usually your email address',
-                    validator: _validateRequired,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                  ),
-                  const SizedBox(height: NexusSpacing.md),
-                  NexusInput(
-                    controller: _passwordController,
-                    labelText: 'Password',
-                    hintText: 'Your email password',
-                    obscureText: true,
-                    validator: _validateRequired,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                  ),
-                  const SizedBox(height: NexusSpacing.lg),
-                  _buildSectionTitle('Incoming server (IMAP/POP3)'),
-                  const SizedBox(height: NexusSpacing.md),
-                  NexusInput(
-                    controller: _incomingHostController,
-                    labelText: 'Server host',
-                    hintText: 'imap.example.com',
-                    validator: _validateRequired,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                  ),
-                  const SizedBox(height: NexusSpacing.md),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: NexusInput(
-                          controller: _incomingPortController,
-                          labelText: 'Port',
-                          hintText: '993',
-                          keyboardType: TextInputType.number,
-                          validator: _validatePort,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                        ),
-                      ),
-                      const SizedBox(width: NexusSpacing.md),
-                      Expanded(
-                        flex: 3,
-                        child: _buildSwitchTile(
-                          label: 'Use SSL/TLS',
-                          value: _useIncomingSsl,
-                          onChanged: (value) =>
-                              setState(() => _useIncomingSsl = value),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: NexusSpacing.lg),
-                  _buildSectionTitle('Outgoing server (SMTP)'),
-                  const SizedBox(height: NexusSpacing.md),
-                  NexusInput(
-                    controller: _smtpHostController,
-                    labelText: 'Server host',
-                    hintText: 'smtp.example.com',
-                    validator: _validateRequired,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                  ),
-                  const SizedBox(height: NexusSpacing.md),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: NexusInput(
-                          controller: _smtpPortController,
-                          labelText: 'Port',
-                          hintText: '587',
-                          keyboardType: TextInputType.number,
-                          validator: _validatePort,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                        ),
-                      ),
-                      const SizedBox(width: NexusSpacing.md),
-                      Expanded(
-                        flex: 3,
-                        child: _buildSwitchTile(
-                          label: 'Use SSL/TLS',
-                          value: _useSmtpSsl,
-                          onChanged: (value) =>
-                              setState(() => _useSmtpSsl = value),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: NexusSpacing.lg),
-                  Watch((context) {
-                    final colorScheme = Theme.of(context).colorScheme;
-                    final error = widget.state.configError.value;
-                    if (error == null) return const SizedBox.shrink();
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(NexusSpacing.md),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        color: colorScheme.destructive,
-                        borderRadius: NexusRadii.mdRadius,
+                        color: const Color(0xFF007AFF).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text(
-                        error,
-                        style: NexusTypography.bodyMd.copyWith(
-                          color: colorScheme.destructiveForeground,
-                        ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        widget.isEditing ? RadixIcons.gear : LucideIcons.mail,
+                        size: 24,
+                        color: const Color(0xFF007AFF),
                       ),
-                    );
-                  }),
-                  const SizedBox(height: NexusSpacing.lg),
-                  if (widget.isEditing)
-                    Row(
+                    ),
+                    const SizedBox(width: NexusSpacing.md),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: NexusButton(
-                            label: 'Save Changes',
-                            icon: RadixIcons.check,
-                            isLoading: _isSaving,
-                            onPressed: _submit,
+                        Text(
+                          widget.isEditing
+                              ? 'Mail Account Settings'
+                              : 'Mail Account Setup',
+                          style: NexusTypography.headlineLg.copyWith(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
                           ),
                         ),
-                        const SizedBox(width: NexusSpacing.md),
-                        Expanded(
-                          child: NexusButton(
-                            label: 'Cancel',
-                            variant: NexusButtonVariant.outlined,
-                            onPressed: widget.state.cancelAccountEdit,
+                        Text(
+                          widget.isEditing
+                              ? 'Update your email server credentials and settings.'
+                              : 'Connect your email inbox using IMAP / SMTP.',
+                          style: NexusTypography.bodyMd.copyWith(
+                            color: colorScheme.mutedForeground,
+                            fontSize: 12,
                           ),
                         ),
                       ],
-                    )
-                  else
-                    SizedBox(
-                      width: double.infinity,
-                      child: NexusButton(
-                        label: 'Connect Account',
-                        icon: RadixIcons.check,
-                        isLoading: _isSaving,
-                        onPressed: _submit,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: NexusSpacing.lg),
+
+                // Quick Presets
+                Text('QUICK PRESETS', style: _sectionHeaderStyle),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _presetButton('QQ Mail', 'qq.com'),
+                    _presetButton('NetEase 163', '163.com'),
+                    _presetButton('Gmail', 'gmail.com'),
+                    _presetButton('Outlook', 'outlook.com'),
+                    _presetButton('126 Mail', '126.com'),
+                    _presetButton('Yeah.net', 'yeah.net'),
+                  ],
+                ),
+                const SizedBox(height: NexusSpacing.lg),
+
+                Text('ACCOUNT DETAILS', style: _sectionHeaderStyle),
+                const SizedBox(height: NexusSpacing.sm),
+                NexusInput(
+                  controller: _emailController,
+                  labelText: 'Email address',
+                  hintText: 'you@example.com',
+                  keyboardType: TextInputType.emailAddress,
+                  validator: _validateEmail,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  onChanged: _onEmailChanged,
+                ),
+                const SizedBox(height: NexusSpacing.sm),
+                NexusInput(
+                  controller: _usernameController,
+                  labelText: 'Username',
+                  hintText: 'Usually your full email address',
+                  validator: _validateRequired,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                ),
+                const SizedBox(height: NexusSpacing.sm),
+                NexusInput(
+                  controller: _passwordController,
+                  labelText: 'Password / Authorization Code',
+                  hintText: 'App authorization password',
+                  obscureText: true,
+                  validator: _validateRequired,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                ),
+                const SizedBox(height: NexusSpacing.lg),
+
+                Text('INCOMING SERVER (IMAP)', style: _sectionHeaderStyle),
+                const SizedBox(height: NexusSpacing.sm),
+                NexusInput(
+                  controller: _incomingHostController,
+                  labelText: 'Server host',
+                  hintText: 'imap.example.com',
+                  validator: _validateRequired,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                ),
+                const SizedBox(height: NexusSpacing.sm),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: NexusInput(
+                        controller: _incomingPortController,
+                        labelText: 'Port',
+                        hintText: '993',
+                        keyboardType: TextInputType.number,
+                        validator: _validatePort,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
                       ),
                     ),
-                  if (widget.isEditing) ...[
-                    const SizedBox(height: NexusSpacing.md),
-                    SizedBox(
-                      width: double.infinity,
-                      child: NexusButton(
-                        label: 'Sign Out',
-                        variant: NexusButtonVariant.text,
-                        icon: LucideIcons.logOut,
-                        onPressed: _signOut,
+                    const SizedBox(width: NexusSpacing.md),
+                    Expanded(
+                      flex: 3,
+                      child: _buildSwitchTile(
+                        label: 'Use SSL/TLS',
+                        value: _useIncomingSsl,
+                        onChanged: (value) =>
+                            setState(() => _useIncomingSsl = value),
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: NexusSpacing.lg),
+
+                Text('OUTGOING SERVER (SMTP)', style: _sectionHeaderStyle),
+                const SizedBox(height: NexusSpacing.sm),
+                NexusInput(
+                  controller: _smtpHostController,
+                  labelText: 'Server host',
+                  hintText: 'smtp.example.com',
+                  validator: _validateRequired,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                ),
+                const SizedBox(height: NexusSpacing.sm),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: NexusInput(
+                        controller: _smtpPortController,
+                        labelText: 'Port',
+                        hintText: '465 / 587',
+                        keyboardType: TextInputType.number,
+                        validator: _validatePort,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                      ),
+                    ),
+                    const SizedBox(width: NexusSpacing.md),
+                    Expanded(
+                      flex: 3,
+                      child: _buildSwitchTile(
+                        label: 'Use SSL/TLS',
+                        value: _useSmtpSsl,
+                        onChanged: (value) =>
+                            setState(() => _useSmtpSsl = value),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: NexusSpacing.lg),
+
+                Watch((context) {
+                  final colorScheme = Theme.of(context).colorScheme;
+                  final error = widget.state.configError.value;
+                  if (error == null) return const SizedBox.shrink();
+                  return Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: NexusSpacing.md),
+                    padding: const EdgeInsets.all(NexusSpacing.md),
+                    decoration: BoxDecoration(
+                      color: colorScheme.destructive,
+                      borderRadius: NexusRadii.mdRadius,
+                    ),
+                    child: Text(
+                      error,
+                      style: NexusTypography.bodyMd.copyWith(
+                        color: const Color(0xFFFFFFFF),
+                      ),
+                    ),
+                  );
+                }),
+
+                if (widget.isEditing)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: NexusButton(
+                          label: 'Save Changes',
+                          icon: RadixIcons.check,
+                          isLoading: _isSaving,
+                          onPressed: _submit,
+                        ),
+                      ),
+                      const SizedBox(width: NexusSpacing.md),
+                      Expanded(
+                        child: NexusButton(
+                          label: 'Cancel',
+                          variant: NexusButtonVariant.outlined,
+                          onPressed: widget.state.cancelAccountEdit,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  SizedBox(
+                    width: double.infinity,
+                    child: NexusButton(
+                      label: 'Connect Account',
+                      icon: RadixIcons.check,
+                      isLoading: _isSaving,
+                      onPressed: _submit,
+                    ),
+                  ),
+                if (widget.isEditing) ...[
+                  const SizedBox(height: NexusSpacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    child: NexusButton(
+                      label: 'Sign Out',
+                      variant: NexusButtonVariant.text,
+                      icon: LucideIcons.logOut,
+                      onPressed: _signOut,
+                    ),
+                  ),
                 ],
-              ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  TextStyle get _sectionHeaderStyle => NexusTypography.labelSm.copyWith(
+    fontSize: 10.5,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.5,
+    color: colorScheme.mutedForeground,
+  );
+
+  Widget _presetButton(String label, String domain) {
+    return GestureDetector(
+      onTap: () {
+        final currentEmail = _emailController.text;
+        final at = currentEmail.indexOf('@');
+        final prefix = at != -1 ? currentEmail.substring(0, at) : 'user';
+        _emailController.text = '$prefix@$domain';
+        _applyServerPreset('$prefix@$domain');
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: colorScheme.muted.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: colorScheme.border.withValues(alpha: 0.7)),
+        ),
+        child: Text(
+          label,
+          style: NexusTypography.labelSm.copyWith(
+            fontSize: 11,
+            color: colorScheme.foreground,
           ),
         ),
       ),
@@ -1324,48 +2292,36 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
   Future<void> _signOut() async {
     final confirmed = await showOverlay<bool>(
       context,
-      DialogConfiguration<bool>(
-        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
-        builder: (context) {
-          final colorScheme = Theme.of(context).colorScheme;
-          return AlertDialog(
-            title: Text('Sign out?', style: NexusTypography.headlineSm),
-            content: Text(
-              'This will remove the saved account and return to the setup screen.',
-              style: NexusTypography.bodyMd,
-            ),
-            actions: [
-              Button.text(
-                onPressed: () => closeOverlay<bool>(context, false),
-                child: Text(
-                  'Cancel',
-                  style: NexusTypography.labelMd.copyWith(
-                    color: colorScheme.mutedForeground,
-                  ),
+      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+          title: Text('Sign out?', style: NexusTypography.headlineSm),
+          content: Text(
+            'This will remove the saved account and return to the setup screen.',
+            style: NexusTypography.bodyMd,
+          ),
+          actions: [
+            Button.text(
+              onPressed: () => closeOverlay<bool>(context, false),
+              child: Text(
+                'Cancel',
+                style: NexusTypography.labelMd.copyWith(
+                  color: colorScheme.mutedForeground,
                 ),
               ),
-              Button.destructive(
-                onPressed: () => closeOverlay<bool>(context, true),
-                child: const Text('Sign Out'),
-              ),
-            ],
-          );
-        },
-      ),
+            ),
+            Button.destructive(
+              onPressed: () => closeOverlay<bool>(context, true),
+              child: const Text('Sign Out'),
+            ),
+          ],
+        );
+      },
     ).future;
     if (confirmed == true) {
       await widget.state.signOut();
     }
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title.toUpperCase(),
-      style: NexusTypography.labelSm.copyWith(
-        color: colorScheme.border,
-        fontWeight: FontWeight.w600,
-      ),
-    );
   }
 
   Widget _buildSwitchTile({
@@ -1374,21 +2330,18 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
     required ValueChanged<bool> onChanged,
   }) {
     return Container(
-      height: 56,
+      height: 48,
       padding: const EdgeInsets.symmetric(horizontal: NexusSpacing.md),
       decoration: BoxDecoration(
-        color: colorScheme.muted,
-        borderRadius: NexusRadii.mdRadius,
+        color: colorScheme.muted.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: colorScheme.border),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: NexusTypography.bodyMd),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-          ),
+          Text(label, style: NexusTypography.bodyMd.copyWith(fontSize: 12.5)),
+          Switch(value: value, onChanged: onChanged),
         ],
       ),
     );
@@ -1409,20 +2362,13 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
     final preset = _serverPresets[domain];
     if (preset == null) return;
 
-    if (_incomingHostController.text.trim().isEmpty) {
-      _incomingHostController.text = preset.incomingHost;
-    }
-    if (_incomingPortController.text.trim().isEmpty) {
-      _incomingPortController.text = preset.incomingPort.toString();
-      _useIncomingSsl = preset.incomingSsl;
-    }
-    if (_smtpHostController.text.trim().isEmpty) {
-      _smtpHostController.text = preset.smtpHost;
-    }
-    if (_smtpPortController.text.trim().isEmpty) {
-      _smtpPortController.text = preset.smtpPort.toString();
-      _useSmtpSsl = preset.smtpSsl;
-    }
+    _incomingHostController.text = preset.incomingHost;
+    _incomingPortController.text = preset.incomingPort.toString();
+    _useIncomingSsl = preset.incomingSsl;
+    _smtpHostController.text = preset.smtpHost;
+    _smtpPortController.text = preset.smtpPort.toString();
+    _useSmtpSsl = preset.smtpSsl;
+
     if (mounted) setState(() {});
   }
 
@@ -1485,9 +2431,11 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
 
 Color _labelColor(ColorScheme colorScheme, String label) {
   return switch (label.toLowerCase()) {
-    'work' => colorScheme.secondary,
+    'work' => const Color(0xFF007AFF),
     'personal' => const Color(0xFF9333EA),
-    _ => colorScheme.border,
+    'finance' => const Color(0xFF10B981),
+    'social' => const Color(0xFFF59E0B),
+    _ => const Color(0xFF64748B),
   };
 }
 
@@ -1496,7 +2444,7 @@ String _formatDate(DateTime? date, {bool full = false}) {
   final now = DateTime.now();
   final local = date.toLocal();
   if (full) {
-    return DateFormat('MMM d, y (h:mm a)').format(local);
+    return DateFormat('EEE, MMM d, y • h:mm a').format(local);
   }
   if (local.year == now.year &&
       local.month == now.month &&
