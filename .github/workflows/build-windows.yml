@@ -42,7 +42,9 @@ jobs:
 
       - name: Pub get
         working-directory: nexus_hub_app
-        run: flutter pub get
+        # 强制使用仓库内 lockfile 的精确版本，lockfile 与 pubspec/代码
+        # 不一致时在此步骤直接失败，避免编译期出现晦涩的 API 错误。
+        run: flutter pub get --enforce-lockfile
 
       # cargokit 的 resolve_symlinks.ps1 逐级 Get-Item 解析插件符号链接，
       # 但 CI 上 pub cache 位于隐藏目录 AppData 下，缺少 -Force 会报

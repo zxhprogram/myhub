@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_alacritty/flutter_alacritty.dart' show RustLib;
 import 'package:media_kit/media_kit.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'data/services/clipboard_monitor_service.dart';
@@ -36,8 +37,22 @@ Future<void> main() async {
 
   // Boot the Alacritty Rust engine (used by the Terminal desktop app).
   // It is desktop-only (loads a native .so/.dll) — skip for web.
-  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+  if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
     await RustLib.init();
+  }
+
+  // Borderless window on desktop: hide the native title bar so the custom
+  // macOS-style menu bar becomes the window chrome (drag area + controls).
+  if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+    await windowManager.ensureInitialized();
+    const windowOptions = WindowOptions(
+      title: 'Nexus Hub',
+      titleBarStyle: TitleBarStyle.hidden,
+    );
+    await windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
   }
 
   runApp(const NexusHubApp());

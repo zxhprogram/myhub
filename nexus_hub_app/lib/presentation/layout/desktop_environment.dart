@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_reorderable_grid_view/entities/reorder_update_entity.dart';
 import 'package:flutter_reorderable_grid_view/widgets/reorderable_builder.dart';
 import 'package:intl/intl.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:signals_flutter/signals_flutter.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../../data/models/desktop_item.dart';
 import '../../data/models/weather_model.dart';
@@ -154,6 +157,11 @@ class _SquircleShine extends StatelessWidget {
 /// The window navigator is padded below it so maximized windows never have
 /// their title bar covered by the menu bar.
 const double _kMenuBarHeight = 32.0;
+
+/// Whether native window-manager APIs are available (desktop platforms only).
+/// On web the window is the browser viewport, so window chrome is not used.
+bool get _windowChromeSupported =>
+    !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
 /// macOS-style desktop environment with a window manager.
 ///
@@ -997,7 +1005,7 @@ class _MenuBar extends StatelessWidget {
     // wallpaper behind is blurred, with a white (light) / black (dark) tint
     // on top. No hard bottom border — a soft shadow separates it from the
     // desktop.
-    return ClipRect(
+    Widget bar = ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
@@ -1009,7 +1017,14 @@ class _MenuBar extends StatelessWidget {
               : const Color(0xFFF5F5F7).withValues(alpha: 0.55),
           child: Row(
             children: [
-              // Left: app name (like macOS Apple menu area)
+              // Left: window controls (like macOS traffic lights). Shown only
+              // when the native title bar is hidden and this menu bar acts as
+              // the window chrome.
+              if (_windowChromeSupported) ...[
+                const _WindowControlButtons(),
+                const SizedBox(width: 8),
+              ],
+              // App name (like macOS Apple menu area)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1052,6 +1067,101 @@ class _MenuBar extends StatelessWidget {
               const _ClockWidget(),
             ],
           ),
+        ),
+      ),
+    );
+
+    // With the native title bar hidden, the menu bar doubles as the window
+    // title bar: dragging anywhere on it moves the window, double-clicking
+    // toggles maximize/restore (both provided by DragToMoveArea). It is
+    // translucent, so buttons and menus inside keep working.
+    if (_windowChromeSupported) {
+      bar = DragToMoveArea(child: bar);
+    }
+    return bar;
+  }
+}
+
+/// macOS traffic-light window controls for the borderless window.
+class _WindowControlButtons extends StatelessWidget {
+  const _WindowControlButtons();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _TrafficLightButton(
+          color: const Color(0xFFFF5F57),
+          icon: LucideIcons.x,
+          onTap: () => windowManager.close(),
+        ),
+        const SizedBox(width: 8),
+        _TrafficLightButton(
+          color: const Color(0xFFFEBC2E),
+          icon: LucideIcons.minus,
+          onTap: () => windowManager.minimize(),
+        ),
+        const SizedBox(width: 8),
+        _TrafficLightButton(
+          color: const Color(0xFF28C840),
+          icon: LucideIcons.maximize2,
+          onTap: () async {
+            if (await windowManager.isMaximized()) {
+              await windowManager.restore();
+            } else {
+              await windowManager.maximize();
+            }
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// A single traffic-light button: colored circle that reveals its glyph on
+/// hover, matching the macOS window control behaviour.
+class _TrafficLightButton extends StatefulWidget {
+  const _TrafficLightButton({
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  State<_TrafficLightButton> createState() => _TrafficLightButtonState();
+}
+
+class _TrafficLightButtonState extends State<_TrafficLightButton> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          width: 12,
+          height: 12,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: widget.color,
+            shape: BoxShape.circle,
+          ),
+          child: _hovering
+              ? Icon(
+                  widget.icon,
+                  size: 8,
+                  color: const Color(0xFF000000).withValues(alpha: 0.55),
+                )
+              : null,
         ),
       ),
     );
