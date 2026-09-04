@@ -40,7 +40,14 @@ jobs:
         working-directory: nexus_hub_app/windows
         run: build_hooks.bat
 
+      # 仓库内 lockfile 是本地 PUB_HOSTED_URL（pub.flutter-io.cn）解析生成的，
+      # 主机地址也是锁定内容的一部分。CI 默认 host 是 pub.dev，缓存里存在
+      # 版本号相同但元数据不同的包（如 cached_network_image 4.0.0 新增
+      # material_ui 依赖），会让 --enforce-lockfile 判定锁文件不满足约束，
+      # 甚至把依赖解析成一组不同的版本。这里显式对齐 host。
       - name: Pub get
+        env:
+          PUB_HOSTED_URL: https://pub.flutter-io.cn
         working-directory: nexus_hub_app
         # 强制使用仓库内 lockfile 的精确版本，lockfile 与 pubspec/代码
         # 不一致时在此步骤直接失败，避免编译期出现晦涩的 API 错误。
