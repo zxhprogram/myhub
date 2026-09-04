@@ -32,6 +32,7 @@ class LocalDatabase {
     'finance_calendar',
     'weather',
     'ebooks',
+    'stock_watchlist',
   ];
 
   /// Use a temporary Hive directory for unit testing.

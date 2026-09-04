@@ -274,10 +274,12 @@ class _MailToolbar extends StatelessWidget {
   }
 
   void _showComposeDialog(BuildContext context) {
-    showOverlay(
+    showOverlay<void>(
       context,
-      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
-      builder: (context) => MailComposeDialog(state: state),
+      DialogConfiguration<void>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) => MailComposeDialog(state: state),
+      ),
     );
   }
 
@@ -289,14 +291,16 @@ class _MailToolbar extends StatelessWidget {
         ? item.subject
         : 'Re: ${item.subject}';
     final quoteBody = _buildQuoteBody(item, message);
-    showOverlay(
+    showOverlay<void>(
       context,
-      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
-      builder: (context) => MailComposeDialog(
-        state: state,
-        initialTo: [item.senderAddress],
-        initialSubject: subject,
-        initialBodyDeltaJson: quoteBody,
+      DialogConfiguration<void>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) => MailComposeDialog(
+          state: state,
+          initialTo: [item.senderAddress],
+          initialSubject: subject,
+          initialBodyDeltaJson: quoteBody,
+        ),
       ),
     );
   }
@@ -309,13 +313,15 @@ class _MailToolbar extends StatelessWidget {
         ? item.subject
         : 'Fwd: ${item.subject}';
     final quoteBody = _buildQuoteBody(item, message);
-    showOverlay(
+    showOverlay<void>(
       context,
-      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
-      builder: (context) => MailComposeDialog(
-        state: state,
-        initialSubject: subject,
-        initialBodyDeltaJson: quoteBody,
+      DialogConfiguration<void>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) => MailComposeDialog(
+          state: state,
+          initialSubject: subject,
+          initialBodyDeltaJson: quoteBody,
+        ),
       ),
     );
   }
@@ -1453,14 +1459,16 @@ class _ReadingPane extends StatelessWidget {
         ? item.subject
         : 'Re: ${item.subject}';
     final quoteBody = _buildQuoteBody(item, message);
-    showOverlay(
+    showOverlay<void>(
       context,
-      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
-      builder: (context) => MailComposeDialog(
-        state: state,
-        initialTo: [item.senderAddress],
-        initialSubject: subject,
-        initialBodyDeltaJson: quoteBody,
+      DialogConfiguration<void>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) => MailComposeDialog(
+          state: state,
+          initialTo: [item.senderAddress],
+          initialSubject: subject,
+          initialBodyDeltaJson: quoteBody,
+        ),
       ),
     );
   }
@@ -1473,13 +1481,15 @@ class _ReadingPane extends StatelessWidget {
         ? item.subject
         : 'Fwd: ${item.subject}';
     final quoteBody = _buildQuoteBody(item, message);
-    showOverlay(
+    showOverlay<void>(
       context,
-      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
-      builder: (context) => MailComposeDialog(
-        state: state,
-        initialSubject: subject,
-        initialBodyDeltaJson: quoteBody,
+      DialogConfiguration<void>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) => MailComposeDialog(
+          state: state,
+          initialSubject: subject,
+          initialBodyDeltaJson: quoteBody,
+        ),
       ),
     );
   }
@@ -2292,32 +2302,34 @@ class _MailAccountSetupState extends State<_MailAccountSetup> {
   Future<void> _signOut() async {
     final confirmed = await showOverlay<bool>(
       context,
-      const DialogConfiguration(barrierColor: Color.fromRGBO(0, 0, 0, 0.54)),
-      builder: (context) {
-        final colorScheme = Theme.of(context).colorScheme;
-        return AlertDialog(
-          title: Text('Sign out?', style: NexusTypography.headlineSm),
-          content: Text(
-            'This will remove the saved account and return to the setup screen.',
-            style: NexusTypography.bodyMd,
-          ),
-          actions: [
-            Button.text(
-              onPressed: () => closeOverlay<bool>(context, false),
-              child: Text(
-                'Cancel',
-                style: NexusTypography.labelMd.copyWith(
-                  color: colorScheme.mutedForeground,
+      DialogConfiguration<bool>(
+        barrierColor: const Color.fromRGBO(0, 0, 0, 0.54),
+        builder: (context) {
+          final colorScheme = Theme.of(context).colorScheme;
+          return AlertDialog(
+            title: Text('Sign out?', style: NexusTypography.headlineSm),
+            content: Text(
+              'This will remove the saved account and return to the setup screen.',
+              style: NexusTypography.bodyMd,
+            ),
+            actions: [
+              Button.text(
+                onPressed: () => closeOverlay<bool>(context, false),
+                child: Text(
+                  'Cancel',
+                  style: NexusTypography.labelMd.copyWith(
+                    color: colorScheme.mutedForeground,
+                  ),
                 ),
               ),
-            ),
-            Button.destructive(
-              onPressed: () => closeOverlay<bool>(context, true),
-              child: const Text('Sign Out'),
-            ),
-          ],
-        );
-      },
+              Button.destructive(
+                onPressed: () => closeOverlay<bool>(context, true),
+                child: const Text('Sign Out'),
+              ),
+            ],
+          );
+        },
+      ),
     ).future;
     if (confirmed == true) {
       await widget.state.signOut();
