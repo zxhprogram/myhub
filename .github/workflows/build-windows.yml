@@ -23,7 +23,7 @@ jobs:
       # 否则普通 pub get 可能重新解析到 shadcn_flutter 0.0.54 等不兼容版本。
       PUB_HOSTED_URL: https://pub.flutter-io.cn
       # 避免 Windows runner 默认 AppData 隐藏目录触发 cargokit 旧脚本 Get-Item 问题。
-      PUB_CACHE: ${{ runner.temp }}\pub-cache
+      PUB_CACHE: ${{ github.workspace }}\.pub-cache
 
     steps:
       - name: Checkout
