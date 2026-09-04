@@ -8,19 +8,27 @@ on:
       - 'v*'
   workflow_dispatch:
 
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-windows:
     runs-on: windows-latest
-    # softprops/action-gh-release 创建 Release 需要 contents 写权限。
     permissions:
       contents: write
+
+    env:
+      # pubspec.lock 中的 hosted URL 是锁文件内容的一部分；CI 必须与其一致，
+      # 否则普通 pub get 可能重新解析到 shadcn_flutter 0.0.54 等不兼容版本。
+      PUB_HOSTED_URL: https://pub.flutter-io.cn
+      # 避免 Windows runner 默认 AppData 隐藏目录触发 cargokit 旧脚本 Get-Item 问题。
+      PUB_CACHE: ${{ runner.temp }}\pub-cache
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # windows/CMakeLists.txt 会把 windows/ 下的 Go c-shared DLL 安装到
-      # runner exe 旁边，因此先编译 input_hook.dll / network_monitor.dll。
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -30,54 +38,56 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          # 固定版本以保证 CI 可复现；本地 lockfile 要求 flutter >=3.44。
+          # 固定版本以保证 CI 可复现；pubspec.lock 要求 Flutter >=3.44.0。
           flutter-version: 3.47.2
           channel: stable
           cache: true
+
+      - name: Verify toolchain
+        working-directory: nexus_hub_app
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Restore exact Dart packages
+        working-directory: nexus_hub_app
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze Dart API compatibility
+        working-directory: nexus_hub_app
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      # cargokit 的 resolve_symlinks.ps1 逐级 Get-Item 解析插件符号链接；
+      # 对隐藏目录缺少 -Force 时会报 "Could not find item ... AppData"。
+      # PUB_CACHE 已移出 AppData，这里仍保留补丁以兼容插件脚本后续路径变化。
+      - name: Patch cargokit resolve_symlinks.ps1
+        shell: pwsh
+        run: |
+          $scripts = Get-ChildItem "$env:PUB_CACHE\hosted" -Recurse -Filter resolve_symlinks.ps1 -ErrorAction SilentlyContinue
+          foreach ($script in $scripts) {
+            $content = Get-Content $script.FullName -Raw
+            $patched = $content -replace 'Get-Item \$realPath', 'Get-Item -Force $realPath'
+            if ($patched -ne $content) {
+              Set-Content -Path $script.FullName -Value $patched -NoNewline
+              Write-Host "Patched: $($script.FullName)"
+            }
+          }
 
       - name: Build Go DLLs
         shell: cmd
         working-directory: nexus_hub_app/windows
         run: build_hooks.bat
 
-      # 仓库内 lockfile 是本地 PUB_HOSTED_URL（pub.flutter-io.cn）解析生成的，
-      # 主机地址也是锁定内容的一部分。CI 默认 host 是 pub.dev，缓存里存在
-      # 版本号相同但元数据不同的包（如 cached_network_image 4.0.0 新增
-      # material_ui 依赖），会让 --enforce-lockfile 判定锁文件不满足约束，
-      # 甚至把依赖解析成一组不同的版本。这里显式对齐 host。
-      - name: Pub get
-        env:
-          PUB_HOSTED_URL: https://pub.flutter-io.cn
-        working-directory: nexus_hub_app
-        # 强制使用仓库内 lockfile 的精确版本，lockfile 与 pubspec/代码
-        # 不一致时在此步骤直接失败，避免编译期出现晦涩的 API 错误。
-        run: flutter pub get --enforce-lockfile
-
-      # cargokit 的 resolve_symlinks.ps1 逐级 Get-Item 解析插件符号链接，
-      # 但 CI 上 pub cache 位于隐藏目录 AppData 下，缺少 -Force 会报
-      # "Could not find item ... AppData"，导致 Rust 插件构建失败。打补丁修复。
-      - name: Patch cargokit resolve_symlinks.ps1
-        shell: pwsh
-        run: |
-          Get-ChildItem "$env:PUB_CACHE/hosted" -Recurse -Filter resolve_symlinks.ps1 |
-            ForEach-Object {
-              (Get-Content $_.FullName -Raw) -replace 'Get-Item \$realPath', 'Get-Item -Force $realPath' |
-                Set-Content $_.FullName
-              Write-Host "Patched: $($_.FullName)"
-            }
-
-      # 依赖了 flutter_alacritty（cargokit 构建 Rust 绑定），windows-latest
-      # 镜像自带 Rust 工具链，无需额外安装。
       - name: Build Windows
         working-directory: nexus_hub_app
         run: flutter build windows --release
 
-      - name: Package
+      - name: Package Windows app
         shell: pwsh
         working-directory: nexus_hub_app
         run: |
           $out = "nexus_hub_app-windows-x64.zip"
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath $out
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath $out -Force
           "NEXUS_HUB_ZIP=$out" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Upload artifact
@@ -86,20 +96,8 @@ jobs:
           name: nexus_hub_app-windows-x64
           path: nexus_hub_app/nexus_hub_app-windows-x64.zip
 
-      # v* 标签构建 → 正式 Release（沿用标签名）。
-      - name: Release (stable)
+      - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: nexus_hub_app/nexus_hub_app-windows-x64.zip
-
-      # 手动/常规构建 → 自动发布为 build-N 预发布版本。
-      - name: Release (prerelease)
-        if: "!startsWith(github.ref, 'refs/tags/v')"
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: build-${{ github.run_number }}
-          name: Windows Build #${{ github.run_number }}
-          prerelease: true
-          target_commitish: ${{ github.sha }}
           files: nexus_hub_app/nexus_hub_app-windows-x64.zip
