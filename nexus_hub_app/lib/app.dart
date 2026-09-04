@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart' as material;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -31,7 +31,7 @@ class NexusHubApp extends StatelessWidget {
         // ambient Material theme (flutter_quill, media_kit controls,
         // gpt_markdown, flutter_widget_from_html).
         materialTheme: NexusAppTheme.materialCompatTheme(
-          isDark ? Brightness.dark : Brightness.light,
+          isDark ? material.Brightness.dark : material.Brightness.light,
         ),
         localizationsDelegates: const [
           FlutterQuillLocalizations.delegate,

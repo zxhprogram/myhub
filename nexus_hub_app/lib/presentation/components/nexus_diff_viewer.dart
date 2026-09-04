@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:diff_match_patch/diff_match_patch.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/cupertino.dart' show cupertinoDesktopTextSelectionControls;
 import 'package:flutter/services.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
