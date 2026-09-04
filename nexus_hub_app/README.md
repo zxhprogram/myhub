@@ -4,8 +4,8 @@ A Flutter desktop/web application for Nexus Hub.
 
 ## Prerequisites
 
-- Flutter SDK 3.41.2 or later
-- Dart SDK 3.11.0 or later
+- Flutter SDK 3.44.0 or later
+- Dart SDK 3.12.0 or later
 
 ## Run locally
 
